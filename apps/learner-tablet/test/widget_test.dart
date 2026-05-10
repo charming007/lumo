@@ -2628,6 +2628,189 @@ void main() {
     },
   );
 
+  testWidgets(
+    'go to next learner handoff skips learners outside the tablet pod', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const currentLearner = LearnerProfile(
+      id: 'learner-current',
+      name: 'Amina',
+      age: 7,
+      cohort: 'Pod A',
+      cohortId: 'cohort-a',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const wrongPodLearner = LearnerProfile(
+      id: 'learner-wrong-pod',
+      name: 'Bashir',
+      age: 8,
+      cohort: 'Pod B',
+      cohortId: 'cohort-b',
+      podId: 'pod-b',
+      podLabel: 'Pod B',
+      streakDays: 1,
+      guardianName: 'Aisha',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000001',
+      sex: 'Boy',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'BAS-001',
+    );
+    const samePodLearner = LearnerProfile(
+      id: 'learner-same-pod',
+      name: 'Zainab',
+      age: 8,
+      cohort: 'Pod A',
+      cohortId: 'cohort-a',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Maryam',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000002',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'ZAI-001',
+    );
+    const module = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'Greeting path',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: '2 lessons',
+      status: 'published',
+    );
+    const completedLesson = LessonCardModel(
+      id: 'english-1',
+      moduleId: 'english',
+      title: 'Say hello',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Completed lesson.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.intro,
+          title: 'Hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Model hello.',
+          realWorldCheck: 'Learner greets.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+    const nextLesson = LessonCardModel(
+      id: 'english-2',
+      moduleId: 'english',
+      title: 'Ask how are you',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Next greeting step',
+      scenario: 'Same-pod learner should receive this handoff.',
+      steps: [
+        LessonStep(
+          id: 'step-2',
+          type: LessonStepType.intro,
+          title: 'How are you',
+          instruction: 'Ask how are you.',
+          expectedResponse: 'How are you?',
+          coachPrompt: 'Ask how are you.',
+          facilitatorTip: 'Guide the learner.',
+          realWorldCheck: 'Learner asks clearly.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..isBootstrapping = false
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    state.learners
+      ..clear()
+      ..addAll([currentLearner, wrongPodLearner, samePodLearner]);
+    state.modules
+      ..clear()
+      ..add(module);
+    state.assignedLessons
+      ..clear()
+      ..addAll([completedLesson, nextLesson]);
+    state.assignmentPacks
+      ..clear()
+      ..add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-next',
+          lessonId: nextLesson.id,
+          moduleId: nextLesson.moduleId,
+          curriculumModuleId: nextLesson.moduleId,
+          lessonTitle: nextLesson.title,
+          eligibleLearnerIds: [samePodLearner.id],
+        ),
+      );
+    state.selectLearner(currentLearner);
+    state.selectModule(module);
+    state.activeSession = LessonSessionState(
+      sessionId: 'session-complete',
+      lesson: completedLesson,
+      completionState: LessonCompletionState.complete,
+      startedAt: DateTime.now(),
+      automationStatus: 'Completed on this tablet.',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonCompletePage(state: state, lesson: completedLesson),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.ensureVisible(find.text('Go to next learner'));
+    await tester.tap(find.text('Go to next learner'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(state.currentLearner?.id, samePodLearner.id);
+    expect(find.byType(SubjectModulesPage), findsOneWidget);
+  });
+
   testWidgets('lesson complete page stays usable on narrow tablet widths', (
     tester,
   ) async {

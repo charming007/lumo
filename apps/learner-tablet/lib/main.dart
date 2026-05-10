@@ -12215,7 +12215,6 @@ class _LessonCompletePageState extends State<LessonCompletePage>
     );
     return subjectModule ?? lessonModule ?? fallbackModule;
   }
-
   @override
   void initState() {
     super.initState();
