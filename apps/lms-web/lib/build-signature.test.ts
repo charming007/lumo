@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const buildSignatureModulePath = new URL('./build-signature.ts', import.meta.url).pathname;
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 function clearBuildSignatureEnv() {
   for (const key of [
@@ -18,14 +19,18 @@ function clearBuildSignatureEnv() {
     'npm_package_version',
     'NODE_ENV',
   ]) {
-    delete process.env[key];
+    delete mutableEnv[key];
   }
+}
+
+function setEnv(key: string, value: string) {
+  mutableEnv[key] = value;
 }
 
 test('build signature never pretends request time is the build time when metadata is missing', async () => {
   clearBuildSignatureEnv();
-  process.env.NODE_ENV = 'production';
-  process.env.npm_package_version = '0.1.0';
+  setEnv('NODE_ENV', 'production');
+  setEnv('npm_package_version', '0.1.0');
 
   const { getBuildSignature } = await import(`${buildSignatureModulePath}?case=missing-metadata-${Date.now()}`);
   const signature = getBuildSignature();
@@ -39,10 +44,10 @@ test('build signature never pretends request time is the build time when metadat
 
 test('deployment id fallback stays untrusted without real commit provenance', async () => {
   clearBuildSignatureEnv();
-  process.env.VERCEL_GIT_COMMIT_DATE = '2026-05-09T12:34:56Z';
-  process.env.VERCEL_ENV = 'production';
-  process.env.VERCEL_URL = 'lumo-example.vercel.app';
-  process.env.npm_package_version = '0.1.0';
+  setEnv('VERCEL_GIT_COMMIT_DATE', '2026-05-09T12:34:56Z');
+  setEnv('VERCEL_ENV', 'production');
+  setEnv('VERCEL_URL', 'lumo-example.vercel.app');
+  setEnv('npm_package_version', '0.1.0');
 
   const { hasTrustedCommitProvenance } = await import(`${buildSignatureModulePath}?case=deployment-id-fallback-${Date.now()}`);
 
@@ -53,11 +58,11 @@ test('deployment id fallback stays untrusted without real commit provenance', as
 
 test('build signature uses explicit Vercel metadata when it exists', async () => {
   clearBuildSignatureEnv();
-  process.env.VERCEL_GIT_COMMIT_SHA = 'abcdef1234567890';
-  process.env.VERCEL_GIT_COMMIT_DATE = '2026-05-09T12:34:56Z';
-  process.env.VERCEL_ENV = 'production';
-  process.env.VERCEL_URL = 'lumo-example.vercel.app';
-  process.env.npm_package_version = '0.1.0';
+  setEnv('VERCEL_GIT_COMMIT_SHA', 'abcdef1234567890');
+  setEnv('VERCEL_GIT_COMMIT_DATE', '2026-05-09T12:34:56Z');
+  setEnv('VERCEL_ENV', 'production');
+  setEnv('VERCEL_URL', 'lumo-example.vercel.app');
+  setEnv('npm_package_version', '0.1.0');
 
   const { getBuildSignature } = await import(`${buildSignatureModulePath}?case=with-metadata-${Date.now()}`);
   const signature = getBuildSignature();
