@@ -160,11 +160,11 @@ test('wrong-backend blocker exposes route evidence and copy-paste verification c
   );
 });
 
-test('global error route stays dynamic and offers the dashboard recovery actions', () => {
-  assert.match(
+test('global error route keeps the dashboard recovery actions without forcing Next to prerender-bug itself', () => {
+  assert.doesNotMatch(
     globalErrorSource,
     /export const dynamic = 'force-dynamic';/,
-    'global error route should stay dynamic so production crashes render the latest recovery UI',
+    'global error route should not force dynamic rendering because Next 16 trips a prerender invariant on /_global-error during production builds',
   );
   assert.match(
     globalErrorSource,

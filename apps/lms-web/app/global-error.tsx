@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 const secondaryActionStyle = {
   borderRadius: 999,
   border: '1px solid #cbd5e1',
