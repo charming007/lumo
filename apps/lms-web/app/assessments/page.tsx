@@ -88,11 +88,22 @@ export default async function AssessmentsPage({
   const subjectFilter = (Array.isArray(query.subject) ? query.subject[0] : query.subject ?? '').trim();
   const statusFilter = (Array.isArray(query.status) ? query.status[0] : query.status ?? '').trim();
 
-  const [assessments, modules, subjects] = await Promise.all([
+  const [assessmentsResult, modulesResult, subjectsResult] = await Promise.allSettled([
     fetchAssessments(),
     fetchCurriculumModules(),
     fetchSubjects(),
   ]);
+
+  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
+  const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const failedSources = [
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    modulesResult.status === 'rejected' ? 'curriculum modules' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+  ].filter(Boolean) as string[];
+  const hasCoreRegistryGap = assessmentsResult.status === 'rejected';
+  const canManageAssessments = modules.length > 0 && subjects.length > 0;
 
   const filteredAssessments = assessments.filter((assessment) => {
     const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
@@ -132,9 +143,16 @@ export default async function AssessmentsPage({
       )}
     >
       <FeedbackBanner message={message} />
+      {failedSources.length ? (
+        <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: hasCoreRegistryGap ? '#fef2f2' : '#fff7ed', border: `1px solid ${hasCoreRegistryGap ? '#fecaca' : '#fed7aa'}`, color: hasCoreRegistryGap ? '#b91c1c' : '#9a3412', lineHeight: 1.6, fontWeight: 700 }}>
+          {hasCoreRegistryGap
+            ? `Assessment admin is degraded because the ${failedSources.join(', ')} feed${failedSources.length === 1 ? ' has' : 's have'} failed. The page stays visible so operators get an honest outage surface instead of a crash, but gate edits are not trustworthy until the assessments feed recovers.`
+            : `Assessment admin recovered with degraded feeds: ${failedSources.join(', ')}. Existing gates stay visible, but module or subject pickers may be incomplete until those feeds recover.`}
+        </div>
+      ) : null}
 
       <section style={{ ...responsiveGrid(240), marginBottom: 24 }}>
-        <Card title="Assessment controls" eyebrow="Filters + actions">
+        <Card title="Assessment controls" eyebrow={failedSources.length ? 'Degraded mode' : 'Filters + actions'}>
           <form action="/assessments" style={{ display: 'grid', gap: 12 }}>
             <input
               name="q"
@@ -194,7 +212,10 @@ export default async function AssessmentsPage({
         <Card title="Assessment registry" eyebrow="Standalone admin route">
           <SimpleTable
             columns={['Assessment', 'Subject', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}
-            rows={filteredAssessments.length ? filteredAssessments.map((assessment) => [
+            rows={hasCoreRegistryGap ? [[
+              <span key="assessments-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Assessment registry unavailable. Recover the assessments feed before using gate admin actions.</span>,
+              '', '', '', '', '', '',
+            ]] : filteredAssessments.length ? filteredAssessments.map((assessment) => [
               assessment.title,
               assessment.subjectName ?? '—',
               assessment.moduleTitle ?? '—',
@@ -213,8 +234,14 @@ export default async function AssessmentsPage({
           />
         </Card>
 
-        <Card title="Create assessment gate" eyebrow="Publish new progression checks">
-          <CreateAssessmentForm modules={modules} subjects={subjects} returnPath="/assessments" />
+        <Card title="Create assessment gate" eyebrow={canManageAssessments ? 'Publish new progression checks' : 'Unavailable right now'}>
+          {canManageAssessments ? (
+            <CreateAssessmentForm modules={modules} subjects={subjects} returnPath="/assessments" />
+          ) : (
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+              Assessment creation is paused until the module and subject feeds load again. Better a loud pause than publishing progression gates against missing curriculum context.
+            </div>
+          )}
         </Card>
       </section>
     </PageShell>
