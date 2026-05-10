@@ -25,31 +25,41 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard route map reflects the full LMS shell instead of the pilot control-plane copy', () => {
+test('dashboard route map tells the truth about the visible pilot shell and off-shell specialist surfaces', () => {
   assert.match(
     dashboardPageSource,
-    /<Card title="LMS route map" eyebrow="Admin shell">/,
-    'dashboard should label the route map as the LMS admin shell',
+    /<Card title="Pilot route map" eyebrow="Visible shell">/,
+    'dashboard should label the route map as the visible pilot shell',
   );
   assert.match(
     dashboardPageSource,
-    /Admin routes/,
-    'dashboard should present the visible navigation as admin routes',
+    /Visible pilot routes/,
+    'dashboard should present the visible navigation as pilot routes',
   );
   assert.match(
     dashboardPageSource,
-    /The LMS dashboard should expose the full admin shell operators actually use\./,
-    'dashboard route map should explain that the full LMS shell is the intended production experience',
+    /Off-shell specialist routes/,
+    'dashboard should call out the routes that still exist off-shell',
   );
   assert.match(
     dashboardPageSource,
-    /Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
-    'dashboard should explain why route-map and sidebar scope must stay aligned',
+    /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
+    'dashboard route map should explain that the visible shell is intentionally constrained for pilot trust',
+  );
+  assert.match(
+    dashboardPageSource,
+    /“Not in nav” is not the same thing as “blocked\.”/,
+    'dashboard should explain the difference between off-shell and blocked routes',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Explicitly blocked surfaces/,
+    'dashboard should explicitly list the surfaces that remain blocked',
   );
   assert.doesNotMatch(
     dashboardPageSource,
-    /Pilot route map|Sidebar control plane|Not in nav” is not the same thing as “blocked\./,
-    'dashboard should no longer ship the control-plane route map copy on the landing page',
+    /The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
+    'dashboard should stop implying the full LMS nav is the live deployment target',
   );
 });
 

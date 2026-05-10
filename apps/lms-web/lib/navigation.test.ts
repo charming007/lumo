@@ -7,24 +7,13 @@ import { navigationItems } from './navigation.ts';
 
 const topbarSource = readFileSync(fileURLToPath(new URL('../components/topbar.tsx', import.meta.url)), 'utf8');
 
-test('admin navigation exposes the full LMS shell routes that are live in production', () => {
+test('admin navigation keeps the visible pilot shell limited to the routes operators should actually trust at go-live', () => {
   const expectedRoutes = [
     ['dashboard', '/'],
     ['content', '/content'],
     ['assignments', '/assignments'],
     ['progress', '/progress'],
-    ['devices', '/devices'],
     ['settings', '/settings'],
-    ['canvas', '/canvas'],
-    ['english', '/english'],
-    ['students', '/students'],
-    ['mallams', '/mallams'],
-    ['pods', '/pods'],
-    ['attendance', '/attendance'],
-    ['assessments', '/assessments'],
-    ['rewards', '/rewards'],
-    ['reports', '/reports'],
-    ['guide', '/guide'],
   ] as const;
 
   assert.deepEqual(
@@ -41,8 +30,8 @@ test('admin navigation exposes the full LMS shell routes that are live in produc
   }
 });
 
-test('topbar copy reflects the normal full LMS shell instead of the admin control-plane wording', () => {
+test('topbar copy tells the truth about the pilot shell instead of implying the full LMS nav is live', () => {
   assert.match(topbarSource, /Lumo command center/);
-  assert.match(topbarSource, /Full LMS shell live/);
-  assert.doesNotMatch(topbarSource, /Lumo admin control plane/);
+  assert.match(topbarSource, /Pilot nav locked/);
+  assert.doesNotMatch(topbarSource, /Full LMS shell live/);
 });

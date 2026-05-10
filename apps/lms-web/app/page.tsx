@@ -7,6 +7,7 @@ import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumM
 import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
+import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
@@ -997,10 +998,10 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="LMS route map" eyebrow="Admin shell">
+        <Card title="Pilot route map" eyebrow="Visible shell">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Admin routes</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible pilot routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {navigationItems.map((item) => (
                   <Pill
@@ -1012,13 +1013,29 @@ export default async function HomePage() {
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The LMS dashboard should expose the full admin shell operators actually use. This route map now reflects the live LMS surface instead of pretending reduced pilot scope is still the product reality.
+                This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live.
+              </div>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Off-shell specialist routes</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PILOT_OFF_SHELL_ROUTE_LABELS.map((label) => (
+                  <Pill key={label} label={label} tone="#FFFFFF" text="#9A3412" />
+                ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
+                “Not in nav” is not the same thing as “blocked.” These specialist routes still exist, but they stay out of the pilot shell so the dashboard does not fake a broader deployment target than the team can honestly support.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why coherent scope matters</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked surfaces</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
+                  <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
+                ))}
+              </div>
               <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                Deployment review gets dangerous when shared shell copy says one thing and visible navigation does another. Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed.
+                If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
