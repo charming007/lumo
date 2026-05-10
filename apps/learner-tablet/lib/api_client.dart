@@ -8,6 +8,15 @@ import 'models.dart';
 
 const String kDefaultProductionApiBaseUrl =
     'https://lumo-api-production-303a.up.railway.app';
+const bool kIsProductReleaseBuild = bool.fromEnvironment('dart.vm.product');
+const String kConfiguredApiBaseUrl = String.fromEnvironment(
+  'LUMO_API_BASE_URL',
+  defaultValue: kDefaultProductionApiBaseUrl,
+);
+const int kReleaseApiBaseUrlBuildGuard =
+    !kIsProductReleaseBuild || bool.hasEnvironment('LUMO_API_BASE_URL')
+        ? 0
+        : (1 ~/ 0);
 
 class TutorVoiceClip {
   final Uint8List audioBytes;
@@ -35,13 +44,9 @@ class LumoApiClient {
       : _client = client ?? http.Client(),
         _hasExplicitBaseUrl =
             baseUrl != null || const bool.hasEnvironment('LUMO_API_BASE_URL'),
-        baseUrl = normalizeBaseUrl(
-          baseUrl ??
-              const String.fromEnvironment(
-                'LUMO_API_BASE_URL',
-                defaultValue: kDefaultProductionApiBaseUrl,
-              ),
-        );
+        baseUrl = normalizeBaseUrl(baseUrl ?? kConfiguredApiBaseUrl) {
+    kReleaseApiBaseUrlBuildGuard;
+  }
 
   final http.Client _client;
   final bool _hasExplicitBaseUrl;

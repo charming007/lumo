@@ -1,14 +1,57 @@
 import Link from 'next/link';
 import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
 import { averageAttendancePercent, formatAttendancePercent } from '../../lib/attendance';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterStudentsByGeography, studentGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Students"
+        subtitle="Learner roster control is blocked until production wiring is real, because fake-empty admin pages are worse than an honest blocker."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: students API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the learner roster cannot be trusted for enrollment, routing, attendance follow-up, or pod ownership changes. Fix the env var, redeploy, then verify live learner data.
+          </>
+        )}
+        whyBlocked={[
+          'Students is not a read-only vanity page. It drives learner creation, routing, deletion, and mallam assignment against live records.',
+          'If production is pointed at localhost, a placeholder host, or no backend at all, showing an empty roster would be a lie with operational consequences.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster',
+            expected: 'Live learners, attendance, pod, and mallam rows load from the backend',
+            failure: 'Table looks clean only because the dashboard never connected to the real API',
+          },
+          {
+            surface: 'Add / edit learner flows',
+            expected: 'Cohort, pod, mallam, center, and geography selectors load and submit against the live backend',
+            failure: 'Forms open with empty selectors, stale references, or writes that go nowhere',
+          },
+          {
+            surface: 'Pod routing actions',
+            expected: 'Learner routing reflects the actual pod and mallam graph after save',
+            failure: 'Operators think they reassigned a learner when the deployment was disconnected the whole time',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Attendance board', href: '/attendance', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const stateId = typeof query?.stateId === 'string' ? query.stateId : '';
   const localGovernmentId = typeof query?.localGovernmentId === 'string' ? query.localGovernmentId : '';
