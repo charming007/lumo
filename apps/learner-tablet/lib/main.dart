@@ -450,7 +450,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
+                              SelectableText(
                                 backendLabel,
                                 style: const TextStyle(
                                   color: Color(0xFF0F172A),
@@ -467,6 +467,23 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                   color: Color(0xFF475569),
                                   height: 1.45,
                                 ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () async {
+                                  await ClipboardBridge.copy(configuredBackend);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Copied backend target for deployment verification.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text('Copy backend target'),
                               ),
                             ],
                           ),
@@ -514,6 +531,29 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                   color: Color(0xFF475569),
                                   height: 1.45,
                                 ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: deviceIdentifier == null ||
+                                        deviceIdentifier.isEmpty
+                                    ? null
+                                    : () async {
+                                        await ClipboardBridge.copy(
+                                          deviceIdentifier,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Copied tablet identifier.',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text('Copy tablet identifier'),
                               ),
                             ],
                           ),

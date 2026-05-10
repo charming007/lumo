@@ -807,6 +807,40 @@ void main() {
     },
   );
 
+  testWidgets(
+    'deployment blocker page exposes copy actions for backend target and tablet identifier',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Copy backend target'), findsOneWidget);
+      expect(find.text('Copy tablet identifier'), findsOneWidget);
+    },
+  );
+
   test(
     'unregistered live bootstrap does not get certified as a trusted offline snapshot',
     () async {
