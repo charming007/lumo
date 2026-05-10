@@ -4129,6 +4129,19 @@ class LumoAppState {
     }
   }
 
+  Future<void> finalizeCompletedLessonHandoff() async {
+    final session = activeSession;
+    if (session == null ||
+        session.completionState != LessonCompletionState.complete) {
+      return;
+    }
+
+    activeSession = null;
+    pendingRecoveredSessionSnapshot = null;
+    persistStateSoon();
+    await flushPersistence();
+  }
+
   String get syncQueueLabel {
     if (pendingSyncEvents.isEmpty) return 'Queue empty';
     if (isSyncingEvents) return 'Syncing ${pendingSyncEvents.length} event(s)';
