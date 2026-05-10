@@ -12041,7 +12041,9 @@ class _LessonCompletePageState extends State<LessonCompletePage>
   bool _resultsVisible = false;
 
   LearnerProfile _nextLearnerAfter(LearnerProfile learner) {
-    final learners = widget.state.learners;
+    final learners = widget.state.learners
+        .where(widget.state.learnerMatchesTabletPod)
+        .toList(growable: false);
     if (learners.isEmpty) return learner;
     final currentIndex = learners.indexWhere((item) => item.id == learner.id);
     if (currentIndex == -1 || learners.length == 1) {

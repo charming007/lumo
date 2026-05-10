@@ -45,7 +45,7 @@ export default function GlobalError({
             Lumo LMS
           </p>
           <h1 style={{ margin: '12px 0 8px', fontSize: 32, lineHeight: 1.1 }}>
-            Dashboard crashed before it could render.
+            LMS route crashed before it could render.
           </h1>
           <p style={{ margin: 0, color: '#475569', lineHeight: 1.6 }}>
             This route hit an unrecoverable client/runtime error. Retry once. If it keeps happening, the deployment is not healthy enough to trust.
@@ -87,7 +87,7 @@ export default function GlobalError({
                 cursor: 'pointer',
               }}
             >
-              Retry dashboard
+              Retry page
             </button>
             <a href="/settings" style={secondaryActionStyle}>
               Open settings
