@@ -6849,6 +6849,101 @@ void main() {
     );
 
     test(
+      'production-like bootstrap hard-blocks when assignments resolve only to placeholder lesson cards',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': beginner.id,
+                        'name': beginner.name,
+                        'age': beginner.age,
+                        'cohortName': beginner.cohort,
+                        'guardianName': beginner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-live-draft-shell',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'Draft shell only',
+                        'status': 'draft',
+                        'activitySteps': [
+                          {
+                            'id': 'draft-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Not learner visible',
+                            'prompt': 'This lesson should stay hidden.',
+                            'detail': 'Draft step',
+                            'evidence': 'N/A',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'missing-english-live',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English warm-up live',
+                        'cohortName': beginner.cohort,
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [beginner.id],
+                      },
+                    ],
+                    'registrationContext': {'cohorts': [], 'mallams': []},
+                    'meta': {
+                      'generatedAt': '2026-04-21T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.learners, isNotEmpty);
+        expect(state.modules, isNotEmpty);
+        expect(state.assignmentPacks, hasLength(1));
+        expect(state.usingFallbackData, isTrue);
+        expect(
+          state.deploymentBlockerReason,
+          contains('placeholder cards'),
+        );
+        expect(state.backendError, state.deploymentBlockerReason);
+      },
+    );
+
+    test(
       'bundled fundamentals lesson wins over live lesson body with same stable id',
       () async {
         final bundledLesson = LessonCardModel(

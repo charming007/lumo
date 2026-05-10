@@ -305,11 +305,22 @@ class LumoAppState {
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
     if (_includeSeedDemoContent) return null;
 
-    final hasLearnerVisibleLessons = data.lessons.any(
+    final learnerVisibleLessons = data.lessons.where(
       (lesson) =>
           isLearnerVisibleLessonStatus(lesson.status, usingFallbackData: false),
     );
+    final hasLearnerVisibleLessons = learnerVisibleLessons.isNotEmpty;
+    final launchableLessonIds = learnerVisibleLessons
+        .where((lesson) => lesson.steps.isNotEmpty)
+        .map((lesson) => lesson.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final hasLaunchableLearnerLesson = launchableLessonIds.isNotEmpty;
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
+    final hasAssignmentWithLaunchableLesson = data.assignmentPacks.any((pack) {
+      final lessonId = pack.lessonId.trim();
+      return lessonId.isNotEmpty && launchableLessonIds.contains(lessonId);
+    });
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
 
@@ -317,6 +328,13 @@ class LumoAppState {
         !hasLiveAssignments &&
         hasVisibleCurriculumShell) {
       return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
+    }
+
+    if (!hasLaunchableLearnerLesson &&
+        hasLiveAssignments &&
+        hasVisibleCurriculumShell &&
+        !hasAssignmentWithLaunchableLesson) {
+      return 'Production bootstrap returned assignments, but none of them resolve to a real learner-launchable lesson payload on this tablet yet. Learners would only see sync-pending placeholder cards and hit a dead-end flow.';
     }
 
     final scopedRegistration = data.registrationContext.tabletRegistration;
