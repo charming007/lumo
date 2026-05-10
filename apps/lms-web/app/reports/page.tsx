@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchNgoSummary, fetchOperationsReport, fetchReportsOverview, fetchRewardsReport } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { NgoSummary, OperationsReport, ReportsOverview, RewardsReport } from '../../lib/types';
 
@@ -111,6 +113,47 @@ function emptyRows(message: string) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Reports"
+        subtitle="Reporting is deployment-critical because zeroed programme metrics are worse than a loud blocker card."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: reports API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} reports would otherwise render polished zeroes and fake calm while delivery, rewards, or progression evidence is actually unavailable.
+          </>
+        )}
+        whyBlocked={[
+          'The reports route drives programme health, reward throughput, and progression evidence. If the API target is unsafe, showing zero-value cards would be a lie with deployment-review consequences.',
+          'This surface used to fall back to empty report objects. Blocking up front is safer than letting a broken backend look like a quiet day.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Programme snapshot',
+            expected: 'Learners, teachers, centers, attendance, and mastery load from the live backend',
+            failure: 'Neat zero-value report cards or empty tables render against a bad or missing API target',
+          },
+          {
+            surface: 'Reward + operations reports',
+            expected: 'Reward demand, runtime risk, and integrity signals reflect live data',
+            failure: 'Queue, runtime, or integrity sections quietly flatten into fallback placeholders',
+          },
+          {
+            surface: 'Deployment review flow',
+            expected: 'Operators can verify real reporting evidence before calling the LMS production-ready',
+            failure: 'The route implies a healthy reporting stack while the API wiring is broken',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Rewards', href: '/rewards', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [overviewResult, rewardsResult, ngoResult, operationsResult] = await Promise.allSettled([
     fetchReportsOverview(),
@@ -128,7 +171,59 @@ export default async function ReportsPage({ searchParams }: { searchParams?: Pro
     rewardsResult.status === 'rejected' ? 'rewards report' : null,
     ngoResult.status === 'rejected' ? 'NGO summary' : null,
     operationsResult.status === 'rejected' ? 'operations report' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalReportFailures = [
+    overviewResult.status === 'rejected' ? 'overview' : null,
+    ngoResult.status === 'rejected' ? 'NGO summary' : null,
+    operationsResult.status === 'rejected' ? 'operations report' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalReportFailures.length) {
+    const blockerDetail = criticalReportFailures.length === 1
+      ? `The ${criticalReportFailures[0]} feed failed to load from the live API. Leaving the reports route up would turn programme evidence, integrity checks, and delivery metrics into polished fiction.`
+      : `The ${criticalReportFailures.join(', ')} feeds failed to load from the live API. Leaving the reports route up would turn programme evidence, integrity checks, and delivery metrics into polished fiction.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Reports"
+        subtitle="Reporting is an evidence surface, not a decorative dashboard. If the core feeds are down, the route should block instead of rendering fake calm."
+        blockerHeadline="Deployment blocker: reports evidence feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalReportFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalReportFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalReportFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Programme totals, attendance, mastery, and operational integrity are deployment-review evidence. Zero-value fallback objects on those surfaces are actively misleading.',
+          'Rewards detail can degrade separately, but if overview, NGO summary, or operations evidence disappears, this route should stop the rollout conversation immediately.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Programme snapshot',
+            expected: 'Live learner, teacher, center, attendance, and mastery totals load from the real API',
+            failure: 'All-zero cards or empty summary sections appear while core report feeds are down',
+          },
+          {
+            surface: 'Delivery health + integrity readout',
+            expected: 'Runtime completion, abandoned sessions, and integrity issue counts reflect live operational data',
+            failure: 'Clean-looking fallback cards appear while the evidence feeds are degraded',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the evidence feeds recover',
+            failure: 'The route renders as if reporting is healthy when core evidence is missing',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Settings', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Rewards', href: '/rewards', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
 
   return (
     <PageShell

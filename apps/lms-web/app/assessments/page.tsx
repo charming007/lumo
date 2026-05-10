@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { CreateAssessmentForm, DeleteAssessmentForm, UpdateAssessmentForm } from '../../components/admin-forms';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { fetchAssessments, fetchCurriculumModules, fetchSubjects } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { matchesSubjectFilter } from '../../lib/module-subject-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -39,6 +41,47 @@ export default async function AssessmentsPage({
 }: {
   searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[] }>;
 }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Assessments"
+        subtitle="Progression gates are production-critical, so this route now blocks loudly instead of crashing or pretending an empty registry is safe."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: assessments API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} assessment gates would otherwise degrade into a fake-empty registry, which is a nice way to ship broken progression decisions.
+          </>
+        )}
+        whyBlocked={[
+          'Assessment gates decide learner progression, remediation, and publish readiness. If the API target is missing or unsafe, showing an empty board would be a lie with operational consequences.',
+          'This route used to fetch immediately and explode on bad wiring. Blocking up front is safer than letting deployment review discover a runtime crash the hard way.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assessment registry',
+            expected: 'Live assessment rows load with real subjects, modules, triggers, and statuses',
+            failure: 'Crash page, empty registry, or only filter chrome with no trustworthy data',
+          },
+          {
+            surface: 'Assessment filters',
+            expected: 'Subject and status filters reflect live backend data',
+            failure: 'Empty subject dropdowns or fake-success filtering against no data',
+          },
+          {
+            surface: 'Create / edit assessment',
+            expected: 'Module and subject pickers load from the live curriculum before operators publish gates',
+            failure: 'Forms open without real curriculum context or save against the wrong backend',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content library', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   const query = (await searchParams) ?? {};
   const message = Array.isArray(query.message) ? query.message[0] : query.message;
   const searchText = (Array.isArray(query.q) ? query.q[0] : query.q ?? '').trim().toLowerCase();
