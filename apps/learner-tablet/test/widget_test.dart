@@ -2212,7 +2212,7 @@ void main() {
   );
 
   testWidgets(
-    'go to next learner handoff skips learners outside the tablet pod', (
+      'go to next learner handoff skips learners outside the tablet pod', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -3129,8 +3129,21 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Select available learner'), findsOneWidget);
-      expect(find.text('Select learner to continue'), findsOneWidget);
+      expect(
+        find.text(
+          'Learner selection stays read-only until the live lesson sync finishes.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
       expect(find.textContaining('is selected for'), findsNothing);
+
+      await tester.ensureVisible(find.text(state.learners.first.name).first);
+      await tester.tap(find.text(state.learners.first.name).first);
+      await pumpForUi(tester);
+
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
+      expect(find.text('Absent: ${state.learners.first.name}'), findsNothing);
 
       state.dispose();
     },
@@ -3192,7 +3205,13 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Refresh sync before starting'), findsOneWidget);
       expect(find.text('Select available learner'), findsOneWidget);
-      expect(find.text('Select learner to continue'), findsOneWidget);
+      expect(
+        find.text(
+          'Learner selection stays read-only until the live lesson sync finishes.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
       expect(
         find.textContaining('is selected for Backend lesson still syncing.'),
         findsNothing,

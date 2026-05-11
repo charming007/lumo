@@ -6566,7 +6566,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           const SizedBox(height: 8),
                           Text(
                             syncPendingLesson
-                                ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime until the full lesson content lands.'
+                                ? '${lesson.title} is still waiting for the real lesson payload to sync to this tablet. Keep the assignment visible, but do not start runtime or attendance actions until the full lesson content lands.'
                                 : _resumeLocksLearner
                                     ? 'Resume ${lesson.title} with the original learner from the backend session. Changing learners here would corrupt progress attribution, so this selection is locked.'
                                     : 'Pick which available learner is taking ${lesson.title}. Shared-tablet handoff happens here so the lesson starts under the right learner.',
@@ -6641,7 +6641,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Select learner to continue',
+                              'Learner selection stays read-only until the live lesson sync finishes.',
                               style: TextStyle(
                                 color: Color(0xFF9A3412),
                                 fontWeight: FontWeight.w600,
@@ -6867,7 +6867,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                   );
 
                   final absentButton = OutlinedButton.icon(
-                    onPressed: selectedLearner == null || _resumeLocksLearner
+                    onPressed: syncPendingLesson ||
+                            selectedLearner == null ||
+                            _resumeLocksLearner
                         ? null
                         : () async {
                             final learner = selectedLearner!;
@@ -6891,9 +6893,11 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           },
                     icon: const Icon(Icons.event_busy_rounded),
                     label: Text(
-                      selectedLearner == null
-                          ? 'Select learner for absent'
-                          : 'Absent: ${selectedLearner!.name}',
+                      syncPendingLesson
+                          ? 'Wait for live lesson sync'
+                          : selectedLearner == null
+                              ? 'Select learner for absent'
+                              : 'Absent: ${selectedLearner!.name}',
                     ),
                   );
 

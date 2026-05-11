@@ -4161,6 +4161,56 @@ void main() {
     });
 
     test(
+      'markLearnerAbsentForLesson rejects sync-pending assignment placeholders',
+      () async {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        final placeholderLesson = LessonCardModel(
+          id: 'assignment-placeholder:assignment-77',
+          moduleId: 'english',
+          title: 'Sync pending lesson',
+          subject: 'Live assignment',
+          durationMinutes: 10,
+          status: 'assigned',
+          mascotName: 'Mallam',
+          readinessFocus: 'Assignment payload reached the tablet first.',
+          scenario: 'Real lesson payload has not synced yet.',
+          steps: const [
+            LessonStep(
+              id: 'assignment-placeholder-step',
+              type: LessonStepType.intro,
+              title: 'Lesson sync pending',
+              instruction: 'Refresh sync before starting this assignment.',
+              expectedResponse: 'Refresh sync first.',
+              coachPrompt:
+                  'Do not capture attendance against a placeholder lesson.',
+              facilitatorTip: 'Refresh assignments first.',
+              realWorldCheck: 'Only act once the real lesson appears.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        expect(
+          () => state.markLearnerAbsentForLesson(learner, placeholderLesson),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('live lesson payload has not synced'),
+            ),
+          ),
+        );
+        expect(
+          state.pendingSyncEvents
+              .where((event) => event.type == 'learner_marked_absent'),
+          isEmpty,
+        );
+        state.dispose();
+      },
+    );
+
+    test(
       'restore keeps orphaned active sessions pending until learner returns',
       () async {
         SharedPreferences.setMockInitialValues({

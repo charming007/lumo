@@ -1951,6 +1951,12 @@ class LumoAppState {
     LearnerProfile learner,
     LessonCardModel lesson,
   ) async {
+    if (lesson.isAssignmentPlaceholder) {
+      throw StateError(
+        'Cannot mark ${learner.name} absent for ${lesson.id} because the live lesson payload has not synced to this tablet yet.',
+      );
+    }
+
     _projectTerminalRuntimeSession(
       learner: learner,
       lesson: lesson,
