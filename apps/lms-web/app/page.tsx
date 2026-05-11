@@ -330,7 +330,7 @@ export default async function HomePage() {
       : null;
   const dashboardRenderedAt = new Date();
 
-  const failedFeedEntries = [
+  const dashboardFeedEntries = [
     { label: 'dashboard summary', result: summaryResult },
     { label: 'insights', result: insightsResult },
     { label: 'workboard', result: workboardResult },
@@ -341,7 +341,9 @@ export default async function HomePage() {
     { label: 'assessments', result: assessmentsResult },
     { label: 'asset runtime', result: assetRuntimeResult },
     { label: 'subjects', result: subjectsResult },
-  ].filter(
+  ];
+  const totalDashboardFeedCount = dashboardFeedEntries.length;
+  const failedFeedEntries = dashboardFeedEntries.filter(
     (entry): entry is { label: string; result: PromiseRejectedResult } => entry.result.status === 'rejected',
   );
   const failedSources = failedFeedEntries.map((entry) => entry.label);
@@ -385,7 +387,7 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
-  const healthyFeedCount = 10 - failedSources.length;
+  const healthyFeedCount = Math.max(totalDashboardFeedCount - failedSources.length, 0);
   const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? 'Blocked'
     : failedSources.length
@@ -727,7 +729,7 @@ export default async function HomePage() {
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
             <div style={{ color: '#334155', lineHeight: 1.6 }}>
-              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/10 dashboard feeds responding.
+              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>

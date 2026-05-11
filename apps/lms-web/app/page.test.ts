@@ -147,6 +147,29 @@ test('dashboard deployment trace tells the truth when provenance metadata is mis
   );
 });
 
+test('dashboard live pull freshness uses the real feed count instead of a hard-coded denominator', () => {
+  assert.match(
+    dashboardPageSource,
+    /const totalDashboardFeedCount = dashboardFeedEntries\.length;/,
+    'dashboard should derive its feed denominator from the actual feed list so trust copy cannot drift when feeds change',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const healthyFeedCount = Math\.max\(totalDashboardFeedCount - failedSources\.length, 0\);/,
+    'dashboard should clamp healthy feed counts from the live feed total instead of relying on a stale magic number',
+  );
+  assert.match(
+    dashboardPageSource,
+    /with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
+    'dashboard live pull freshness copy should show the real dynamic feed denominator',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /with \{healthyFeedCount\}\/10 dashboard feeds responding/,
+    'dashboard should stop hard-coding 10 dashboard feeds responding once the feed count is derived from source',
+  );
+});
+
 test('wrong-backend blocker exposes route evidence and copy-paste verification commands', () => {
   assert.match(
     dashboardPageSource,
