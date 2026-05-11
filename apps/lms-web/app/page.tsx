@@ -1031,14 +1031,22 @@ export default async function HomePage() {
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked surfaces</div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
-                  <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
-                ))}
-              </div>
-              <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
-              </div>
+              {PILOT_BLOCKED_ROUTE_LABELS.length ? (
+                <>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
+                      <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                    If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
+                  </div>
+                </>
+              ) : (
+                <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                  No pilot routes are intentionally blocked right now. If that changes, say it here instead of making operators infer it from missing nav links.
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>

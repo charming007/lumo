@@ -54,7 +54,12 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   assert.match(
     dashboardPageSource,
     /Explicitly blocked surfaces/,
-    'dashboard should explicitly list the surfaces that remain blocked',
+    'dashboard should keep the blocked-surfaces section available when a route truly needs a blocker card',
+  );
+  assert.match(
+    dashboardPageSource,
+    /No pilot routes are intentionally blocked right now\. If that changes, say it here instead of making operators infer it from missing nav links\./,
+    'dashboard should say plainly when no pilot routes are intentionally blocked instead of implying there is still a blocked surface',
   );
   assert.doesNotMatch(
     dashboardPageSource,
