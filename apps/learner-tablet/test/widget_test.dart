@@ -1968,11 +1968,8 @@ void main() {
       await tester.tap(syncRequiredButton);
       await pumpForUi(tester);
 
-      expect(find.byType(LessonLaunchSetupPage), findsNothing);
-      expect(
-        find.textContaining('Lesson content is still syncing.'),
-        findsOneWidget,
-      );
+      expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
+      expect(find.text('Refresh sync before starting'), findsOneWidget);
 
       state.dispose();
     },

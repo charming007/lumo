@@ -91,11 +91,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(LessonLaunchSetupPage), findsNothing);
-    expect(
-      find.textContaining('Lesson content is still syncing.'),
-      findsOneWidget,
-    );
+    expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
+    expect(find.text('Refresh sync before starting'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 500));
     await state.flushPersistence();

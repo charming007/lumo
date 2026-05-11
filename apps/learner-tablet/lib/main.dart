@@ -1193,18 +1193,7 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
-  if (lesson.isAssignmentPlaceholder) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Lesson content is still syncing. Refresh the tablet sync before starting this assignment.',
-        ),
-      ),
-    );
-    return;
-  }
-
-  if (lesson.steps.isEmpty) {
+  if (!lesson.isAssignmentPlaceholder && lesson.steps.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
