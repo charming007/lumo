@@ -178,7 +178,7 @@ test('global error route keeps the dashboard recovery actions without forcing Ne
   );
   assert.match(
     globalErrorSource,
-    /Retry dashboard/,
+    /Retry page/,
     'global error route should keep the retry action visible',
   );
   assert.match(

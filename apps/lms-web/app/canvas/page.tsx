@@ -12,9 +12,11 @@ import {
   quickUpdateLessonStatusAction,
   updateStrandAction,
 } from '../actions';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { CurriculumCanvas } from '../../components/curriculum-canvas';
 import { fetchAssessments, fetchCurriculumCanvasTree, fetchCurriculumModules, fetchLessons, fetchStrands, fetchSubjects } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { buildCurriculumCanvasData, buildCurriculumCanvasDataFromTree } from '../../lib/curriculum-canvas';
 import { buildCanvasReturnPath } from '../../lib/content-return-path';
 import { Card, PageShell } from '../../lib/ui';
@@ -28,6 +30,48 @@ function normalizeRouteParam(value?: string | string[]) {
 }
 
 export default async function CanvasPage({ searchParams }: { searchParams?: Promise<{ message?: string; subject?: string | string[]; module?: string | string[]; readiness?: string | string[]; q?: string | string[] }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Curriculum Canvas"
+        subtitle="Production wiring is incomplete, so the graph view is blocked instead of pretending curriculum ops are live."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: canvas API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} Leaving the canvas route up would advertise live curriculum editing even though the LMS is not wired to a production-safe backend.
+          </>
+        )}
+        whyBlocked={[
+          'Canvas is an editing surface, not a decorative read-only graph. If production API wiring is broken, this route should block before operators mistake it for a live authoring tool.',
+          'Dashboard and Content Library already block on the same deployment trust failure. Letting Canvas stay reachable would create a fake side door around the exact sign-off guard those routes enforce.',
+          'A loud blocker is safer than a half-live curriculum map that encourages lesson or gate changes against the wrong backend target.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Canvas route',
+            expected: 'Subject, module, lesson, and gate data load from the real production API host',
+            failure: 'Graph UI opens while NEXT_PUBLIC_API_BASE_URL is missing, placeholder-only, or pointed at localhost',
+          },
+          {
+            surface: 'Scoped blocker handoff',
+            expected: 'Dashboard blocker links into /canvas only after production API wiring is valid',
+            failure: 'Operators can click from the dashboard into a live-looking canvas during a broken deployment',
+          },
+          {
+            surface: 'Curriculum actions',
+            expected: 'Inline lesson, module, strand, and assessment actions only appear when the route is backed by a production-safe API target',
+            failure: 'Editing affordances remain visible even though deployment trust is already broken upstream',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const returnPath = buildCanvasReturnPath(query);
   const requestedSubjectId = normalizeRouteParam(query?.subject).trim();

@@ -5,6 +5,29 @@ import { fileURLToPath } from 'node:url';
 
 const canvasPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
 
+test('canvas blocks when the production API target is missing or unsafe', () => {
+  assert.match(
+    canvasPageSource,
+    /import \{ API_BASE_DIAGNOSTIC \} from '\.\.\/\.\.\/lib\/config';/,
+    'canvas page should read the shared production API diagnostic instead of inventing its own trust rules',
+  );
+  assert.match(
+    canvasPageSource,
+    /if \(API_BASE_DIAGNOSTIC\.deploymentBlocked\) \{/,
+    'canvas should block before rendering a live-looking graph when the LMS is not wired to a production-safe API target',
+  );
+  assert.match(
+    canvasPageSource,
+    /title="Curriculum Canvas"/,
+    'canvas blocker should identify the exact route that is being withheld',
+  );
+  assert.match(
+    canvasPageSource,
+    /NEXT_PUBLIC_API_BASE_URL/,
+    'canvas blocker should explain that broken production API wiring is the reason the route is withheld',
+  );
+});
+
 test('canvas fallback create-lesson CTA preserves scoped blocker subject and module context', () => {
   assert.match(
     canvasPageSource,
