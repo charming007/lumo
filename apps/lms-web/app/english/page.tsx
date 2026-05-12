@@ -5,6 +5,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { createLessonAction } from '../actions';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterModulesForSubject } from '../../lib/module-subject-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -18,6 +19,47 @@ export default async function EnglishStudioPage({
   searchParams?: Promise<{ message?: string }>;
 }) {
   const query = await searchParams;
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="English Studio"
+        subtitle="Production wiring is incomplete, so English authoring is blocked instead of pretending lesson creation is safe."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: English Studio API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} English Studio would otherwise advertise live lesson authoring while pointing at a dead, placeholder, or localhost backend. Fix the env var, redeploy, then re-check <code>/english</code> before trusting any authoring flow.
+          </>
+        )}
+        whyBlocked={[
+          'English Studio is already linked from the LMS shell and dashboard as a live operator route. Letting it open on unsafe backend wiring would be pure trust-destroying theatre.',
+          'Creating lessons against the wrong API target risks saving into the wrong environment or faking a healthy authoring lane when nothing production-safe exists.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'English lane bootstrap',
+            expected: 'The route only opens when the LMS is wired to a production-safe API base',
+            failure: 'English Studio renders while NEXT_PUBLIC_API_BASE_URL is missing, placeholder-only, or pointed at localhost',
+          },
+          {
+            surface: 'Authoring controls',
+            expected: 'Module selection, readiness cues, and lesson creation all run against live English curriculum data',
+            failure: 'The page looks usable but is really backed by empty fallback data or the wrong environment',
+          },
+          {
+            surface: 'Dashboard handoff',
+            expected: 'Operators can move from dashboard to /english without hitting a fake-live shell',
+            failure: 'Dashboard advertises English Studio as live, then the route silently opens on unsafe backend wiring',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard', href: '/', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const [subjectsResult, modulesResult, assessmentsResult, assetsResult, lessonsResult, assignmentsResult] = await Promise.allSettled([
     fetchSubjects(),
