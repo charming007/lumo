@@ -1,6 +1,7 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson, lessonMatchesModule } from './module-lesson-match';
-import type { Assessment, Assignment, CurriculumModule, Lesson } from './types';
+import { findSubjectByContext, filterModulesForSubject } from './module-subject-match';
+import type { Assessment, Assignment, CurriculumModule, Lesson, Subject } from './types';
 
 type ActivityTemplate = {
   title: string;
@@ -143,18 +144,40 @@ export function buildReadinessChecks({
   return { checks, readinessScore };
 }
 
+function findEnglishSubject(subjects: Pick<Subject, 'id' | 'name'>[]) {
+  return subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
+}
+
+function findEnglishModules(
+  modules: CurriculumModule[],
+  subjects: Pick<Subject, 'id' | 'name'>[],
+) {
+  const englishSubject = findEnglishSubject(subjects);
+  if (englishSubject) {
+    return filterModulesForSubject(modules, englishSubject);
+  }
+
+  return modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
+}
+
 export function buildEnglishLessonBlueprints({
+  subjects = [],
   modules,
   lessons,
   assessments,
 }: {
+  subjects?: Pick<Subject, 'id' | 'name'>[];
   modules: CurriculumModule[];
   lessons: Lesson[];
   assessments: Assessment[];
 }): EnglishLessonBlueprint[] {
-  const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
+  const englishModules = findEnglishModules(modules, subjects);
+  const englishSubject = findEnglishSubject(subjects);
   const englishLessons = lessons.filter(
-    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => lessonMatchesModule(lesson, module)),
+    (lesson) => findSubjectByContext(englishSubject ? [englishSubject] : subjects, {
+      subjectId: lesson.subjectId,
+      subjectName: lesson.subjectName,
+    }) || englishModules.some((module) => lessonMatchesModule(lesson, module)),
   );
 
   return englishLessons.map((lesson) => {
@@ -200,17 +223,23 @@ export function buildEnglishLessonBlueprints({
 }
 
 export function buildEnglishOpsSummary({
+  subjects = [],
   modules,
   lessons,
   assignments,
 }: {
+  subjects?: Pick<Subject, 'id' | 'name'>[];
   modules: CurriculumModule[];
   lessons: Lesson[];
   assignments: Assignment[];
 }) {
-  const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
+  const englishModules = findEnglishModules(modules, subjects);
+  const englishSubject = findEnglishSubject(subjects);
   const englishLessons = lessons.filter(
-    (lesson) => lesson.subjectName?.toLowerCase().includes('english') || englishModules.some((module) => lessonMatchesModule(lesson, module)),
+    (lesson) => findSubjectByContext(englishSubject ? [englishSubject] : subjects, {
+      subjectId: lesson.subjectId,
+      subjectName: lesson.subjectName,
+    }) || englishModules.some((module) => lessonMatchesModule(lesson, module)),
   );
   const englishAssignments = assignments.filter((assignment) =>
     englishLessons.some((lesson) => lesson.title === assignment.lessonTitle) || assignment.lessonTitle.toLowerCase().includes('english'),

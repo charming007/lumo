@@ -5,6 +5,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { createLessonAction } from '../actions';
 import { fetchAssessments, fetchAssignments, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../lib/api';
 import { buildEnglishLessonBlueprints, buildEnglishOpsSummary } from '../../lib/english-curriculum';
+import { filterModulesForSubject } from '../../lib/module-subject-match';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyRows(message: string) {
@@ -35,7 +36,9 @@ export default async function EnglishStudioPage({
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
 
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
-  const englishModules = modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
+  const englishModules = englishSubject
+    ? filterModulesForSubject(modules, englishSubject)
+    : modules.filter((module) => module.subjectName?.toLowerCase().includes('english'));
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -92,8 +95,8 @@ export default async function EnglishStudioPage({
     );
   }
 
-  const englishSummary = buildEnglishOpsSummary({ modules, lessons, assignments });
-  const lessonBlueprints = buildEnglishLessonBlueprints({ modules, lessons, assessments });
+  const englishSummary = buildEnglishOpsSummary({ subjects, modules, lessons, assignments });
+  const lessonBlueprints = buildEnglishLessonBlueprints({ subjects, modules, lessons, assessments });
 
   return (
     <PageShell
