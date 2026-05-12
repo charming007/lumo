@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import { DeleteStudentForm, UpdateStudentForm } from '../../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { LearnerMallamAssignmentForm } from '../../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudent, fetchStudentRewards } from '../../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 function percent(value: number | null | undefined) {
@@ -22,6 +24,42 @@ function rewardProgressPercent(value: number | null | undefined) {
 }
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Learner detail"
+        subtitle="Production wiring is incomplete, so learner detail is blocked instead of pretending roster, rewards, and routing data are trustworthy."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: learner detail API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} learner edits, mallam assignment, and reward history would otherwise degrade into misleading fallback states. Fix the env var, redeploy, then verify the live learner detail flow.
+          </>
+        )}
+        whyBlocked={[
+          'Learner detail drives real roster edits, assignment routing, and reward visibility. A polished page backed by localhost, placeholder data, or no backend is dangerous theatre.',
+          'This route should not imply a learner record is trustworthy until the deployment is pointed at a real production API.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner profile',
+            expected: 'Live learner, cohort, pod, and mallam fields load from production',
+            failure: 'The profile looks editable but the deployment is not connected to the real backend',
+          },
+          {
+            surface: 'Reward activity',
+            expected: 'Recent reward transactions and level progress reflect the live rewards feed',
+            failure: 'Rewards look empty or generic even though the route still feels production-ready',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Students blocker', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const { id } = await params;
   const [studentResult, studentRewardsResult, cohortsResult, podsResult, mallamsResult, centersResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchStudent(id),
@@ -34,7 +72,42 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     fetchLocalGovernments(),
   ]);
 
-  const student = studentResult.status === 'fulfilled' ? studentResult.value : null;
+  if (studentResult.status === 'rejected') {
+    return (
+      <DeploymentBlockerCard
+        title="Learner detail"
+        subtitle="The learner detail route is blocked because the live learner feed is unavailable, so a fake 404 would be a lie."
+        blockerHeadline="Deployment blocker: learner detail feed is unavailable."
+        blockerDetail={(
+          <>
+            The learner detail feed failed before this route could verify the requested learner. Treating a failed learner lookup as “student not found” would hide a live outage behind a fake 404.
+          </>
+        )}
+        whyBlocked={[
+          'Learner detail cannot distinguish “record missing” from “backend unavailable” if the core learner fetch failed outright.',
+          'Operators should see an honest outage blocker, not lose the route behind a misleading not-found screen.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner detail route',
+            expected: 'Requested learner record loads before detail UI renders',
+            failure: 'The route drops into 404 even though the learner API is degraded',
+          },
+          {
+            surface: 'Learner actions',
+            expected: 'Edit, delete, assignment, and rewards UI only appear when the core learner record is trustworthy',
+            failure: 'Operators can act on a detail shell that never proved the learner exists',
+          },
+        ]}
+        docs={[
+          { label: 'Students overview', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Dashboard', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+        ]}
+      />
+    );
+  }
+
+  const student = studentResult.value;
   const cohorts = cohortsResult.status === 'fulfilled' ? cohortsResult.value : [];
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
@@ -43,7 +116,6 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
 
   const failedSources = [
-    studentResult.status === 'rejected' ? 'student detail' : null,
     studentRewardsResult.status === 'rejected' ? 'canonical rewards snapshot' : null,
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     podsResult.status === 'rejected' ? 'pods' : null,

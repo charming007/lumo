@@ -1,11 +1,49 @@
 import { notFound } from 'next/navigation';
 import { DeleteMallamForm, UpdateMallamForm } from '../../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { MallamRosterManager } from '../../../components/mallam-roster-manager';
 import { ModalLauncher } from '../../../components/modal-launcher';
 import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../../lib/config';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../../lib/ui';
 
 export default async function MallamDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Mallam detail"
+        subtitle="Production wiring is incomplete, so facilitator detail is blocked instead of pretending roster coverage is trustworthy."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: mallam detail API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} facilitator profile edits, pod coverage, and learner roster routing would otherwise degrade into misleading fallback states. Fix the env var, redeploy, then verify the live mallam detail flow.
+          </>
+        )}
+        whyBlocked={[
+          'Mallam detail drives real facilitator coverage decisions. A calm-looking record backed by localhost, placeholder data, or no backend is operational garbage.',
+          'This route controls profile edits, pod ownership, and learner routing. If the API target is unsafe, the honest move is to block loudly instead of faking a healthy roster lane.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam profile',
+            expected: 'Live facilitator profile, certification, and coverage data load from production',
+            failure: 'Empty or placeholder mallam detail that still looks editable',
+          },
+          {
+            surface: 'Roster management',
+            expected: 'Assigned and candidate learners reflect the live pod roster',
+            failure: 'Learner lists look suspiciously empty or disconnected from pod coverage',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Mallams blocker', href: '/mallams', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const { id } = await params;
   const [mallamsResult, centersResult, podsResult, studentsResult, statesResult, localGovernmentsResult] = await Promise.allSettled([
     fetchMallams(),
@@ -16,7 +54,42 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
     fetchLocalGovernments(),
   ]);
 
-  const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
+  if (mallamsResult.status === 'rejected') {
+    return (
+      <DeploymentBlockerCard
+        title="Mallam detail"
+        subtitle="The facilitator detail route is blocked because the live mallam feed is unavailable, so a fake 404 would be a lie."
+        blockerHeadline="Deployment blocker: mallam detail feed is unavailable."
+        blockerDetail={(
+          <>
+            The mallam feed failed before this route could verify the requested facilitator. Treating a failed facilitator lookup as “mallam not found” would hide a live outage behind a fake 404.
+          </>
+        )}
+        whyBlocked={[
+          'Mallam detail cannot distinguish “record missing” from “backend unavailable” if the core facilitator feed failed outright.',
+          'Operators should not lose the route behind a fake not-found screen when the real problem is a live roster outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam detail route',
+            expected: 'Requested facilitator record loads before detail UI renders',
+            failure: 'The route drops into 404 even though the facilitator API is degraded',
+          },
+          {
+            surface: 'Roster controls',
+            expected: 'Edit and roster actions only appear when the core mallam feed is trustworthy',
+            failure: 'Operators can act on a detail shell that never proved the facilitator record exists',
+          },
+        ]}
+        docs={[
+          { label: 'Mallams overview', href: '/mallams', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Dashboard', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+        ]}
+      />
+    );
+  }
+
+  const mallams = mallamsResult.value;
   const centers = centersResult.status === 'fulfilled' ? centersResult.value : [];
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
   const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
@@ -24,7 +97,6 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
   const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
 
   const failedSources = [
-    mallamsResult.status === 'rejected' ? 'mallams' : null,
     centersResult.status === 'rejected' ? 'centers' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
     studentsResult.status === 'rejected' ? 'students' : null,
