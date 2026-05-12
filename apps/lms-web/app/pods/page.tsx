@@ -1,7 +1,9 @@
 import { CreatePodForm, DeletePodForm, UpdatePodForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { podGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
@@ -29,6 +31,47 @@ function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
 }
 
 export default async function PodsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Pods"
+        subtitle="Pod deployment control is blocked until the LMS is pointed at a real production API, because pod ownership lies cascade into every other rollout surface."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: pods API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the pod registry cannot be trusted for geography, facilitator ownership, or tablet deployment mapping. Fix the env var, redeploy, then verify live pod data.
+          </>
+        )}
+        whyBlocked={[
+          'Pods is the operational anchor for mallam ownership, learner routing, geography, and device placement. If this route lies, the rest of the rollout graph lies with it.',
+          'Allowing pod writes against a missing, placeholder, or localhost backend is how teams think they changed deployment footprint when they actually changed nothing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Pod registry',
+            expected: 'Live pod rows, geography, mallam ownership, and tablet counts load from the backend',
+            failure: 'Registry looks empty or tidy only because the LMS never connected to the real API',
+          },
+          {
+            surface: 'Add / edit pod flows',
+            expected: 'Center, mallam, state, and local government selectors load and submit against the live backend',
+            failure: 'Forms open with dead selectors, stale references, or writes that disappear into the void',
+          },
+          {
+            surface: 'Tablet linkage',
+            expected: 'Pod-linked tablet counts still match the live rollout footprint after save',
+            failure: 'Operators think a pod owns tablets or geography it never actually saved',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Devices', href: '/devices', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [podsResult, centersResult, statesResult, localGovernmentsResult, mallamsResult, deviceRegistrationsResult] = await Promise.allSettled([
     fetchPods(),

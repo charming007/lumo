@@ -1,12 +1,55 @@
 import Link from 'next/link';
 import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterMallamsByGeography, mallamGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Mallams"
+        subtitle="Facilitator roster control is blocked until the LMS is wired to a real production API, because fake-empty staffing screens are operationally toxic."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: mallams API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the facilitator roster cannot be trusted for pod ownership, staffing coverage, or learner routing. Fix the env var, redeploy, then verify live mallam data.
+          </>
+        )}
+        whyBlocked={[
+          'Mallams is a live staffing surface, not decorative reporting. It controls who owns pods, who carries learners, and who is even active in the field.',
+          'If production is pointed at localhost, a placeholder host, or no real backend, a calm-looking empty roster becomes a lie with deployment consequences.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam roster',
+            expected: 'Live facilitator rows, statuses, geography, and pod coverage load from the backend',
+            failure: 'Table looks clean only because the LMS never connected to the real API',
+          },
+          {
+            surface: 'Add / edit mallam flows',
+            expected: 'Center, pod, state, and local government selectors load and submit against the live backend',
+            failure: 'Forms open with dead selectors, stale references, or writes that go nowhere',
+          },
+          {
+            surface: 'Roster ownership',
+            expected: 'Primary pod ownership and mallam coverage still match the live deployment footprint after save',
+            failure: 'Operators think facilitator coverage changed when the deployment was disconnected the whole time',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const stateId = typeof query?.stateId === 'string' ? query.stateId : '';
   const localGovernmentId = typeof query?.localGovernmentId === 'string' ? query.localGovernmentId : '';

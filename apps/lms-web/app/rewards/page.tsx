@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { RewardRequestQueuePanel } from '../../components/reward-request-queue-panel';
 import { RewardsAdminForm } from '../../components/rewards-admin-form';
 import { fetchRewardRequests, fetchRewardsCatalog, fetchRewardsLeaderboard, fetchStudents } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import type { RewardCatalog, RewardLevel } from '../../lib/rewards';
 import type { RewardRequestQueue, RewardSnapshot } from '../../lib/types';
@@ -47,6 +49,47 @@ function emptyRows(message: string) {
 }
 
 export default async function RewardsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Rewards"
+        subtitle="Live reward operations are blocked until the LMS is wired to a real production API, because fake points and queue state are not harmless fluff."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: rewards API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the leaderboard, request queue, and manual XP corrections cannot be trusted. Fix the env var, redeploy, then verify live rewards data.
+          </>
+        )}
+        whyBlocked={[
+          'Rewards is not just a vanity leaderboard anymore. It exposes live request handling, manual XP corrections, and fulfillment state that operators can change.',
+          'If production is pointed at localhost, a placeholder host, or no backend, a seemingly calm reward queue can hide dropped requests and fake adjustment success.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Leaderboard + queue',
+            expected: 'Live XP, badges, reward requests, and queue health load from the backend',
+            failure: 'Numbers look quiet only because the LMS never connected to the real API',
+          },
+          {
+            surface: 'Manual adjustment lane',
+            expected: 'Learner selectors and reward corrections submit against the live backend',
+            failure: 'Operators think they fixed XP or badges when the deployment was disconnected the whole time',
+          },
+          {
+            surface: 'Reward request handling',
+            expected: 'Pending, approved, urgent, and fulfilled queue counts still match the live operational backlog after save',
+            failure: 'Queue health is based on dead data or writes that never landed',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Reports blocker', href: '/reports', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [studentsResult, catalogResult, leaderboardResult, queueResult] = await Promise.allSettled([
     fetchStudents(),
