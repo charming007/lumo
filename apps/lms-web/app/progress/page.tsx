@@ -90,7 +90,61 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalProgressFailures = [
+    progressResult.status === 'rejected' ? 'progress board' : null,
+    studentsResult.status === 'rejected' ? 'learners' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalProgressFailures.length) {
+    const blockerDetail = criticalProgressFailures.length === 1
+      ? `The ${criticalProgressFailures[0]} feed failed to load from the live API. Leaving progress up would make mastery review and override decisions look safe while the core progression control surface is blind.`
+      : `The ${criticalProgressFailures.join(', ')} feeds failed to load from the live API. Leaving progress up would make mastery review and override decisions look safe while the core progression control surface is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Progress"
+        subtitle="Progress is a learner-decision control surface, not a decorative report. If the core feeds are down, the route should block instead of inviting unsafe writes."
+        blockerHeadline="Deployment blocker: progression feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalProgressFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalProgressFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalProgressFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to capture mastery and change next-module decisions. If the progress board, learners, subjects, or modules disappear, a polished UI becomes dangerous fiction fast.',
+          'Cohorts, pods, and mallams can degrade separately, but the route should stop cold when the core progression feeds are missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mastery board',
+            expected: 'Live learner, subject, module, and readiness rows load from the real backend',
+            failure: 'Empty board or fallback copy appears while the core progression feed is degraded',
+          },
+          {
+            surface: 'Capture + override flows',
+            expected: 'Operators can see real learners, subjects, and modules before changing progression records',
+            failure: 'Forms stay interactive while the core reference feeds are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until core progression feeds recover',
+            failure: 'The route implies learner progression decisions are safe when the control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const canCaptureProgress = students.length > 0 && subjects.length > 0 && modules.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
