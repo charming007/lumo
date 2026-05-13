@@ -16,3 +16,10 @@ test('pods page still keeps degraded recovery once production wiring is valid', 
   assert.match(podsPageSource, /Pods is running in degraded mode:/, 'pods page should keep the operator-facing degraded-state banner');
   assert.match(podsPageSource, /Do not treat this as proof the deployment footprint is clean\./, 'pods page should keep the honest empty-state warning');
 });
+
+test('pods page disables admin actions when the core pods feed is down instead of faking an empty registry', () => {
+  assert.match(podsPageSource, /const hasCorePodGap = podsResult\.status === 'rejected';/, 'pods page should identify a core pods-feed outage');
+  assert.match(podsPageSource, /disabled=\{hasCorePodGap\}/, 'pods page should disable add-pod controls while the registry feed is down');
+  assert.match(podsPageSource, /Pod admin is degraded because the/, 'pods page should explain the registry outage plainly');
+  assert.match(podsPageSource, /Pod registry unavailable\. Recover the pods feed before using pod admin actions\./, 'pods page should render an outage-safe registry row instead of pretending the table is empty');
+});

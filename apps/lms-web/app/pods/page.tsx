@@ -96,6 +96,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
     mallamsResult.status === 'rejected' ? 'mallams' : null,
     deviceRegistrationsResult.status === 'rejected' ? 'device registrations' : null,
   ].filter(Boolean);
+  const hasCorePodGap = podsResult.status === 'rejected';
 
   const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active').length;
 
@@ -107,7 +108,7 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <ModalLauncher buttonLabel="Add pod" title="Add pod" description="Create a real pod record with geography, mallam ownership, and live operational details." eyebrow="Pod admin">
+            <ModalLauncher buttonLabel="Add pod" title="Add pod" description="Create a real pod record with geography, mallam ownership, and live operational details." eyebrow="Pod admin" disabled={hasCorePodGap}>
               <CreatePodForm centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
           </div>
@@ -125,7 +126,9 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       }
     >
       <FeedbackBanner message={query?.message} />
-      {failedSources.length ? routeAlert(`Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
+      {failedSources.length ? routeAlert(hasCorePodGap
+        ? `Pod admin is degraded because the ${failedSources.join(', ')} feed${failedSources.length === 1 ? ' has' : 's have'} failed. The page stays visible so operators get an honest outage surface instead of a fake-empty registry, but pod create/edit actions are intentionally disabled until the pods feed recovers.`
+        : `Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
       {!pods.length ? routeAlert('No pods are loading right now. That could mean a genuinely empty registry or a still-broken upstream seed. Do not treat this as proof the deployment footprint is clean.', failedSources.length ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
@@ -154,7 +157,10 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
         <Card title="Pod registry" eyebrow="CRUD admin">
           <SimpleTable
             columns={['Pod', 'Status', 'Geography', 'Learners', 'Primary mallam', 'Tablets', 'Center', 'Actions']}
-            rows={pods.map((pod) => {
+            rows={hasCorePodGap ? [[
+              <span key="pods-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Pod registry unavailable. Recover the pods feed before using pod admin actions.</span>,
+              '', '', '', '', '', '', '',
+            ]] : pods.map((pod) => {
               const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
               return [
                 pod.label || pod.id,
