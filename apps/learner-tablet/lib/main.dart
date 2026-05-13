@@ -304,10 +304,15 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         state.backendError ??
         'Learner bootstrap could not reach the production backend.';
     final configuredBackend = state.backendBaseUrl;
-    final backendHost = Uri.tryParse(configuredBackend)?.host;
+    final backendUri = Uri.tryParse(configuredBackend);
+    final backendHost = backendUri?.host;
     final backendLabel = backendHost != null && backendHost.isNotEmpty
         ? '$backendHost · $configuredBackend'
         : configuredBackend;
+    final bootstrapProbeUrl = (backendUri != null
+            ? backendUri.resolve('/api/v1/learner-app/bootstrap')
+            : Uri.tryParse('$configuredBackend/api/v1/learner-app/bootstrap'))
+        ?.toString();
     final deviceIdentifier = state.stableDeviceIdentifier?.trim();
     final deviceIdentifierLabel =
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
@@ -558,6 +563,67 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (bootstrapProbeUrl != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(20),
+                              border:
+                                  Border.all(color: const Color(0xFFC7D2FE)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Bootstrap probe',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SelectableText(
+                                  bootstrapProbeUrl,
+                                  style: const TextStyle(
+                                    color: Color(0xFF312E81),
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Hit this exact learner bootstrap endpoint before blaming the tablet UI. If it does not return a real production payload, the deployment is still blocked upstream.',
+                                  style: TextStyle(
+                                    color: Color(0xFF4338CA),
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                FilledButton.tonalIcon(
+                                  onPressed: () async {
+                                    await ClipboardBridge.copy(
+                                        bootstrapProbeUrl);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Copied bootstrap probe endpoint.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.copy_all_rounded),
+                                  label: const Text('Copy bootstrap probe'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 18),
                         Wrap(
                           spacing: 12,

@@ -749,11 +749,17 @@ void main() {
       expect(find.text('Retry production bootstrap'), findsOneWidget);
       expect(find.text('Open limited offline mode'), findsNothing);
       expect(find.text('Live backend target'), findsOneWidget);
+      expect(find.text('Bootstrap probe'), findsOneWidget);
+      expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
       expect(find.text('Not provisioned in this build'), findsOneWidget);
       expect(
         find.textContaining('lumo-api-production-303a.up.railway.app'),
-        findsOneWidget,
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('/api/v1/learner-app/bootstrap'),
+        findsAtLeastNWidgets(1),
       );
       expect(
         find.textContaining('will not open demo learners just to look alive'),
@@ -808,7 +814,7 @@ void main() {
   );
 
   testWidgets(
-    'deployment blocker page exposes copy actions for backend target and tablet identifier',
+    'deployment blocker page exposes copy actions for backend target, bootstrap probe, and tablet identifier',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       tester.view.physicalSize = const Size(1400, 1000);
@@ -837,6 +843,7 @@ void main() {
       );
 
       expect(find.text('Copy backend target'), findsOneWidget);
+      expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
     },
   );
