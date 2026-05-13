@@ -10,6 +10,7 @@ import {
   normalizeSubjectsForAuthoring,
 } from '../../../../lib/lesson-authoring-normalize';
 import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import { resolveLessonStudioLaunchContext } from '../../../../lib/lesson-studio-launch-context';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
@@ -38,6 +39,48 @@ export default async function LessonStudioCreatePage({
   }>;
 }) {
   const query = await searchParams;
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Production wiring is incomplete, so lesson creation is blocked before the authoring route can fake a real curriculum lane."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson creation API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} Lesson creation depends on live subject, module, lesson, and asset feeds, so opening the composer against a dead or wrong backend would be data corruption with nicer typography.
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Studio creates persistent curriculum records. If the LMS is pointed at localhost, a placeholder host, or no real backend, every save is untrustworthy.',
+          'Blocking here is better than letting operators draft into a shell that cannot prove which curriculum lane will actually receive the lesson.',
+          'This keeps lesson creation aligned with the rest of the LMS admin routes already enforcing production API safety.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson Studio create route',
+            expected: 'Loads the live authoring form only when the production API target is trustworthy',
+            failure: 'Form shell opens against localhost, placeholder config, or a dead backend and pretends lesson creation is safe',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+          {
+            surface: 'Authoring context feeds',
+            expected: 'Subjects, modules, lessons, and assets load from the same real backend after redeploy',
+            failure: 'Mixed or empty authoring context that suggests the LMS and API are pointed at different deployments',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const [subjectsResult, modulesResult, lessonsResult, assetsResult] = await Promise.allSettled([
     fetchSubjects(),

@@ -3,6 +3,7 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
 import {
   normalizeAssessmentsForAuthoring,
   normalizeLessonAssetsForAuthoring,
@@ -96,6 +97,48 @@ export default async function LessonStudioEditPage({
   const { id } = await params;
   const query = await searchParams;
   const from = sanitizeInternalReturnPath(query?.from, '/content');
+
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Production wiring is incomplete, so lesson editing is blocked before this route can pretend a live lesson payload is trustworthy."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson editor API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} Editing a lesson against the wrong backend is how objectives, activities, and assessments get saved into the void or the wrong deployment.
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Editor is a write surface. If the LMS cannot prove it is pointed at the real production API, every edit is suspect.',
+          'Blocking here is better than loading a stale lesson shell and letting operators think they updated the live curriculum when they did not.',
+          'This keeps lesson editing consistent with the other LMS admin routes already refusing unsafe production API wiring.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson editor route',
+            expected: 'Loads the live lesson payload only when the production API target is trustworthy',
+            failure: 'Editor shell opens against localhost, placeholder config, or a dead backend and makes lesson saves untrustworthy',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+          {
+            surface: 'Lesson context recovery',
+            expected: 'Lesson, module, subject, assessment, and asset context all resolve from the same real backend after redeploy',
+            failure: 'Stale lesson payloads or mixed context that suggests the editor and supporting feeds are not coming from the same deployment',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content board', href: from, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const [lessonResult, lessonsResult, modulesResult, subjectsResult, assessmentsResult, assetsResult] = await Promise.allSettled([
     fetchLesson(id),
