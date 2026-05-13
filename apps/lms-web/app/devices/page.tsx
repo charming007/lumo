@@ -93,6 +93,48 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
     podsResult.status === 'rejected' ? 'pods' : null,
   ].filter(Boolean);
 
+  if (failedSources.length) {
+    return (
+      <DeploymentBlockerCard
+        title="Devices"
+        subtitle="Tablet rollout control should stop cold when the registry or pod feed goes blind."
+        blockerHeadline="Deployment blocker: device rollout feeds are degraded."
+        blockerDetail={(
+          <>
+            The live <strong>{failedSources.join(' + ')}</strong> {failedSources.length === 1 ? 'feed has' : 'feeds have'} failed to load. Leaving registration and reassignment controls interactive here would let operators move tablets, trust stale ownership, or create duplicates without seeing the real fleet state.
+          </>
+        )}
+        whyBlocked={[
+          'Devices is an operational write surface. If the registry is down, a calm-looking table or empty state becomes dangerous fiction.',
+          'Pod linkage is the source of truth for tablet ownership and rollout geography. If that feed is missing, reassignment is guesswork with a nice button.',
+          'This route should behave like the other hardened admin surfaces: block loudly when the control plane is blind instead of inviting unsafe writes.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Device registry feed',
+            expected: 'Live tablet rows load before any operator can trust coverage, ownership, or duplicate detection',
+            failure: 'Registration or reassignment stays interactive while the fleet view is stale or empty from a failed fetch',
+          },
+          {
+            surface: 'Pod ownership feed',
+            expected: 'Pod selectors and derived geography load from the live backend before a tablet move is allowed',
+            failure: 'Operators can submit a tablet change while pod ownership is missing or out of date',
+          },
+          {
+            surface: 'Rollout trust',
+            expected: 'The route blocks until both feeds recover, then device writes happen against a visible, current fleet map',
+            failure: 'Deployment review mistakes a degraded control surface for a healthy rollout console',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const activeCount = registrations.filter((item) => (item.status || '').toLowerCase() === 'active').length;
   const assignedCount = registrations.filter((item) => item.podId).length;
 
@@ -120,8 +162,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
-      {failedSources.length ? routeAlert(`Devices is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Registration and reassignment can still run, but pod ownership is the real source of truth here, so verify the selected pod before assuming the tablet map is current.`) : null}
-      {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the admin feed is degraded. Verify the pod registry before calling the rollout clean.', failedSources.length ? 'error' : 'warning') : null}
+      {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the rollout has not started yet. Verify the pod registry before calling the fleet clean.', 'warning') : null}
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
