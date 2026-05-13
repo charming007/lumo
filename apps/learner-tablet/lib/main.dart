@@ -8521,23 +8521,42 @@ class _LessonSessionPageState extends State<LessonSessionPage>
   }) async {
     final playbackValue = reference?.playbackValue?.trim();
     if (playbackValue != null && playbackValue.isNotEmpty) {
-      await learnerAudioPlaybackService.play(playbackValue);
-      return true;
+      try {
+        await learnerAudioPlaybackService.play(playbackValue);
+        return true;
+      } catch (_) {
+        // Fall through to spoken fallback so a missing/bad audio asset
+        // does not leave the learner without the authored cue.
+      }
     }
 
-    final fallback = reference?.spokenFallbackText?.trim();
-    if (fallback != null && fallback.isNotEmpty) {
+    final fallback = resolveAuthoredAudioFallbackText(
+      reference,
+      spokenFallback: spokenFallback,
+    );
+    if (fallback != null) {
       await _speakActivityText(fallback, mode: mode);
       return true;
     }
 
-    final spoken = spokenFallback?.trim();
-    if (spoken != null && spoken.isNotEmpty) {
-      await _speakActivityText(spoken, mode: mode);
-      return true;
+    return false;
+  }
+
+  String? resolveAuthoredAudioFallbackText(
+    LessonAudioReference? reference, {
+    String? spokenFallback,
+  }) {
+    final fallback = reference?.spokenFallbackText?.trim();
+    if (fallback != null && fallback.isNotEmpty) {
+      return fallback;
     }
 
-    return false;
+    final spoken = spokenFallback?.trim();
+    if (spoken != null && spoken.isNotEmpty) {
+      return spoken;
+    }
+
+    return null;
   }
 
   String _normalizeLearnerAssetKind(String? value) {
