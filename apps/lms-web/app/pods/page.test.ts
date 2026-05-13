@@ -11,15 +11,20 @@ test('pods page hard-blocks when production API wiring is unsafe', () => {
   assert.match(podsPageSource, /NEXT_PUBLIC_API_BASE_URL/, 'pods blocker should name the missing production env');
 });
 
-test('pods page still keeps degraded recovery once production wiring is valid', () => {
-  assert.match(podsPageSource, /Promise\.allSettled\(\[/, 'pods page should use Promise.allSettled for feed recovery');
-  assert.match(podsPageSource, /Pods is running in degraded mode:/, 'pods page should keep the operator-facing degraded-state banner');
-  assert.match(podsPageSource, /Do not treat this as proof the deployment footprint is clean\./, 'pods page should keep the honest empty-state warning');
+test('pods page hard-blocks when critical pod-admin feeds degrade', () => {
+  assert.match(podsPageSource, /const criticalPodAdminFailures = \[/, 'pods page should identify the pod-admin feeds that are too important to degrade into a banner');
+  assert.match(podsPageSource, /podsResult\.status === 'rejected' \? 'pods' : null/, 'pods registry failures should be treated as critical');
+  assert.match(podsPageSource, /centersResult\.status === 'rejected' \? 'centers' : null/, 'center-reference failures should be treated as critical');
+  assert.match(podsPageSource, /statesResult\.status === 'rejected' \? 'states' : null/, 'state-reference failures should be treated as critical');
+  assert.match(podsPageSource, /localGovernmentsResult\.status === 'rejected' \? 'local governments' : null/, 'local government failures should be treated as critical');
+  assert.match(podsPageSource, /mallamsResult\.status === 'rejected' \? 'mallams' : null/, 'mallam ownership failures should be treated as critical');
+  assert.match(podsPageSource, /if \(criticalPodAdminFailures\.length\)/, 'pods page should hard-block when pod-admin reference feeds degrade');
+  assert.match(podsPageSource, /Deployment blocker: pod admin feeds are degraded\./, 'pods page should render an explicit degraded-feed blocker headline');
+  assert.match(podsPageSource, /Modal forms can still open with missing or stale geography and mallam references/, 'pods blocker should explain the unsafe interactive failure mode it prevents');
 });
 
-test('pods page disables admin actions when the core pods feed is down instead of faking an empty registry', () => {
-  assert.match(podsPageSource, /const hasCorePodGap = podsResult\.status === 'rejected';/, 'pods page should identify a core pods-feed outage');
-  assert.match(podsPageSource, /disabled=\{hasCorePodGap\}/, 'pods page should disable add-pod controls while the registry feed is down');
-  assert.match(podsPageSource, /Pod admin is degraded because the/, 'pods page should explain the registry outage plainly');
-  assert.match(podsPageSource, /Pod registry unavailable\. Recover the pods feed before using pod admin actions\./, 'pods page should render an outage-safe registry row instead of pretending the table is empty');
+test('pods page still keeps honest recovery copy for non-blocking context gaps', () => {
+  assert.match(podsPageSource, /Promise\.allSettled\(\[/, 'pods page should use Promise.allSettled for feed recovery');
+  assert.match(podsPageSource, /Pods is running in degraded mode:/, 'pods page should keep the operator-facing degraded-state banner for non-critical context feeds');
+  assert.match(podsPageSource, /Do not treat this as proof the deployment footprint is clean\./, 'pods page should keep the honest empty-state warning');
 });

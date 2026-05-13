@@ -95,8 +95,63 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
     deviceRegistrationsResult.status === 'rejected' ? 'device registrations' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalPodAdminFailures = [
+    podsResult.status === 'rejected' ? 'pods' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+  ].filter(Boolean) as string[];
   const hasCorePodGap = podsResult.status === 'rejected';
+
+  if (criticalPodAdminFailures.length) {
+    const blockerDetail = criticalPodAdminFailures.length === 1
+      ? `The ${criticalPodAdminFailures[0]} feed failed to load from the live API. Leaving pod create, edit, or delete controls up would let operators rewrite rollout ownership while geography or primary mallam context is blind.`
+      : `The ${criticalPodAdminFailures.join(', ')} feeds failed to load from the live API. Leaving pod create, edit, or delete controls up would let operators rewrite rollout ownership while geography or primary mallam context is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Pods"
+        subtitle="Pod admin is a rollout control surface, not a decorative registry. If the ownership feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: pod admin feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalPodAdminFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalPodAdminFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalPodAdminFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Pods define geography, primary mallam ownership, learner routing, and downstream tablet placement. If those reference feeds are degraded, pod writes become polished guesswork.',
+          'A banner is too weak here. Modal forms can still open with missing or stale geography and mallam references, which is exactly how rollout ownership gets corrupted under outage conditions.',
+          'Device registrations can degrade separately as read-only context, but the core pod admin feeds should stop the route cold when they are blind.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Pod registry + ownership graph',
+            expected: 'Live pod rows, geography, and primary mallam ownership all load before operators can trust pod admin',
+            failure: 'Pod create/edit/delete controls remain available while the ownership graph is missing or stale',
+          },
+          {
+            surface: 'Geography and mallam selectors',
+            expected: 'State, local government, center, and primary mallam references load from the live backend before a pod write is allowed',
+            failure: 'Forms open with partial or empty reference data, letting operators save blind changes',
+          },
+          {
+            surface: 'Rollout trust',
+            expected: 'The route blocks until the core pod admin feeds recover, then ownership edits happen against visible live references',
+            failure: 'Deployment review mistakes a degraded pod control surface for a healthy rollout registry',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Devices', href: '/devices', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active').length;
 
