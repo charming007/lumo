@@ -7026,6 +7026,120 @@ void main() {
     );
 
     test(
+      'production-like bootstrap stays live when module bundle hydration supplies the launchable lesson payload',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': beginner.id,
+                        'name': beginner.name,
+                        'age': beginner.age,
+                        'cohortName': beginner.cohort,
+                        'guardianName': beginner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'english-live-1',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English hello',
+                        'cohortName': beginner.cohort,
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [beginner.id],
+                      },
+                    ],
+                    'registrationContext': {'cohorts': [], 'mallams': []},
+                    'meta': {
+                      'generatedAt': '2026-04-21T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              if (request.url.path == '/api/v1/learner-app/modules/english') {
+                return http.Response(
+                  jsonEncode({
+                    'module': {
+                      'id': 'english',
+                      'subjectId': 'english',
+                      'subjectName': 'English',
+                      'title': 'English',
+                      'level': 'beginner',
+                      'status': 'published',
+                    },
+                    'lessons': [
+                      {
+                        'id': 'english-live-1',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'English hello',
+                        'status': 'published',
+                        'activitySteps': [
+                          {
+                            'id': 'english-live-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Say hello',
+                            'prompt': 'Say hello.',
+                            'detail': 'Greeting step',
+                            'evidence': 'Learner greets',
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isFalse);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(state.backendError, isNull);
+        expect(
+          state.assignedLessons.map((lesson) => lesson.id).toList(),
+          contains('english-live-1'),
+        );
+        expect(
+          state.lessonsForLearner(beginner).map((lesson) => lesson.id).toList(),
+          equals(['english-live-1']),
+        );
+      },
+    );
+
+    test(
       'bundled fundamentals lesson wins over live lesson body with same stable id',
       () async {
         final bundledLesson = LessonCardModel(

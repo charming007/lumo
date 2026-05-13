@@ -1071,22 +1071,12 @@ class LumoAppState {
       assignmentPacks
         ..clear()
         ..addAll(data.assignmentPacks);
-      final liveBootstrapRuntimeBlocker = _liveBootstrapRuntimeBlockerReason(
-        data,
-      );
-      usingFallbackData = liveBootstrapRuntimeBlocker != null;
+      usingFallbackData = false;
       acknowledgedOfflineFallbackRisk = false;
-      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
-      backendError = liveBootstrapRuntimeBlocker;
+      deploymentBlockerReason = null;
+      backendError = null;
       final bootstrapRecordedAt = DateTime.now();
       lastSyncAttemptAt = bootstrapRecordedAt;
-      if (liveBootstrapRuntimeBlocker == null) {
-        lastSyncedAt = bootstrapRecordedAt;
-        snapshotSavedAt = bootstrapRecordedAt;
-        snapshotSourceBaseUrl = backendBaseUrl;
-        snapshotContractVersion = data.contractVersion;
-        snapshotTrustedFromLiveBootstrap = true;
-      }
       backendGeneratedAt = data.generatedAt == null
           ? null
           : DateTime.tryParse(data.generatedAt!);
@@ -1095,6 +1085,28 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
+      final liveBootstrapRuntimeBlocker = _liveBootstrapRuntimeBlockerReason(
+        LumoBootstrap(
+          learners: List<LearnerProfile>.from(learners),
+          modules: List<LearningModule>.from(modules),
+          lessons: List<LessonCardModel>.from(assignedLessons),
+          assignmentPacks: List<LearnerAssignmentPack>.from(assignmentPacks),
+          registrationContext: registrationContext,
+          generatedAt: data.generatedAt,
+          contractVersion: data.contractVersion,
+          assignmentCount: data.assignmentCount,
+        ),
+      );
+      usingFallbackData = liveBootstrapRuntimeBlocker != null;
+      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
+      backendError = liveBootstrapRuntimeBlocker;
+      if (liveBootstrapRuntimeBlocker == null) {
+        lastSyncedAt = bootstrapRecordedAt;
+        snapshotSavedAt = bootstrapRecordedAt;
+        snapshotSourceBaseUrl = backendBaseUrl;
+        snapshotContractVersion = data.contractVersion;
+        snapshotTrustedFromLiveBootstrap = true;
+      }
       await _mergeBundledOfflineContent();
 
       _rekeyLearnerScopedCaches(persistedLearners, learners);
