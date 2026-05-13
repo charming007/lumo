@@ -4,7 +4,7 @@ import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 export const dynamic = 'force-dynamic';
 
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
-import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
+import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
@@ -217,7 +217,7 @@ function dashboardApiSourceDetail() {
 
   return {
     label: 'Local development API',
-    note: 'Dashboard is using the local development API fallback. Fine for local work, not a deployment signal.',
+    note: `Dashboard is using the local development API fallback (${API_BASE}). Fine for local work, not a deployment signal.`,
     tone: { background: '#E5E7EB', border: '1px solid #CBD5E1', text: '#334155' },
   };
 }
@@ -229,7 +229,7 @@ function assetReadinessTone(readiness: AssetRuntimeReport['summary']['readiness'
 }
 
 function describeApiTarget() {
-  return API_BASE_DIAGNOSTIC.configuredApiBase ?? 'Not configured';
+  return API_BASE_DIAGNOSTIC.configuredApiBase ?? API_BASE;
 }
 
 export default async function HomePage() {

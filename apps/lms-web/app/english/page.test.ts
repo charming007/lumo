@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const englishPageSource = readFileSync(path.join(process.cwd(), 'apps/lms-web/app/english/page.tsx'), 'utf8');
+const englishPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
 
 test('english studio hard-blocks when production API wiring is unsafe', () => {
   assert.match(englishPageSource, /if \(API_BASE_DIAGNOSTIC\.deploymentBlocked\)/, 'english studio should block when the LMS API base is unsafe for production');

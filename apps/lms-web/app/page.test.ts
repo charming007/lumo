@@ -152,6 +152,29 @@ test('dashboard deployment trace tells the truth when provenance metadata is mis
   );
 });
 
+test('dashboard API target trace and local fallback note use the real runtime host', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE \} from '\.\.\/lib\/config';/,
+    'dashboard should import the resolved API base so trace copy can reflect the real runtime host',
+  );
+  assert.match(
+    dashboardPageSource,
+    /function describeApiTarget\(\) \{\s+return API_BASE_DIAGNOSTIC\.configuredApiBase \?\? API_BASE;\s+\}/,
+    'dashboard should fall back to the resolved API base instead of printing “Not configured” while requests still target a real host',
+  );
+  assert.match(
+    dashboardPageSource,
+    /local development API fallback \(\$\{API_BASE\}\)/,
+    'dashboard should spell out the actual local fallback host in backend trust copy',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /return API_BASE_DIAGNOSTIC\.configuredApiBase \?\? 'Not configured';/,
+    'dashboard should stop claiming the API target is “Not configured” when a real fallback base is active',
+  );
+});
+
 test('dashboard live pull freshness uses the real feed count instead of a hard-coded denominator', () => {
   assert.match(
     dashboardPageSource,
