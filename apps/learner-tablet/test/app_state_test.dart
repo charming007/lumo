@@ -6117,6 +6117,38 @@ void main() {
       expect(state.degradedModeSummary, contains('queued locally'));
     });
 
+    test('pending sync summary escalates local fallback registration backlog', () {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingSyncEvents.add(
+          const SyncEvent(
+            id: 'sync-register-1',
+            type: 'learner_registered_local_fallback',
+            payload: {'learnerCode': 'AMI-001'},
+          ),
+        )
+        ..pendingSyncEvents.add(
+          const SyncEvent(
+            id: 'sync-register-2',
+            type: 'learner_registered_local_fallback',
+            payload: {'learnerCode': 'BLA-002'},
+          ),
+        )
+        ..pendingSyncEvents.add(
+          const SyncEvent(
+            id: 'sync-lesson-1',
+            type: 'lesson_completed',
+            payload: {'learnerCode': 'AMI-001'},
+          ),
+        );
+
+      expect(state.hasPendingLocalFallbackRegistration, isTrue);
+      expect(state.pendingLocalFallbackRegistrationCount, 2);
+      expect(
+        state.pendingSyncSummary,
+        '2 learner registrations still need backend sync before the roster is trustworthy.',
+      );
+    });
+
     test(
       'roster freshness labels expose offline fallback and queued sync work',
       () {

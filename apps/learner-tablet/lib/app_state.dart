@@ -360,11 +360,24 @@ class LumoAppState {
     return null;
   }
 
+  int get pendingLocalFallbackRegistrationCount => pendingSyncEvents
+      .where((event) => event.type == 'learner_registered_local_fallback')
+      .length;
+
+  bool get hasPendingLocalFallbackRegistration =>
+      pendingLocalFallbackRegistrationCount > 0;
+
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
     if (latest == null) return 'No pending sync events.';
     final learnerCode =
         latest.payload['learnerCode']?.toString() ?? 'Unknown learner';
+    if (hasPendingLocalFallbackRegistration) {
+      final count = pendingLocalFallbackRegistrationCount;
+      return count == 1
+          ? '1 learner registration still needs backend sync before the roster is trustworthy.'
+          : '$count learner registrations still need backend sync before the roster is trustworthy.';
+    }
     return '${latest.type.replaceAll('_', ' ')} pending for $learnerCode';
   }
 

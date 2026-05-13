@@ -13374,6 +13374,21 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
       borderColor: Color(0xFFDDD6FE),
     );
   }
+  if (state.hasPendingLocalFallbackRegistration) {
+    final count = state.pendingLocalFallbackRegistrationCount;
+    return LearnerSourceStatusSignal(
+      id: 'runtime-pending-registration-$count',
+      label: count == 1
+          ? '1 learner still needs backend registration'
+          : '$count learners still need backend registration',
+      detail:
+          'This tablet saved learner intake locally, but the live roster is not trustworthy until that registration sync lands. Keep the backend reachable before treating those learners as safely deployed.',
+      icon: Icons.person_add_alt_1_rounded,
+      color: const Color(0xFF9A3412),
+      backgroundColor: const Color(0xFFFFF7ED),
+      borderColor: const Color(0xFFFED7AA),
+    );
+  }
   if (state.pendingSyncEvents.isNotEmpty) {
     return LearnerSourceStatusSignal(
       id: 'runtime-queue-${state.pendingSyncEvents.length}',

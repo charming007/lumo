@@ -124,6 +124,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('source status escalates pending learner registration sync over generic queue copy', () {
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      )
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-lesson-1',
+          type: 'lesson_completed',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    final signal = buildLearnerSourceStatusSignal(state);
+
+    expect(signal.id, 'runtime-pending-registration-1');
+    expect(signal.label, '1 learner still needs backend registration');
+    expect(signal.detail, contains('live roster is not trustworthy'));
+  });
+
   testWidgets(
       'backend banner escalates unknown learner sync failures into a deployment-trust blocker',
       (tester) async {
