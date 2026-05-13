@@ -79,9 +79,64 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalMallamFailures = [
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
   const hasCoreRosterGap = mallamsResult.status === 'rejected';
-  const geographyFilterDegraded = centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+  const geographyFilterDegraded = statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+
+  if (criticalMallamFailures.length) {
+    const blockerDetail = criticalMallamFailures.length === 1
+      ? `The ${criticalMallamFailures[0]} feed failed to load from the live API. Leaving facilitator create, edit, or pod-coverage controls up would let operators rewrite mallam ownership while the staffing graph is blind.`
+      : `The ${criticalMallamFailures.join(', ')} feeds failed to load from the live API. Leaving facilitator create, edit, or pod-coverage controls up would let operators rewrite mallam ownership while the staffing graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Mallams"
+        subtitle="Facilitator admin is a live staffing control surface, not a decorative directory. If the core staffing feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: mallam staffing feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalMallamFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalMallamFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalMallamFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to create facilitators, reassign primary pod ownership, and maintain live staffing coverage. If mallams, centers, pods, states, or local governments disappear, a polished UI becomes dangerous fiction fast.',
+          'Learner counts can degrade separately as supporting context, but the staffing roster and write paths should stop cold when the core facilitator-reference graph is missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Facilitator roster + ownership graph',
+            expected: 'Live mallams, centers, pods, states, and local governments all load before operators trust staffing admin',
+            failure: 'Add, edit, delete, or roster actions remain reachable while the core facilitator-reference graph is missing or stale',
+          },
+          {
+            surface: 'Profile and coverage forms',
+            expected: 'Center, state, local government, and pod references load from the live backend before a facilitator write is allowed',
+            failure: 'Forms stay interactive while the core staffing references are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the core staffing feeds recover',
+            failure: 'The route implies facilitator operations are safe when the staffing control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const filteredMallams = filterMallamsByGeography(mallams, centers, { stateId, localGovernmentId, podId });
   const active = filteredMallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
   const podCoverageCount = new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size;

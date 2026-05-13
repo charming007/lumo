@@ -11,9 +11,16 @@ test('mallams page hard-blocks when production API wiring is unsafe', () => {
   assert.match(mallamsPageSource, /NEXT_PUBLIC_API_BASE_URL/, 'mallams blocker should name the missing production env');
 });
 
-test('mallams page still keeps outage-safe degraded recovery once production wiring is valid', () => {
-  assert.match(mallamsPageSource, /Promise\.allSettled\(\[/, 'mallams page should use Promise.allSettled for roster recovery');
-  assert.match(mallamsPageSource, /const failedSources = \[/, 'mallams page should surface failed feed labels');
-  assert.match(mallamsPageSource, /Mallam admin is degraded because the/, 'mallams page should keep the core-roster outage banner');
-  assert.match(mallamsPageSource, /Mallam admin recovered with degraded feeds:/, 'mallams page should keep the degraded support-feed banner');
+test('mallams page blocks when core staffing-reference feeds degrade instead of inviting blind writes', () => {
+  assert.match(mallamsPageSource, /const criticalMallamFailures = \[/, 'mallams page should isolate the core staffing feeds that are too important to degrade into a polite warning');
+  assert.match(mallamsPageSource, /if \(criticalMallamFailures\.length\)/, 'mallams page should hard-block when the core staffing-reference feeds are down');
+  assert.match(mallamsPageSource, /Deployment blocker: mallam staffing feeds are degraded\./, 'mallams page should use an explicit degraded-operations blocker headline');
+  assert.match(mallamsPageSource, /Operators use this route to create facilitators, reassign primary pod ownership, and maintain live staffing coverage\./, 'mallams blocker should explain why facilitator admin becomes dangerous when reference feeds disappear');
+  assert.match(mallamsPageSource, /Forms stay interactive while the core staffing references are missing or stale/, 'mallams blocker should describe the unsafe write failure mode it prevents');
+});
+
+test('mallams page still allows learner-count context to degrade separately once staffing references recover', () => {
+  assert.match(mallamsPageSource, /const failedSources = \[/, 'mallams page should continue tracking all degraded feeds for operator copy');
+  assert.match(mallamsPageSource, /Additional degraded feed/, 'mallams blocker should still call out secondary degradation separately');
+  assert.match(mallamsPageSource, /Mallam admin recovered with degraded feeds:/, 'mallams page should keep the degraded support-feed banner for non-critical context loss');
 });

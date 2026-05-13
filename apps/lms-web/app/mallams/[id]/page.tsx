@@ -103,6 +103,54 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalMallamDetailFailures = [
+    centersResult.status === 'rejected' ? 'centers' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalMallamDetailFailures.length) {
+    const blockerDetail = criticalMallamDetailFailures.length === 1
+      ? `The ${criticalMallamDetailFailures[0]} feed failed to load from the live API. Leaving facilitator detail up would let operators edit geography or pod ownership while the reference graph is blind.`
+      : `The ${criticalMallamDetailFailures.join(', ')} feeds failed to load from the live API. Leaving facilitator detail up would let operators edit geography or pod ownership while the reference graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Mallam detail"
+        subtitle="Facilitator detail is a live staffing write surface, not a safe read-only profile. If the core reference feeds are down, the route should block instead of inviting blind edits."
+        blockerHeadline="Deployment blocker: mallam detail staffing feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalMallamDetailFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalMallamDetailFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalMallamDetailFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to edit facilitator geography, update pod coverage, and manage roster ownership. If centers, pods, states, or local governments disappear, the detail form stops being trustworthy.',
+          'Learner counts can degrade separately as supporting context, but facilitator detail should stop cold when the core staffing-reference graph is missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam detail profile',
+            expected: 'Center, state, local government, and pod references all load before the facilitator detail form is trusted',
+            failure: 'Edit controls remain reachable while the staffing-reference graph is missing or stale',
+          },
+          {
+            surface: 'Roster ownership decisions',
+            expected: 'Pod coverage and candidate routing context reflect the live backend before operators move learners or change ownership',
+            failure: 'The route implies mallam ownership updates are safe while the geography or pod graph is degraded',
+          },
+        ]}
+        docs={[
+          { label: 'Mallams overview', href: '/mallams', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Dashboard', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const mallam = mallams.find((item) => item.id === id);
   if (!mallam) notFound();
