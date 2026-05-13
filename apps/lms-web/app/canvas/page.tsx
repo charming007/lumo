@@ -104,6 +104,61 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     treeResult.status === 'rejected' ? 'canvas tree' : null,
   ].filter((value): value is string => Boolean(value));
+  const criticalCanvasFailures = [
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    strandsResult.status === 'rejected' ? 'strands' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+  ].filter((value): value is string => Boolean(value));
+
+  if (criticalCanvasFailures.length) {
+    const blockerDetail = criticalCanvasFailures.length === 1
+      ? `The ${criticalCanvasFailures[0]} feed failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`
+      : `The ${criticalCanvasFailures.join(', ')} feeds failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Curriculum Canvas"
+        subtitle="Canvas is a live authoring surface, not a decorative map. If the core curriculum feeds are down, the route should block instead of inviting blind edits."
+        blockerHeadline="Deployment blocker: curriculum authoring feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalCanvasFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalCanvasFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalCanvasFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Canvas exposes inline curriculum write actions. A polite warning banner is too weak when the lesson, module, strand, or gate graph is incomplete.',
+          'Partial curriculum context can make a broken deployment look like a harmless content gap, which is how people create the wrong lesson shells or wire assessments onto stale modules.',
+          'The fallback create-lesson CTA is only safe when the authoring feeds are healthy enough to trust the scoped context.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Curriculum graph',
+            expected: 'Subjects, strands, modules, lessons, and assessment gates load from the live API before any write surface appears',
+            failure: 'Canvas still shows editable graph controls while one of the core authoring feeds is missing',
+          },
+          {
+            surface: 'Inline authoring actions',
+            expected: 'Lesson, module, strand, and assessment quick actions only appear after the full authoring graph loads',
+            failure: 'Operators can create or edit curriculum nodes against stale or partial context',
+          },
+          {
+            surface: 'Authoring handoff',
+            expected: 'The route blocks until feeds recover, then scoped lesson-creation links reopen with trustworthy subject/module context',
+            failure: 'A fallback CTA launches authoring while the curriculum graph itself is degraded',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Lesson studio', href: createLessonHref, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
 
   const canvasData = subjects.length && modules.length
     ? buildCurriculumCanvasData({ subjects, strands, modules, lessons, assessments, tree })

@@ -28,6 +28,59 @@ test('canvas blocks when the production API target is missing or unsafe', () => 
   );
 });
 
+test('canvas hard-blocks when core authoring feeds degrade', () => {
+  assert.match(
+    canvasPageSource,
+    /const criticalCanvasFailures = \[/,
+    'canvas should identify the curriculum feeds that are too important to degrade into a warning banner',
+  );
+  assert.match(
+    canvasPageSource,
+    /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
+    'canvas should treat subject feed failures as deployment-blocking authoring gaps',
+  );
+  assert.match(
+    canvasPageSource,
+    /strandsResult\.status === 'rejected' \? 'strands' : null/,
+    'canvas should treat strand feed failures as deployment-blocking authoring gaps',
+  );
+  assert.match(
+    canvasPageSource,
+    /modulesResult\.status === 'rejected' \? 'modules' : null/,
+    'canvas should treat module feed failures as deployment-blocking authoring gaps',
+  );
+  assert.match(
+    canvasPageSource,
+    /lessonsResult\.status === 'rejected' \? 'lessons' : null/,
+    'canvas should treat lesson feed failures as deployment-blocking authoring gaps',
+  );
+  assert.match(
+    canvasPageSource,
+    /assessmentsResult\.status === 'rejected' \? 'assessments' : null/,
+    'canvas should treat assessment feed failures as deployment-blocking authoring gaps',
+  );
+  assert.match(
+    canvasPageSource,
+    /if \(criticalCanvasFailures\.length\) \{/,
+    'canvas should stop rendering interactive authoring controls when core curriculum feeds fail',
+  );
+  assert.match(
+    canvasPageSource,
+    /Deployment blocker: curriculum authoring feeds are degraded\./,
+    'canvas should surface an explicit degraded-authoring blocker headline',
+  );
+  assert.match(
+    canvasPageSource,
+    /Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph\./,
+    'canvas should explain the unsafe write failure mode it prevents',
+  );
+  assert.match(
+    canvasPageSource,
+    /The fallback create-lesson CTA is only safe when the authoring feeds are healthy enough to trust the scoped context\./,
+    'canvas blocker should call out why launching fallback authoring while degraded is unsafe',
+  );
+});
+
 test('canvas fallback create-lesson CTA preserves scoped blocker subject and module context', () => {
   assert.match(
     canvasPageSource,
