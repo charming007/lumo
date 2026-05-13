@@ -107,7 +107,59 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
     catalogResult.status === 'rejected' ? 'rewards catalog' : null,
     leaderboardResult.status === 'rejected' ? 'leaderboard' : null,
     queueResult.status === 'rejected' ? 'reward queue' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalRewardFailures = [
+    studentsResult.status === 'rejected' ? 'learners' : null,
+    leaderboardResult.status === 'rejected' ? 'leaderboard' : null,
+    queueResult.status === 'rejected' ? 'reward queue' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalRewardFailures.length) {
+    const blockerDetail = criticalRewardFailures.length === 1
+      ? `The ${criticalRewardFailures[0]} feed failed to load from the live API. Leaving rewards up would make queue triage, XP corrections, and learner trust signals look safe while the control surface is blind.`
+      : `The ${criticalRewardFailures.join(', ')} feeds failed to load from the live API. Leaving rewards up would make queue triage, XP corrections, and learner trust signals look safe while the control surface is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Rewards"
+        subtitle="Rewards is an operational write surface, not a decorative leaderboard. If the core feeds are down, the route should block instead of rendering fake calm."
+        blockerHeadline="Deployment blocker: reward operations feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalRewardFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalRewardFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalRewardFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to review live reward demand, approve fulfillment work, and make manual XP corrections. If learners, leaderboard, or queue state disappears, a polished UI becomes dangerous fiction fast.',
+          'The rewards catalog can degrade separately, but the route should stop cold when the core reward-operation feeds are missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Reward queue + leaderboard',
+            expected: 'Live learner XP, queue backlog, and fulfillment status load from the real backend before any operator trusts the lane',
+            failure: 'Quiet zero counts or empty queue rows appear while the core rewards feeds are degraded',
+          },
+          {
+            surface: 'Manual reward corrections',
+            expected: 'Operators can see real learners and current XP context before changing rewards state',
+            failure: 'Correction flows stay interactive while the core learner or queue context is missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the core reward-operation feeds recover',
+            failure: 'The route implies rewards operations are safe when the control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Reports blocker', href: '/reports', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const totalXp = leaderboard.reduce((sum, item) => sum + item.totalXp, 0);
   const totalBadges = leaderboard.reduce((sum, item) => sum + item.badgesUnlocked, 0);
