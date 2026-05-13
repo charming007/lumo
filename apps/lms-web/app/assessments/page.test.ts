@@ -11,11 +11,17 @@ test('assessments page hard-blocks when production API wiring is unsafe', () => 
   assert.match(source, /used to fetch immediately and explode on bad wiring/, 'assessments page should explain why the route now blocks before crashing');
 });
 
-test('assessments page degrades instead of hard-failing when feeds drop', () => {
+test('assessments page hard-blocks when progression feeds degrade', () => {
   assert.match(source, /Promise\.allSettled\(\[/, 'assessments page should recover gracefully from feed outages');
-  assert.match(source, /const failedSources = \[/, 'assessments page should surface failed feed labels');
-  assert.match(source, /Assessment admin is degraded because/, 'assessments page should show an outage-safe banner when the core feed fails');
-  assert.match(source, /Assessment creation is paused until the module and subject feeds load again\./, 'assessments page should pause create flow when curriculum context is missing');
+  assert.match(source, /const criticalAssessmentFailures = \[/, 'assessments page should identify the degraded progression feeds that make writes unsafe');
+  assert.match(source, /Deployment blocker: assessment progression feeds are degraded\./, 'assessments page should call out degraded progression feeds as a deployment blocker');
+  assert.match(source, /Leaving assessment edits, deletes, or gate creation interactive here would let operators rewrite progression decisions while the curriculum reference graph is blind\./, 'assessments page should explain the unsafe write failure mode it prevents');
+  assert.match(source, /Modules and subjects are the source of truth for where a gate belongs\./, 'assessments page should explain why missing curriculum references are deployment-blocking');
+});
+
+
+test('assessments page still keeps an honest empty-state warning once feeds recover', () => {
+  assert.match(source, /Assessment creation is paused until the module and subject feeds load again\./, 'assessments page should keep the create flow honest when prerequisites are missing');
   assert.match(source, /Assessment registry unavailable\. Recover the assessments feed before using gate admin actions\./, 'assessments page should keep the registry honest instead of crashing');
 });
 

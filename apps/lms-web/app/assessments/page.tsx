@@ -102,8 +102,59 @@ export default async function AssessmentsPage({
     modulesResult.status === 'rejected' ? 'curriculum modules' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
   ].filter(Boolean) as string[];
+  const criticalAssessmentFailures = [
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    modulesResult.status === 'rejected' ? 'curriculum modules' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+  ].filter(Boolean) as string[];
   const hasCoreRegistryGap = assessmentsResult.status === 'rejected';
   const canManageAssessments = modules.length > 0 && subjects.length > 0;
+
+  if (criticalAssessmentFailures.length) {
+    const blockerDetail = criticalAssessmentFailures.length === 1
+      ? `The ${criticalAssessmentFailures[0]} feed failed to load from the live API. Leaving assessment edits, deletes, or gate creation interactive here would let operators rewrite progression decisions while the curriculum reference graph is blind.`
+      : `The ${criticalAssessmentFailures.join(', ')} feeds failed to load from the live API. Leaving assessment edits, deletes, or gate creation interactive here would let operators rewrite progression decisions while the curriculum reference graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Assessments"
+        subtitle="Assessment admin is a live progression control surface, not a decorative registry. If the core feeds are down, the route should block instead of inviting blind gate changes."
+        blockerHeadline="Deployment blocker: assessment progression feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to create, edit, retire, and delete progression gates. If assessments, curriculum modules, or subjects disappear, a polished UI becomes dangerous fiction fast.',
+          'Modules and subjects are the source of truth for where a gate belongs. If that reference context is missing, even “simple” assessment edits can silently corrupt progression decisions.',
+          'This route should behave like the other hardened admin surfaces: block loudly when the progression control plane is blind instead of inviting unsafe writes.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assessment registry feed',
+            expected: 'Live assessment rows load before any operator can trust gate coverage, status, or trigger wiring',
+            failure: 'Edit or delete actions stay reachable while the core registry is stale or empty from a failed fetch',
+          },
+          {
+            surface: 'Curriculum reference feeds',
+            expected: 'Module and subject context loads from the live backend before a gate create or edit flow is allowed',
+            failure: 'Operators can launch progression changes while module or subject references are missing or out of date',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the progression feeds recover, then gate admin returns with real context',
+            failure: 'The route implies progression control is safe when the assessment graph is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content library', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
 
   const filteredAssessments = assessments.filter((assessment) => {
     const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
