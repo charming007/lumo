@@ -255,7 +255,12 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalSettingsFailures = [
+    storageStatusResult.status === 'rejected' ? 'storage status' : null,
+    integrityResult.status === 'rejected' ? 'storage integrity' : null,
+    backupsResult.status === 'rejected' ? 'storage backups' : null,
+  ].filter(Boolean) as string[];
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
 
   if (assetRuntimeAuthBlocked) {
@@ -295,6 +300,48 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
           { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
           { label: 'Open asset library', href: '/content/assets', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
+        ]}
+      />
+    );
+  }
+
+  if (criticalSettingsFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalSettingsFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Settings"
+        subtitle="Storage operations are blocked while the live persistence audit feeds are degraded, because checkpointing or repair against blind state is how you turn an outage into data loss."
+        blockerHeadline="Deployment blocker: settings storage audit feeds are degraded."
+        blockerDetail={secondaryFailures.length
+          ? `Critical failed feed${criticalSettingsFailures.length === 1 ? '' : 's'}: ${criticalSettingsFailures.join(', ')}. Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+          : `Critical failed feed${criticalSettingsFailures.length === 1 ? '' : 's'}: ${criticalSettingsFailures.join(', ')}.`}
+        whyBlocked={[
+          'This page can create checkpoints, run integrity repair, restore backups, and delete backups. Those controls cannot stay live when storage status, integrity, or backup inventory is missing.',
+          'A nice degraded banner is bullshit here. Operators would still see polished forms and action buttons while the persistence truth itself is blind or stale.',
+          'Leaderboard, geography, or reporting context can degrade separately, but the storage control surface should stop cold when the storage audit feeds disappear.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Storage control center',
+            expected: 'Mode, persistence, timestamps, integrity counts, and backup inventory all load before any checkpoint or repair action is offered.',
+            failure: 'Create checkpoint or repair buttons remain clickable while the storage audit feeds are missing or stale.',
+          },
+          {
+            surface: 'Backup restore/delete controls',
+            expected: 'Operators only see restore/delete actions when the live backup inventory is trustworthy.',
+            failure: 'The route implies restore or delete is safe while the backup feed is degraded.',
+          },
+          {
+            surface: 'Cross-route trust check',
+            expected: 'Dashboard and settings agree that storage operations are blocked until the audit feeds recover.',
+            failure: 'Settings stays interactive even though the trust surfaces disagree about storage readiness.',
+          },
+        ]}
+        docs={[
+          { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
+          { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
+          { label: 'Open reports', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
         ]}
       />
     );
