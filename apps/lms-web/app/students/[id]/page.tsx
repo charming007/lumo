@@ -124,8 +124,58 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalLearnerDetailFailures = [
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
   if (!student) notFound();
+
+  if (criticalLearnerDetailFailures.length) {
+    const blockerDetail = criticalLearnerDetailFailures.length === 1
+      ? `The ${criticalLearnerDetailFailures[0]} feed failed to load from the live API. Leaving learner detail up would let operators edit roster, geography, or mallam routing while the reference graph is blind.`
+      : `The ${criticalLearnerDetailFailures.join(', ')} feeds failed to load from the live API. Leaving learner detail up would let operators edit roster, geography, or mallam routing while the reference graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Learner detail"
+        subtitle="Learner detail is a live roster write surface, not a harmless profile page. If the core roster-reference feeds are down, the route should block instead of inviting blind edits."
+        blockerHeadline="Deployment blocker: learner detail roster-reference feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalLearnerDetailFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalLearnerDetailFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalLearnerDetailFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to edit learner profiles, change pod or mallam routing, and manage deletion decisions. If cohorts, pods, mallams, centers, states, or local governments disappear, the detail form stops being trustworthy.',
+          'Reward history can degrade separately as supporting context, but learner detail should stop cold when the core roster-reference graph is missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner detail profile',
+            expected: 'Cohort, pod, mallam, center, state, and local government references all load before the learner detail form is trusted',
+            failure: 'Edit controls remain reachable while the roster-reference graph is missing or stale',
+          },
+          {
+            surface: 'Roster routing decisions',
+            expected: 'Mallam assignment and learner geography updates reflect the live backend before operators move anyone',
+            failure: 'The route implies learner routing updates are safe while the geography or ownership graph is degraded',
+          },
+        ]}
+        docs={[
+          { label: 'Students overview', href: '/students', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Dashboard', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const rewards = studentRewardsResult.status === 'fulfilled'
     ? { ...studentRewardsResult.value, learnerName: studentRewardsResult.value.learnerName || student.name }
