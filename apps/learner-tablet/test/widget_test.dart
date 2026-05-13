@@ -4704,6 +4704,61 @@ void main() {
     },
   );
 
+  testWidgets('assignment placeholders are blocked at the shared lesson launch gate', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    const placeholderLesson = LessonCardModel(
+      id: 'assignment-placeholder:lesson-1',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Assignment arrived before lesson sync.',
+      steps: [],
+    );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                launchLessonFlow(
+                  context: context,
+                  state: state,
+                  onChanged: () {},
+                  lesson: placeholderLesson,
+                );
+              },
+              child: const Text('Open lesson'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open lesson'));
+    await pumpForUi(tester);
+
+    expect(
+      find.text(
+        'This assignment is still waiting for the live lesson sync. Refresh sync before a learner starts it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('lesson session shows a preflight listening readiness card', (
     tester,
   ) async {

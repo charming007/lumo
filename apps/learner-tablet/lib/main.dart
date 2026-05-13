@@ -1268,7 +1268,18 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
-  if (!lesson.isAssignmentPlaceholder && lesson.steps.isEmpty) {
+  if (lesson.isAssignmentPlaceholder) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'This assignment is still waiting for the live lesson sync. Refresh sync before a learner starts it.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (lesson.steps.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
