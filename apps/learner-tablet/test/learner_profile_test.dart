@@ -84,15 +84,23 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Sync required before starting'), findsOneWidget);
+    final syncRequiredButton = find.widgetWithText(
+      FilledButton,
+      'Sync required before starting',
+    );
+    expect(syncRequiredButton, findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(syncRequiredButton).onPressed,
+      isNull,
+    );
 
-    await tester.ensureVisible(find.text('Sync required before starting'));
-    await tester.tap(find.text('Sync required before starting'));
+    await tester.ensureVisible(syncRequiredButton);
+    await tester.tap(syncRequiredButton, warnIfMissed: false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
-    expect(find.text('Refresh sync before starting'), findsOneWidget);
+    expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    expect(find.text('Refresh sync before starting'), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 500));
     await state.flushPersistence();

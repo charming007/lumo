@@ -258,6 +258,48 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   ].filter(Boolean);
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
 
+  if (assetRuntimeAuthBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Settings"
+        subtitle="Protected asset audits are blocked, so this trust center is not allowed to cosplay as a safe admin cockpit."
+        blockerHeadline="Deployment blocker: LMS admin API key cannot unlock settings audit feeds."
+        blockerDetail={(
+          <>
+            The LMS cannot authenticate to <code style={{ color: 'white', fontWeight: 900 }}>/api/v1/admin/assets/runtime</code>. Set the correct <code style={{ color: 'white', fontWeight: 900 }}>LUMO_ADMIN_API_KEY</code> in the LMS deployment, redeploy, then re-check settings, dashboard, and asset library before calling this stack production-ready.
+          </>
+        )}
+        whyBlocked={[
+          'Settings is the trust center for storage posture, backups, rewards, and asset readiness. If protected admin audit auth is broken, the page should not keep rendering polished fallback numbers and hope nobody notices.',
+          'A banner is too weak here. Reviewers can still misread the rest of the page as a valid live ops surface even though one of the critical protected feeds is locked.',
+          'Hard-blocking this route keeps the deployment story honest until the LMS and API share the same admin key again.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Protected asset runtime audit',
+            expected: 'Settings can read /api/v1/admin/assets/runtime without auth failure.',
+            failure: 'The route 401s or otherwise rejects the LMS admin key while the page still pretends the trust center is usable.',
+          },
+          {
+            surface: 'Settings trust center',
+            expected: 'Storage, backup, rewards, and asset posture all render from live authenticated feeds.',
+            failure: 'Fallback metrics or empty audit sections appear after the auth fix supposedly shipped.',
+          },
+          {
+            surface: 'Cross-check routes',
+            expected: 'Dashboard and asset library agree that asset audits are unlocked again after redeploy.',
+            failure: 'Settings recovers but dashboard or /content/assets still shows the protected-feed blocker.',
+          },
+        ]}
+        docs={[
+          { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
+          { label: 'Open asset library', href: '/content/assets', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
+        ]}
+      />
+    );
+  }
+
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
   const watch = workboard.filter((item) => item.progressionStatus === 'watch').length;
   const averageXp = leaderboard.length ? Math.round(leaderboard.reduce((sum, item) => sum + item.totalXp, 0) / leaderboard.length) : 0;

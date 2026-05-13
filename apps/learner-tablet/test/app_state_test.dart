@@ -7970,6 +7970,73 @@ void main() {
       },
     );
 
+    test('sync-pending assignment placeholders are never learner-launchable', () {
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const placeholderLesson = LessonCardModel(
+        id: 'assignment-placeholder:assignment-42',
+        moduleId: 'science-module',
+        title: 'Count the seeds',
+        subject: 'Live assignment',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Waiting for lesson sync',
+        scenario:
+            'Placeholder should warn operators, not appear as learner-ready content.',
+        steps: [
+          LessonStep(
+            id: 'assignment-placeholder-step',
+            type: LessonStepType.intro,
+            title: 'Lesson sync pending',
+            instruction: 'Refresh the tablet sync before starting.',
+            expectedResponse: 'Refresh the tablet sync before starting.',
+            coachPrompt: 'Do not start runtime on a placeholder lesson.',
+            facilitatorTip: 'Refresh sync before launch.',
+            realWorldCheck:
+                'Learner waits until the real lesson content arrives.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      state.learners.add(learner);
+      state.assignedLessons.add(placeholderLesson);
+      state.assignmentPacks.add(
+        const LearnerAssignmentPack(
+          assignmentId: 'assignment-42',
+          lessonId: 'assignment-placeholder:assignment-42',
+          moduleId: 'science-module',
+          lessonTitle: 'Count the seeds',
+          eligibleLearnerIds: ['learner-1'],
+        ),
+      );
+
+      expect(state.learnerCanOpenLesson(learner, placeholderLesson), isFalse);
+      expect(state.availableLearnersForLesson(placeholderLesson), isEmpty);
+      expect(state.nextAssignedLessonForLearner(learner), isNull);
+
+      state.dispose();
+    });
+
     test(
       'learner-facing subjects ignore sync-pending assignment placeholders',
       () {

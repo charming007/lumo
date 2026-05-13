@@ -83,7 +83,7 @@ test('falls back to the blocker board when authoring context is missing', () => 
   assert.equal(href, '/content?view=blocked&moduleId=module-reading-1');
 });
 
-test('falls back to the blocker board when the recovered subject id is blank', () => {
+test('keeps single-lesson blocker launches alive when the subject id is blank but module context is recoverable', () => {
   const href = resolveTopReleaseBlockerPrimaryHref({
     blocker: {
       ...blocker,
@@ -94,10 +94,13 @@ test('falls back to the blocker board when the recovered subject id is blank', (
     canLaunchLessonStudio: true,
   });
 
-  assert.equal(href, '/content?view=blocked&moduleId=module-reading-1');
+  assert.equal(
+    href,
+    '/content/lessons/new?moduleId=module-reading-1&from=%2Fcontent%3Fview%3Dblocked%26moduleId%3Dmodule-reading-1&focus=blockers',
+  );
 });
 
-test('keeps multi-lesson blockers on the blocker board when the subject id is blank', () => {
+test('keeps multi-lesson blocker launches alive when the subject id is blank but module context is recoverable', () => {
   const href = resolveTopReleaseBlockerPrimaryHref({
     blocker: {
       ...blocker,
@@ -107,5 +110,5 @@ test('keeps multi-lesson blockers on the blocker board when the subject id is bl
     canLaunchLessonStudio: false,
   });
 
-  assert.equal(href, '/content?view=blocked&moduleId=module-reading-1');
+  assert.equal(href, '/canvas?module=module-reading-1&readiness=blocked&q=Reading+lane');
 });

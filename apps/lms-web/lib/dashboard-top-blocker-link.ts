@@ -30,17 +30,23 @@ export function resolveTopReleaseBlockerPrimaryHref(params: {
   }
 
   const normalizedSubjectId = blocker.subjectId.trim();
-  if (!normalizedSubjectId) {
-    return boardHref;
-  }
 
   if (canLaunchLessonStudio) {
-    return `/content/lessons/new?subjectId=${encodeURIComponent(normalizedSubjectId)}&moduleId=${encodeURIComponent(blocker.id)}&from=${encodeURIComponent(boardHref)}&focus=blockers`;
+    const lessonStudioParams = new URLSearchParams();
+    if (normalizedSubjectId) {
+      lessonStudioParams.set('subjectId', normalizedSubjectId);
+    }
+    lessonStudioParams.set('moduleId', blocker.id);
+    lessonStudioParams.set('from', boardHref);
+    lessonStudioParams.set('focus', 'blockers');
+    return `/content/lessons/new?${lessonStudioParams.toString()}`;
   }
 
   if (blocker.missingLessons > 1 && blocker.hasAuthoringContext) {
     const params = new URLSearchParams();
-    params.set('subject', normalizedSubjectId);
+    if (normalizedSubjectId) {
+      params.set('subject', normalizedSubjectId);
+    }
     params.set('module', blocker.id);
     params.set('readiness', 'blocked');
     params.set('q', blocker.title);

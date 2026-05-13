@@ -1968,15 +1968,15 @@ void main() {
       expect(syncRequiredButton, findsOneWidget);
       expect(
         tester.widget<FilledButton>(syncRequiredButton).onPressed,
-        isNotNull,
+        isNull,
       );
 
       await tester.ensureVisible(syncRequiredButton);
-      await tester.tap(syncRequiredButton);
+      await tester.tap(syncRequiredButton, warnIfMissed: false);
       await pumpForUi(tester);
 
-      expect(find.byType(LessonLaunchSetupPage), findsOneWidget);
-      expect(find.text('Refresh sync before starting'), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+      expect(find.text('Refresh sync before starting'), findsNothing);
 
       state.dispose();
     },

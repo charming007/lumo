@@ -1699,14 +1699,14 @@ class LumoAppState {
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
+    if (lesson.isAssignmentPlaceholder) {
+      return false;
+    }
     if (isQaLessonUnlockActive) {
       return _canQaUnlockLessonForLearner(learner, lesson);
     }
     if (lessonCompletedForLearner(learner, lesson)) {
       return false;
-    }
-    if (lesson.isAssignmentPlaceholder) {
-      return learnerMatchesTabletPod(learner);
     }
     if (!_isPublishedLearnerLesson(lesson)) return false;
     if (!learnerMatchesTabletPod(learner)) return false;
@@ -1886,7 +1886,7 @@ class LumoAppState {
     LessonCardModel lesson,
   ) {
     if (lesson.isAssignmentPlaceholder) {
-      return learnerMatchesTabletPod(learner);
+      return false;
     }
     return _isPublishedLearnerLesson(lesson) &&
         learnerMatchesTabletPod(learner);
