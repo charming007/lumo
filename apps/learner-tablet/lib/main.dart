@@ -896,14 +896,17 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     return _SubjectLessonAvailabilitySummary.unavailable;
   }
 
-  if (state.learners.isEmpty) {
-    return _SubjectLessonAvailabilitySummary.ready;
+  final eligibleLearners = state.learners
+      .where((candidate) => state.learnerMatchesTabletPod(candidate))
+      .toList(growable: false);
+  if (eligibleLearners.isEmpty) {
+    return _SubjectLessonAvailabilitySummary.unavailable;
   }
 
   var sawCompleted = false;
   var sawCompletedToday = false;
   var sawLocked = false;
-  for (final candidate in state.learners) {
+  for (final candidate in eligibleLearners) {
     if (!state.learnerMatchesTabletPod(candidate)) continue;
     final availability = learnerLessonAvailability(
       state: state,
@@ -943,7 +946,11 @@ String _subjectCardStatusLabel({
   required int completedTodayLessonCount,
   required int completedLessonCount,
   required int lockedLessonCount,
+  required bool hasEligibleLearner,
 }) {
+  if (!hasEligibleLearner) {
+    return 'Needs learner';
+  }
   if (readyLessonCount > 0) {
     return readyLessonCount == lessonCount
         ? 'Ready now'
@@ -995,6 +1002,9 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
   LearnerProfile? learner,
 }) {
   final subjects = state.learnerFacingSubjects(learner: learner);
+  final hasEligibleLearner =
+      learner != null ||
+      state.learners.any((candidate) => state.learnerMatchesTabletPod(candidate));
 
   return subjects
       .map((subject) {
@@ -1047,6 +1057,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             completedTodayLessonCount: completedTodayLessonCount,
             completedLessonCount: completedLessonCount,
             lockedLessonCount: lockedLessonCount,
+            hasEligibleLearner: hasEligibleLearner,
           ),
         );
       })

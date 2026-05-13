@@ -198,6 +198,73 @@ void main() {
     await tester.pump(duration);
   }
 
+  testWidgets(
+    'subject page blocks lesson entry when no synced learner is available',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        )
+        ..modules.add(
+          const LearningModule(
+            id: 'english',
+            title: 'English',
+            description: 'Voice-first English practice',
+            voicePrompt: 'Start English',
+            readinessGoal: 'Greeting flow',
+            badge: 'Lesson ready',
+            status: 'published',
+          ),
+        )
+        ..assignedLessons.add(
+          const LessonCardModel(
+            id: 'english-live-lesson',
+            moduleId: 'english',
+            title: 'Greetings with Mallam',
+            subject: 'English',
+            durationMinutes: 10,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario: 'Lesson is synced before any learner roster lands.',
+            steps: [],
+          ),
+        );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: _noop,
+            module: state.modules.first,
+            subjectTitle: 'English',
+            subjectKey: 'english',
+            forceUnscopedLessons: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('No learner-safe lessons are ready in English yet.'),
+        findsOneWidget,
+      );
+      expect(find.text('Greetings with Mallam'), findsNothing);
+      expect(find.text('Refresh live sync'), findsOneWidget);
+    },
+  );
+
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 

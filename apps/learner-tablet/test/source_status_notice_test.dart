@@ -191,6 +191,37 @@ void main() {
     expect(availability.canLaunch, isFalse);
   });
 
+  test('subject cards stay hidden until a synced learner lands on the tablet', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      )
+      ..assignedLessons.add(
+        const LessonCardModel(
+          id: 'english-live-lesson',
+          moduleId: 'english',
+          title: 'Greetings with Mallam',
+          subject: 'English',
+          durationMinutes: 10,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Lesson is synced before any learner roster lands.',
+          steps: [],
+        ),
+      );
+    addTearDown(state.dispose);
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, isEmpty);
+  });
+
   test('source status escalates pending learner registration sync over generic queue copy', () {
     final state = LumoAppState(includeSeedDemoContent: true)
       ..usingFallbackData = false
