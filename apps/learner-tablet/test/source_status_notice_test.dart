@@ -124,6 +124,73 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('placeholder assignments never advertise a learner as ready before lesson sync lands', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      cohortId: 'cohort-1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const placeholderLesson = LessonCardModel(
+      id: 'assignment-placeholder:lesson-placeholder',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Assignment visible before payload sync.',
+      steps: [],
+    );
+
+    state.learners.add(learner);
+    state.assignedLessons.add(placeholderLesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-1',
+        lessonId: placeholderLesson.id,
+        moduleId: placeholderLesson.moduleId,
+        lessonTitle: placeholderLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+
+    final availability = learnerLessonAvailability(
+      state: state,
+      learner: learner,
+      lesson: placeholderLesson,
+    );
+
+    expect(availability.kind, LearnerLessonAvailabilityKind.unavailable);
+    expect(availability.label, 'Waiting for sync');
+    expect(availability.canLaunch, isFalse);
+  });
+
   test('source status escalates pending learner registration sync over generic queue copy', () {
     final state = LumoAppState(includeSeedDemoContent: true)
       ..usingFallbackData = false

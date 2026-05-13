@@ -1116,6 +1116,15 @@ LearnerLessonAvailability learnerLessonAvailability({
   required LearnerProfile learner,
   required LessonCardModel lesson,
 }) {
+  if (lesson.isAssignmentPlaceholder) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.unavailable,
+      label: 'Waiting for sync',
+      detail:
+          'This assignment is visible, but the live lesson payload has not landed on this tablet yet.',
+    );
+  }
+
   final completedToday = state.lessonCompletedTodayForLearner(learner, lesson);
   if (completedToday) {
     return const LearnerLessonAvailability(
