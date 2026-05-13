@@ -1440,6 +1440,9 @@ class HomePage extends StatelessWidget {
                 LumoTopBar(
                   onLogoTap: () {},
                   metadataLabels: _buildTopBarMetadataLabels(state),
+                  extraChips: showTrustBanner
+                      ? const <Widget>[]
+                      : _buildOperatorStatusChips(state),
                 ),
               if (showTrustBanner) ...[
                 const SizedBox(height: 12),

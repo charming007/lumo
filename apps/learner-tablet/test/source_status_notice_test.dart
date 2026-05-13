@@ -63,6 +63,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('healthy home top bar keeps live backend chips visible',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backend link live'), findsOneWidget);
+    expect(find.text('Backend healthy'), findsOneWidget);
+    expect(find.text('Tablet trust check'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'home trust banner stays visible on landscape tablets when sync warnings exist',
       (tester) async {
