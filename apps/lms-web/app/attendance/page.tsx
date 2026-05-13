@@ -75,7 +75,49 @@ export default async function AttendancePage() {
   const failedSources = [
     recordsResult.status === 'rejected' ? 'attendance records' : null,
     studentsResult.status === 'rejected' ? 'students' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const hasCriticalAttendanceGap = recordsResult.status === 'rejected';
+
+  if (hasCriticalAttendanceGap) {
+    const secondaryFailures = failedSources.filter((source) => source !== 'attendance records');
+
+    return (
+      <DeploymentBlockerCard
+        title="Attendance"
+        subtitle="Daily roll-call operations are blocked while the live attendance register is degraded, because writing blind attendance is worse than a loud outage card."
+        blockerHeadline="Deployment blocker: attendance register feed is degraded."
+        blockerDetail={secondaryFailures.length
+          ? `The attendance records feed failed, so the register cannot be trusted for live present/late/absent decisions. Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+          : 'The attendance records feed failed, so the register cannot be trusted for live present/late/absent decisions.'}
+        whyBlocked={[
+          'If the register itself is down, operators cannot see the current attendance truth. Leaving capture live would invite duplicate, conflicting, or confidence-destroying roll-call writes.',
+          'Attendance is a live operational control surface, not a harmless report. A calm-looking form on top of a missing register is polished nonsense.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Attendance register',
+            expected: 'Current learner attendance rows load from the backend before operators mark anyone present, late, or absent',
+            failure: 'Capture stays available while the board itself is missing or stale',
+          },
+          {
+            surface: 'Attendance capture',
+            expected: 'New attendance writes happen only when the live register and learner roster are both visible and trustworthy',
+            failure: 'Operators can submit attendance against a blind or partial register',
+          },
+          {
+            surface: 'Cross-route trust check',
+            expected: 'Attendance changes line up with the same learners shown in students and progress after the feed recovers',
+            failure: 'Attendance data looks disconnected from the rest of the LMS because the register outage was masked',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Students', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Progress', href: '/progress', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const present = records.filter((record) => (record.status || '').toLowerCase() === 'present');
   const canCaptureAttendance = students.length > 0;
@@ -97,7 +139,7 @@ export default async function AttendancePage() {
         </Card>
       }
     >
-      {failedSources.length ? routeAlert(`Attendance is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Keeping the route up is safer than a 500, but do not treat missing rows as clean attendance until those feeds recover.`, recordsResult.status === 'rejected' ? 'error' : 'warning') : null}
+      {failedSources.length ? routeAlert(`Attendance is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Keeping the route up is safer than a 500, but do not treat missing rows as clean attendance until those feeds recover.`, studentsResult.status === 'rejected' ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         {canCaptureAttendance ? (

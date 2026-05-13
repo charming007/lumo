@@ -86,9 +86,64 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalRosterFailures = [
+    studentsResult.status === 'rejected' ? 'students' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+  ].filter(Boolean) as string[];
 
   const hasCoreRosterGap = studentsResult.status === 'rejected';
-  const geographyFilterDegraded = podsResult.status === 'rejected' || centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+  const geographyFilterDegraded = statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+
+  if (criticalRosterFailures.length) {
+    const blockerDetail = criticalRosterFailures.length === 1
+      ? `The ${criticalRosterFailures[0]} feed failed to load from the live API. Leaving learner create, edit, delete, or routing controls up would let operators change roster ownership while the core reference graph is blind.`
+      : `The ${criticalRosterFailures.join(', ')} feeds failed to load from the live API. Leaving learner create, edit, delete, or routing controls up would let operators change roster ownership while the core reference graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Students"
+        subtitle="Learner admin is a live roster control surface, not a decorative directory. If the core feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: learner roster feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalRosterFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalRosterFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalRosterFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records. If students, cohorts, pods, mallams, or centers disappear, a polished UI becomes dangerous fiction fast.',
+          'State and local government labels can degrade separately as supporting geography context, but the roster and write paths should stop cold when the core learner-reference feeds are missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster + ownership graph',
+            expected: 'Live learner rows, cohorts, pods, mallams, and centers all load before operators trust learner admin',
+            failure: 'Add, edit, delete, or routing controls remain reachable while the core learner-reference graph is missing or stale',
+          },
+          {
+            surface: 'Enrollment and routing forms',
+            expected: 'Cohort, pod, mallam, and center references load from the live backend before a learner write is allowed',
+            failure: 'Forms stay interactive while the core reference feeds are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the core learner roster feeds recover',
+            failure: 'The route implies learner operations are safe when the roster control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Attendance board', href: '/attendance', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+        ]}
+      />
+    );
+  }
+
   const filteredStudents = filterStudentsByGeography(students, pods, centers, { stateId, localGovernmentId, podId, cohortId, mallamId });
   const activeStudents = filteredStudents.filter((student) => (student.stage || '').toLowerCase() !== 'inactive');
   const avgAttendance = averageAttendancePercent(filteredStudents.map((student) => student.attendanceRate));

@@ -11,15 +11,18 @@ test('students page hard-blocks when production API wiring is unsafe', () => {
   assert.match(studentsPageSource, /NEXT_PUBLIC_API_BASE_URL/, 'students blocker should name the missing production env');
 });
 
-test('students page degrades instead of hard-failing on support feed outages', () => {
-  assert.match(studentsPageSource, /Promise\.allSettled\(\[/, 'students page should use Promise.allSettled for roster recovery');
-  assert.match(studentsPageSource, /const failedSources = \[/, 'students page should surface failed feed labels');
-  assert.match(studentsPageSource, /Learner admin recovered with degraded feeds:/, 'students page should show an operator-facing degraded-state banner');
-  assert.match(studentsPageSource, /The page stays visible so operators get an honest outage surface instead of a crash/, 'students page should keep the roster shell honest when the core feed is down');
+test('students page blocks when core learner roster feeds degrade instead of leaving write surfaces interactive', () => {
+  assert.match(studentsPageSource, /const criticalRosterFailures = \[/, 'students page should isolate the core learner-reference feeds that are too important to degrade into a polite warning');
+  assert.match(studentsPageSource, /if \(criticalRosterFailures\.length\)/, 'students page should hard-block when the core learner roster feeds are down');
+  assert.match(studentsPageSource, /Deployment blocker: learner roster feeds are degraded\./, 'students page should call out degraded learner roster feeds as a deployment blocker');
+  assert.match(studentsPageSource, /Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records\./, 'students page should explain why this route becomes dangerous when core learner feeds disappear');
+  assert.match(studentsPageSource, /State and local government labels can degrade separately as supporting geography context, but the roster and write paths should stop cold when the core learner-reference feeds are missing\./, 'students page should distinguish tolerable geography degradation from deployment-blocking roster blindness');
+  assert.match(studentsPageSource, /Forms stay interactive while the core reference feeds are missing or stale/, 'students page should describe the unsafe write failure mode it prevents');
 });
 
-test('students page blocks learner writes when the core roster feed is unavailable', () => {
-  assert.match(studentsPageSource, /disabled=\{hasCoreRosterGap\}/, 'students page should disable learner creation when the core roster feed is down');
-  assert.match(studentsPageSource, /Learner roster unavailable\. Recover the students feed before using learner admin actions\./, 'students page should keep the table honest when learner rows are unavailable');
-  assert.match(studentsPageSource, /Learner roster feed is unavailable, so this page is showing an outage-safe shell instead of pretending the roster is empty\./, 'students page should explain why the roster shell is still visible during outages');
+test('students page still keeps an honest degraded geography shell once core feeds recover', () => {
+  assert.match(studentsPageSource, /Promise\.allSettled\(\[/, 'students page should use Promise.allSettled for roster recovery');
+  assert.match(studentsPageSource, /Learner admin recovered with degraded feeds:/, 'students page should show an operator-facing degraded-state banner for non-critical feed loss');
+  assert.match(studentsPageSource, /Showing .* with degraded geography context because one of the support feeds is down\./, 'students page should keep degraded geography copy once only support feeds are missing');
+  assert.match(studentsPageSource, /disabled=\{hasCoreRosterGap\}/, 'students page should still disable learner creation if the core roster feed itself is down');
 });
