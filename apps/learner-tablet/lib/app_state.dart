@@ -2908,6 +2908,28 @@ class LumoAppState {
         }
         currentLearner = learners[resumeLearnerIndex];
       }
+    } else if (currentLearner == null) {
+      if (learners.length == 1) {
+        currentLearner = learners.first;
+      } else {
+        final availableLearners = availableLearnersForLesson(lesson);
+        if (availableLearners.length == 1) {
+          currentLearner = availableLearners.first;
+        }
+      }
+    }
+
+    final learner = currentLearner;
+    if (learner == null) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} because no learner is selected on this tablet.',
+      );
+    }
+
+    if (resumeFrom == null && lessonCompletedForLearner(learner, lesson)) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} for ${learner.name} because it is no longer learner-safe to launch on this tablet.',
+      );
     }
 
     final now = DateTime.now();

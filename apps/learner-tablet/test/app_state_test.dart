@@ -8286,6 +8286,48 @@ void main() {
       state.dispose();
     });
 
+    test('startLesson refuses stale direct launches for blocked learners', () async {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+        orElse: () => state.assignedLessons.first,
+      );
+
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere(
+          (item) => item.id == lesson.moduleId,
+          orElse: () => state.modules.first,
+        ),
+      );
+      state.startLesson(lesson);
+
+      final completedSessionId = state.activeSession?.sessionId;
+      expect(completedSessionId, isNotNull);
+
+      await state.completeLesson(lesson);
+
+      expect(state.lessonCompletedTodayForLearner(learner, lesson), isTrue);
+      expect(
+        () => state.startLesson(lesson),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'Cannot open lesson ${lesson.id} for ${learner.name} because it is no longer learner-safe to launch on this tablet.',
+          ),
+        ),
+      );
+      expect(state.activeSession?.sessionId, completedSessionId);
+      expect(
+        state.activeSession?.completionState,
+        LessonCompletionState.complete,
+      );
+
+      state.dispose();
+    });
+
     test(
       'learner-facing subjects ignore sync-pending assignment placeholders',
       () {
