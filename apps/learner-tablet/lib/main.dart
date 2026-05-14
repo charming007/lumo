@@ -1136,6 +1136,15 @@ LearnerLessonAvailability learnerLessonAvailability({
     );
   }
 
+  if (lesson.steps.isEmpty) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.unavailable,
+      label: 'Sync incomplete',
+      detail:
+          'This lesson shell landed on the tablet without any activity steps, so it cannot be launched safely yet.',
+    );
+  }
+
   final completedToday = state.lessonCompletedTodayForLearner(learner, lesson);
   if (completedToday) {
     return const LearnerLessonAvailability(
@@ -4573,11 +4582,13 @@ class _LessonJourneyStepCard extends StatelessWidget {
                           ? 'Completed'
                           : isLocked
                               ? 'Locked'
-                              : isNext
-                                  ? 'Start next lesson'
-                                  : isHighlighted
-                                      ? 'Ready now'
-                                      : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                              : status != null && !status.canLaunch
+                                  ? status.label
+                                  : isNext
+                                      ? 'Start next lesson'
+                                      : isHighlighted
+                                          ? 'Ready now'
+                                          : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4591,9 +4602,11 @@ class _LessonJourneyStepCard extends StatelessWidget {
                             ? const Color(0xFF0F766E)
                             : isLocked
                                 ? const Color(0xFF7C3AED)
-                                : isNext || isHighlighted
-                                    ? palette.first
-                                    : const Color(0xFF64748B),
+                                : status != null && !status.canLaunch
+                                    ? _learnerAvailabilityColor(status.kind)
+                                    : isNext || isHighlighted
+                                        ? palette.first
+                                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
