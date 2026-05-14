@@ -1348,6 +1348,37 @@ void main() {
     },
   );
 
+  testWidgets(
+    'home screen keeps registration quick action read-only while backend registration is blocked',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Register blocked'), findsOneWidget);
+      expect(find.byType(RegisterPage), findsNothing);
+
+      await tester.tap(find.text('Register blocked'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.byType(RegisterPage), findsNothing);
+    },
+  );
+
   testWidgets('home screen explains when no learner-safe subjects are ready', (
     tester,
   ) async {
