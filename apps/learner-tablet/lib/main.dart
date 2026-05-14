@@ -3862,7 +3862,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           width: double.infinity,
                                           child: FilledButton.tonalIcon(
                                             onPressed:
-                                                lesson.isAssignmentPlaceholder
+                                                lesson.isAssignmentPlaceholder ||
+                                                        lesson.steps.isEmpty
                                                     ? null
                                                     : () {
                                                         state.selectLearner(
@@ -3880,7 +3881,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                         );
                                                       },
                                             icon: Icon(
-                                              lesson.isAssignmentPlaceholder
+                                              lesson.isAssignmentPlaceholder ||
+                                                      lesson.steps.isEmpty
                                                   ? Icons.sync_problem_rounded
                                                   : matchesResumableSession
                                                       ? Icons
@@ -3889,7 +3891,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                           .open_in_new_rounded,
                                             ),
                                             label: Text(
-                                              lesson.isAssignmentPlaceholder
+                                              lesson.isAssignmentPlaceholder ||
+                                                      lesson.steps.isEmpty
                                                   ? 'Sync required before starting'
                                                   : matchesResumableSession
                                                       ? 'Resume lesson'
@@ -12215,6 +12218,7 @@ class _LessonCompletePageState extends State<LessonCompletePage>
     );
     return subjectModule ?? lessonModule ?? fallbackModule;
   }
+
   @override
   void initState() {
     super.initState();
