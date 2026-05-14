@@ -3373,6 +3373,13 @@ void main() {
       expect(find.textContaining('is selected for'), findsNothing);
 
       await tester.ensureVisible(find.text(state.learners.first.name).first);
+      final originalHitTestWarningFatal =
+          WidgetController.hitTestWarningShouldBeFatal;
+      WidgetController.hitTestWarningShouldBeFatal = true;
+      addTearDown(() {
+        WidgetController.hitTestWarningShouldBeFatal =
+            originalHitTestWarningFatal;
+      });
       await tester.tap(find.text(state.learners.first.name).first);
       await pumpForUi(tester);
 

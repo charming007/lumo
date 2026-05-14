@@ -76,22 +76,28 @@ export default async function AttendancePage() {
     recordsResult.status === 'rejected' ? 'attendance records' : null,
     studentsResult.status === 'rejected' ? 'students' : null,
   ].filter(Boolean) as string[];
-  const hasCriticalAttendanceGap = recordsResult.status === 'rejected';
+  const criticalAttendanceFailures = [
+    recordsResult.status === 'rejected' ? 'attendance records' : null,
+    studentsResult.status === 'rejected' ? 'students' : null,
+  ].filter(Boolean) as string[];
 
-  if (hasCriticalAttendanceGap) {
-    const secondaryFailures = failedSources.filter((source) => source !== 'attendance records');
+  if (criticalAttendanceFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalAttendanceFailures.includes(source));
+    const blockerDetail = criticalAttendanceFailures.length === 1
+      ? `The ${criticalAttendanceFailures[0]} feed failed, so daily roll-call cannot be trusted for live present/late/absent decisions.`
+      : `The ${criticalAttendanceFailures.join(', ')} feeds failed, so daily roll-call cannot be trusted for live present/late/absent decisions.`;
 
     return (
       <DeploymentBlockerCard
         title="Attendance"
-        subtitle="Daily roll-call operations are blocked while the live attendance register is degraded, because writing blind attendance is worse than a loud outage card."
-        blockerHeadline="Deployment blocker: attendance register feed is degraded."
+        subtitle="Daily roll-call operations are blocked while the live attendance register or learner roster is degraded, because writing blind attendance is worse than a loud outage card."
+        blockerHeadline="Deployment blocker: attendance operations feeds are degraded."
         blockerDetail={secondaryFailures.length
-          ? `The attendance records feed failed, so the register cannot be trusted for live present/late/absent decisions. Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
-          : 'The attendance records feed failed, so the register cannot be trusted for live present/late/absent decisions.'}
+          ? `${blockerDetail} Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+          : blockerDetail}
         whyBlocked={[
-          'If the register itself is down, operators cannot see the current attendance truth. Leaving capture live would invite duplicate, conflicting, or confidence-destroying roll-call writes.',
-          'Attendance is a live operational control surface, not a harmless report. A calm-looking form on top of a missing register is polished nonsense.',
+          'If the register itself is down, operators cannot see the current attendance truth. If the learner roster is down, they cannot honestly know who should be present in the first place. Either way, leaving capture live invites duplicate, conflicting, or confidence-destroying roll-call writes.',
+          'Attendance is a live operational control surface, not a harmless report. A calm-looking form or table on top of a missing register or roster is polished nonsense.',
         ]}
         verificationItems={[
           {

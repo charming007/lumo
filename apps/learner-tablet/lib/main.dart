@@ -6241,11 +6241,16 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                     child: Stack(
                                       children: [
                                         Positioned.fill(
-                                          child: _LearnerCard(
-                                            learner: learner,
-                                            state: state,
-                                            dense: true,
-                                            isActive: isSelected,
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 34,
+                                            ),
+                                            child: _LearnerCard(
+                                              learner: learner,
+                                              state: state,
+                                              dense: true,
+                                              isActive: isSelected,
+                                            ),
                                           ),
                                         ),
                                         Positioned(
