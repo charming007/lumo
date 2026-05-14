@@ -11,7 +11,12 @@ test('english studio hard-blocks when production API wiring is unsafe', () => {
   assert.match(englishPageSource, /NEXT_PUBLIC_API_BASE_URL/, 'english studio blocker should name the missing production env');
 });
 
-test('english studio still blocks only when the curriculum lane itself is missing after API trust passes', () => {
-  assert.match(englishPageSource, /if \(!englishSubject \|\| !englishModules.length\)/, 'english studio should keep the curriculum-lane blocker for real feed loss');
-  assert.match(englishPageSource, /Blocking here is correct only when the curriculum lane itself is missing/, 'english studio should explain that the deeper blocker is the curriculum lane, not leftover pilot copy');
+test('english studio blocks when critical authoring feeds degrade, not just when the curriculum lane disappears', () => {
+  assert.match(englishPageSource, /const criticalEnglishStudioFailures = \[/, 'english studio should explicitly track critical authoring feed failures');
+  assert.match(englishPageSource, /assessmentsResult\.status === 'rejected' \? 'assessments' : null/, 'english studio should treat assessments as a critical authoring dependency');
+  assert.match(englishPageSource, /assetsResult\.status === 'rejected' \? 'assets' : null/, 'english studio should treat assets as a critical authoring dependency');
+  assert.match(englishPageSource, /if \(criticalEnglishStudioFailures\.length \|\| missingEnglishLane\)/, 'english studio should hard-block when critical authoring feeds degrade or the curriculum lane is missing');
+  assert.match(englishPageSource, /Deployment blocker: English Studio authoring feeds are degraded\./, 'english studio should call out degraded authoring feeds as a deployment blocker');
+  assert.match(englishPageSource, /If the assessments or assets feed is down, operators can still create lessons that look finished while the readiness gate or media payload is blind\./, 'english studio blocker should explain why assets and assessments are not safe to treat as optional here');
+  assert.doesNotMatch(englishPageSource, /English Studio recovered with degraded feeds:[\s\S]*Core English authoring stays live because the curriculum lane is available/, 'english studio should stop pretending the route is safe to keep interactive when critical authoring feeds are degraded');
 });
