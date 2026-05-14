@@ -171,10 +171,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     final syncRequiredLabel = find.text('Sync required before starting');
-    expect(syncRequiredLabel, findsOneWidget);
+    expect(syncRequiredLabel, findsNWidgets(2));
+    expect(find.text('Start assigned lesson'), findsNothing);
 
-    await tester.ensureVisible(syncRequiredLabel);
-    await tester.tap(syncRequiredLabel, warnIfMissed: false);
+    await tester.ensureVisible(syncRequiredLabel.first);
+    await tester.tap(syncRequiredLabel.first, warnIfMissed: false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

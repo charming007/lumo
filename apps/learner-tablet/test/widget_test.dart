@@ -2314,6 +2314,94 @@ void main() {
   );
 
   testWidgets(
+    'registration success page falls back to the subject board when the assigned lesson shell is still incomplete',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      addTearDown(state.dispose);
+
+      const learner = LearnerProfile(
+        id: 'learner-shell',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const shellLesson = LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'English greeting lesson',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell is visible before activity steps sync.',
+        steps: [],
+      );
+
+      state.learners.add(learner);
+      state.modules.add(
+        const LearningModule(
+          id: 'english',
+          title: 'English basics',
+          description: 'Greeting practice',
+          voicePrompt: 'Listen and repeat',
+          readinessGoal: 'Greeting flow',
+          badge: '🗣️',
+        ),
+      );
+      state.assignedLessons.add(shellLesson);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-shell',
+          lessonId: shellLesson.id,
+          moduleId: shellLesson.moduleId,
+          lessonTitle: shellLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Open subject'), findsOneWidget);
+      expect(find.text('Start assigned lesson'), findsNothing);
+
+      await tester.tap(find.text('Open subject'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    },
+  );
+
+  testWidgets(
       'go to next learner handoff skips learners outside the tablet pod', (
     tester,
   ) async {
@@ -2629,7 +2717,7 @@ void main() {
   );
 
   testWidgets(
-    'go to next learner handoff skips learners outside the tablet pod', (
+      'go to next learner handoff skips learners outside the tablet pod', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -5124,7 +5212,8 @@ void main() {
     },
   );
 
-  testWidgets('assignment placeholders are blocked at the shared lesson launch gate', (
+  testWidgets(
+      'assignment placeholders are blocked at the shared lesson launch gate', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);

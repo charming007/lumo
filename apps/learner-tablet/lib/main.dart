@@ -1280,6 +1280,16 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
   }
 }
 
+bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
+  return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
+}
+
+String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
+  return lessonRequiresSyncBeforeStarting(lesson)
+      ? 'Sync required before starting'
+      : 'Start assigned lesson';
+}
+
 void launchLessonFlow({
   required BuildContext context,
   required LumoAppState state,
@@ -3182,6 +3192,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final nextLessonNeedsSync =
+        nextLesson != null && lessonRequiresSyncBeforeStarting(nextLesson);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
@@ -3770,26 +3782,35 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                       SizedBox(
                                         width: double.infinity,
                                         child: FilledButton.icon(
-                                          onPressed: () {
-                                            state.selectLearner(learner);
-                                            launchLessonFlow(
-                                              context: context,
-                                              state: state,
-                                              onChanged: () {},
-                                              lesson: nextLesson,
-                                              resumeFrom: resumableSession,
-                                            );
-                                          },
+                                          onPressed: nextLessonNeedsSync
+                                              ? null
+                                              : () {
+                                                  state.selectLearner(learner);
+                                                  launchLessonFlow(
+                                                    context: context,
+                                                    state: state,
+                                                    onChanged: () {},
+                                                    lesson: nextLesson,
+                                                    resumeFrom:
+                                                        resumableSession,
+                                                  );
+                                                },
                                           icon: Icon(
-                                            resumableSession == null
-                                                ? Icons.play_arrow_rounded
-                                                : Icons
-                                                    .play_circle_fill_rounded,
+                                            nextLessonNeedsSync
+                                                ? Icons.sync_problem_rounded
+                                                : resumableSession == null
+                                                    ? Icons.play_arrow_rounded
+                                                    : Icons
+                                                        .play_circle_fill_rounded,
                                           ),
                                           label: Text(
-                                            resumableSession == null
-                                                ? 'Start assigned lesson'
-                                                : 'Resume assigned lesson',
+                                            nextLessonNeedsSync
+                                                ? lessonSyncBlockerCtaLabel(
+                                                    nextLesson,
+                                                  )
+                                                : resumableSession == null
+                                                    ? 'Start assigned lesson'
+                                                    : 'Resume assigned lesson',
                                           ),
                                         ),
                                       ),
@@ -5964,7 +5985,8 @@ class RegistrationSuccessPage extends StatelessWidget {
                           state.selectLearner(learner);
                           state.selectModule(recommendedModule);
                           onChanged();
-                          if (nextLesson != null) {
+                          if (nextLesson != null &&
+                              !lessonRequiresSyncBeforeStarting(nextLesson)) {
                             Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
                                 builder: (_) => LessonLaunchSetupPage(
@@ -5987,11 +6009,18 @@ class RegistrationSuccessPage extends StatelessWidget {
                             ),
                           );
                         },
-                        child: Text(
-                          state.nextAssignedLessonForLearner(learner) == null
-                              ? 'Open subject'
-                              : 'Start assigned lesson',
-                        ),
+                        child: Text(() {
+                          final nextLesson = state.nextAssignedLessonForLearner(
+                            learner,
+                          );
+                          if (nextLesson == null) {
+                            return 'Open subject';
+                          }
+                          if (lessonRequiresSyncBeforeStarting(nextLesson)) {
+                            return 'Open subject';
+                          }
+                          return 'Start assigned lesson';
+                        }()),
                       ),
                       secondary: OutlinedButton(
                         onPressed: () => Navigator.of(
