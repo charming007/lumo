@@ -151,9 +151,10 @@ export default async function LessonStudioEditPage({
 
   const { items: inventoryLessons, issues: lessonInventoryPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
   const fallbackInventoryLesson = inventoryLessons.find((entry) => entry.id === id) ?? null;
-  const rawLesson = lessonResult.status === 'fulfilled' ? lessonResult.value : fallbackInventoryLesson;
-  const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
-  const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
+  const { lesson: fetchedLesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(lessonResult.status === 'fulfilled' ? lessonResult.value : null);
+  const lessonFeedUnavailable = lessonResult.status === 'rejected';
+  const lesson = fetchedLesson ?? fallbackInventoryLesson;
+  const lessonFeedRecoveredFromInventory = lessonFeedUnavailable && Boolean(fallbackInventoryLesson);
 
   const { items: loadedModules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
   const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
