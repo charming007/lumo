@@ -262,6 +262,54 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     : filteredModules.length + filteredLessons.length + filteredAssessments.length;
   const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter || moduleIdFilter);
 
+  if (moduleIdFilter && !focusedModule) {
+    return (
+      <DeploymentBlockerCard
+        title="Content library"
+        subtitle="This scoped blocker handoff is blocked because the exact module from the dashboard no longer matches the live curriculum feed."
+        blockerHeadline="Deployment blocker: scoped module handoff no longer matches live curriculum."
+        blockerDetail={(
+          <>
+            The dashboard passed moduleId <code style={{ color: 'white', fontWeight: 900 }}>{moduleIdFilter}</code>, but this board cannot find that module in the live curriculum feed. Treat that as stale or mismatched deployment evidence, not as a clean blocker board. Until the module reappears or the dashboard target is corrected, do not treat this route as proof the release lane is clear.
+          </>
+        )}
+        whyBlocked={[
+          'A scoped blocker handoff is supposed to prove one exact release lane, not vaguely wave at the whole curriculum board.',
+          'If the targeted module vanished because the LMS is pointed at the wrong backend, a stale deploy, or drifted curriculum data, showing a normal board would invite a fake green light.',
+          'Blocking here forces operators to resolve whether the module actually moved, was deleted, or never existed on this deployment target.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Dashboard → Content blocker handoff',
+            expected: 'The exact blocked module opens in the content board with matching module id, title, and subject context',
+            failure: 'Dashboard deep-link lands on a generic board while the targeted module is missing',
+          },
+          {
+            surface: 'Live curriculum feed',
+            expected: 'Module id is present in modules feed and still carries the expected subject + release context',
+            failure: 'Module id is absent, renamed, or only exists on a different backend target',
+          },
+          {
+            surface: 'Cross-check routes',
+            expected: 'Dashboard, content board, and canvas all agree on the same module once the handoff is repaired',
+            failure: 'One route shows the module while another route acts like it never existed',
+          },
+        ]}
+        fixItems={[
+          { label: 'Focused module id', value: moduleIdFilter },
+          { label: 'Focused subject', value: subjectFilterName ?? subjectFilter ?? 'Not provided' },
+          { label: 'Operator action', value: 'Verify the module still exists on the live API target, then re-open the dashboard blocker or fix the backend/env mismatch before trusting this board' },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Open canvas', href: '/canvas', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
   return (
     <PageShell
       title="Content Library"
@@ -365,11 +413,9 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       {filtersActive ? (
         <div style={{ marginBottom: 20, padding: '14px 16px', borderRadius: 16, background: activeResultCount > 0 ? '#eef2ff' : '#fff7ed', border: `1px solid ${activeResultCount > 0 ? '#c7d2fe' : '#fed7aa'}`, color: activeResultCount > 0 ? '#3730a3' : '#9a3412', fontWeight: 700 }}>
-          {moduleIdFilter && !focusedModule
-            ? `The dashboard passed moduleId ${moduleIdFilter}, but this board cannot find that module in the live curriculum feed. Treat that as stale or mismatched deployment evidence, not as a clean blocker board.`
-            : activeResultCount > 0
-              ? `Showing ${activeResultCount} matching records across the filtered board.`
-              : 'No records match those filters yet. Loosen the query or clear the filters instead of assuming the library is empty.'}
+          {activeResultCount > 0
+            ? `Showing ${activeResultCount} matching records across the filtered board.`
+            : 'No records match those filters yet. Loosen the query or clear the filters instead of assuming the library is empty.'}
         </div>
       ) : null}
 
