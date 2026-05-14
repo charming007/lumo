@@ -3741,6 +3741,109 @@ void main() {
       },
     );
 
+    test(
+      'skips sync-placeholder assignments when picking the next lesson after completion',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+          backendRecommendedModuleId: 'math',
+        );
+        const completedLesson = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'English warmup',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Completed lesson.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model it first.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const placeholderLesson = LessonCardModel(
+          id: 'assignment-placeholder:math-2',
+          moduleId: 'math',
+          title: 'Math still syncing',
+          subject: 'Math',
+          durationMinutes: 10,
+          status: 'assigned',
+          mascotName: 'Mallam',
+          readinessFocus: 'Wait for live payload',
+          scenario: 'Placeholder lesson only.',
+          steps: [
+            LessonStep(
+              id: 'placeholder-step',
+              type: LessonStepType.intro,
+              title: 'Lesson sync pending',
+              instruction: 'Refresh sync before starting this assignment.',
+              expectedResponse: 'Refresh sync first.',
+              coachPrompt: 'Do not start runtime on a placeholder lesson.',
+              facilitatorTip: 'Refresh assignments first.',
+              realWorldCheck: 'Only start once the real lesson appears.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([completedLesson, placeholderLesson]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-next',
+            lessonId: placeholderLesson.id,
+            moduleId: placeholderLesson.moduleId,
+            curriculumModuleId: placeholderLesson.moduleId,
+            lessonTitle: placeholderLesson.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+
+        final nextLesson = state.nextLessonAfterCompletion(
+          learner,
+          completedLessonId: completedLesson.id,
+        );
+
+        expect(nextLesson, isNull);
+        expect(
+          state.nextLessonRouteSummaryForLearner(
+            learner,
+            completedLessonId: completedLesson.id,
+          ),
+          contains('No next lesson is ready yet.'),
+        );
+        state.dispose();
+      },
+    );
+
     test('maps registration cohort to backend mallam target', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.registrationContext = RegistrationContext(

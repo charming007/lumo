@@ -2465,6 +2465,138 @@ void main() {
     expect(find.byType(SubjectModulesPage), findsOneWidget);
   });
 
+  testWidgets(
+    'lesson complete handoff does not reopen a sync-placeholder lesson as the next step',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+        backendRecommendedModuleId: 'math',
+      );
+      const englishModule = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      );
+      const mathModule = LearningModule(
+        id: 'math',
+        title: 'Math',
+        description: 'Math path',
+        voicePrompt: 'Open Math.',
+        readinessGoal: 'Number sense',
+        badge: 'Sync pending',
+      );
+      const completedLesson = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'English warmup',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Completed lesson.',
+        steps: [
+          LessonStep(
+            id: 'english-step-1',
+            type: LessonStepType.practice,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model it first.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const placeholderLesson = LessonCardModel(
+        id: 'assignment-placeholder:math-2',
+        moduleId: 'math',
+        title: 'Math still syncing',
+        subject: 'Math',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Wait for live payload',
+        scenario: 'Placeholder lesson only.',
+        steps: [
+          LessonStep(
+            id: 'placeholder-step',
+            type: LessonStepType.intro,
+            title: 'Lesson sync pending',
+            instruction: 'Refresh sync before starting this assignment.',
+            expectedResponse: 'Refresh sync first.',
+            coachPrompt: 'Do not start runtime on a placeholder lesson.',
+            facilitatorTip: 'Refresh assignments first.',
+            realWorldCheck: 'Only start once the real lesson appears.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      state.modules.addAll([englishModule, mathModule]);
+      state.learners.add(learner);
+      state.assignedLessons.addAll([completedLesson, placeholderLesson]);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-next',
+          lessonId: placeholderLesson.id,
+          moduleId: placeholderLesson.moduleId,
+          curriculumModuleId: placeholderLesson.moduleId,
+          lessonTitle: placeholderLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.selectLearner(learner);
+      state.selectModule(englishModule);
+      state.activeSession = LessonSessionState(
+        sessionId: 'session-complete',
+        lesson: completedLesson,
+        completionState: LessonCompletionState.complete,
+        startedAt: DateTime.now(),
+        automationStatus: 'Completed on this tablet.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonCompletePage(state: state, lesson: completedLesson),
+        ),
+      );
+      await pumpForUi(tester);
+
+      await tester.ensureVisible(find.text('Go to next learner'));
+      await tester.tap(find.text('Go to next learner'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+
+      state.dispose();
+    },
+  );
+
   testWidgets('lesson complete page stays usable on narrow tablet widths', (
     tester,
   ) async {

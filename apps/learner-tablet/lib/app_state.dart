@@ -2613,7 +2613,9 @@ class LumoAppState {
         assignmentPack.lessonId != completedLessonId) {
       final assignmentLesson =
           assignedLessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) => lesson?.id == assignmentPack.lessonId,
+                (lesson) =>
+                    lesson?.id == assignmentPack.lessonId &&
+                    lesson?.isAssignmentPlaceholder != true,
                 orElse: () => null,
               );
       if (assignmentLesson != null) return assignmentLesson;
@@ -2624,6 +2626,7 @@ class LumoAppState {
         assignedLessons.cast<LessonCardModel?>().firstWhere(
               (lesson) =>
                   lesson != null &&
+                  !lesson.isAssignmentPlaceholder &&
                   lesson.moduleId == recommendedModuleId &&
                   lesson.id != completedLessonId,
               orElse: () => null,
