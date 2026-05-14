@@ -110,6 +110,7 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
   ].filter(Boolean) as string[];
   const criticalRewardFailures = [
     studentsResult.status === 'rejected' ? 'learners' : null,
+    catalogResult.status === 'rejected' ? 'rewards catalog' : null,
     leaderboardResult.status === 'rejected' ? 'leaderboard' : null,
     queueResult.status === 'rejected' ? 'reward queue' : null,
   ].filter(Boolean) as string[];
@@ -132,8 +133,8 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
           </>
         )}
         whyBlocked={[
-          'Operators use this route to review live reward demand, approve fulfillment work, and make manual XP corrections. If learners, leaderboard, or queue state disappears, a polished UI becomes dangerous fiction fast.',
-          'The rewards catalog can degrade separately, but the route should stop cold when the core reward-operation feeds are missing.',
+          'Operators use this route to review live reward demand, approve fulfillment work, and make manual XP corrections. If learners, rewards catalog, leaderboard, or queue state disappears, a polished UI becomes dangerous fiction fast.',
+          'The rewards catalog is part of the live reference graph here, not decorative garnish. If XP rules, levels, or badge definitions vanish, the route should stop cold instead of letting admins make “manual” changes blind.',
         ]}
         verificationItems={[
           {
@@ -143,8 +144,8 @@ export default async function RewardsPage({ searchParams }: { searchParams?: Pro
           },
           {
             surface: 'Manual reward corrections',
-            expected: 'Operators can see real learners and current XP context before changing rewards state',
-            failure: 'Correction flows stay interactive while the core learner or queue context is missing or stale',
+            expected: 'Operators can see real learners, XP ladder context, and badge definitions before changing rewards state',
+            failure: 'Correction flows stay interactive while the learner, rewards catalog, or queue context is missing or stale',
           },
           {
             surface: 'Route trustworthiness',
