@@ -16,13 +16,14 @@ test('students page blocks when core learner roster feeds degrade instead of lea
   assert.match(studentsPageSource, /if \(criticalRosterFailures\.length\)/, 'students page should hard-block when the core learner roster feeds are down');
   assert.match(studentsPageSource, /Deployment blocker: learner roster feeds are degraded\./, 'students page should call out degraded learner roster feeds as a deployment blocker');
   assert.match(studentsPageSource, /Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records\./, 'students page should explain why this route becomes dangerous when core learner feeds disappear');
-  assert.match(studentsPageSource, /State and local government labels can degrade separately as supporting geography context, but the roster and write paths should stop cold when the core learner-reference feeds are missing\./, 'students page should distinguish tolerable geography degradation from deployment-blocking roster blindness');
+  assert.match(studentsPageSource, /If students, cohorts, pods, mallams, centers, states, or local governments disappear, a polished UI becomes dangerous fiction fast\./, 'students page should treat geography feeds as deployment-critical on the roster overview too');
+  assert.match(studentsPageSource, /The create\/edit forms on this page depend on the same geography feeds they summarize\./, 'students page should explain why state and local-government failures are not safe warning-only degradation');
   assert.match(studentsPageSource, /Forms stay interactive while the core reference feeds are missing or stale/, 'students page should describe the unsafe write failure mode it prevents');
 });
 
-test('students page still keeps an honest degraded geography shell once core feeds recover', () => {
-  assert.match(studentsPageSource, /Promise\.allSettled\(\[/, 'students page should use Promise.allSettled for roster recovery');
-  assert.match(studentsPageSource, /Learner admin recovered with degraded feeds:/, 'students page should show an operator-facing degraded-state banner for non-critical feed loss');
-  assert.match(studentsPageSource, /Showing .* with degraded geography context because one of the support feeds is down\./, 'students page should keep degraded geography copy once only support feeds are missing');
-  assert.match(studentsPageSource, /disabled=\{hasCoreRosterGap\}/, 'students page should still disable learner creation if the core roster feed itself is down');
+test('students page marks state and local-government feed loss as critical roster blindness', () => {
+  assert.match(studentsPageSource, /statesResult\.status === 'rejected' \? 'states' : null,/, 'students page should hard-block when the state feed is missing');
+  assert.match(studentsPageSource, /localGovernmentsResult\.status === 'rejected' \? 'local governments' : null,/, 'students page should hard-block when the local-government feed is missing');
+  assert.match(studentsPageSource, /const hasCoreRosterGap = criticalRosterFailures\.length > 0;/, 'students page should tie core roster blindness to the full critical failure set');
+  assert.match(studentsPageSource, /disabled=\{hasCoreRosterGap\}/, 'students page should still disable learner creation whenever the core roster graph is blind');
 });
