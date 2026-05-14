@@ -23,11 +23,29 @@ test('lesson editor hard-blocks when production API wiring is unsafe', () => {
   );
 });
 
-test('lesson editor still keeps the deeper blocker focused on unrecoverable lesson context after API trust passes', () => {
+test('lesson editor blocks when the asset authoring feed is degraded', () => {
+  assert.match(
+    lessonEditorPageSource,
+    /const criticalLessonEditorFailures = \[/,
+    'lesson editor should isolate asset-registry failures that make media-backed edits unsafe',
+  );
+  assert.match(
+    lessonEditorPageSource,
+    /Deployment blocker: lesson asset authoring feeds are degraded\./,
+    'lesson editor should hard-block when the live asset registry is blind',
+  );
+  assert.match(
+    lessonEditorPageSource,
+    /save a lesson that looks updated while its media graph is stale, incomplete, or broken\./,
+    'lesson editor blocker should explain the unsafe media-reference failure mode it prevents',
+  );
+});
+
+test('lesson editor still keeps the deeper blocker focused on unrecoverable lesson context after asset safety passes', () => {
   assert.match(
     lessonEditorPageSource,
     /if \(!lesson \|\| !hasUsableCurriculumContext\)/,
-    'lesson editor should keep the degraded lesson-context blocker for real feed loss',
+    'lesson editor should keep the degraded lesson-context blocker for real feed loss after asset safety is checked first',
   );
   assert.match(
     lessonEditorPageSource,
