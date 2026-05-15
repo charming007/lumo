@@ -4584,6 +4584,90 @@ void main() {
     });
 
     test(
+      'restore drops recovered completed placeholder sessions until the real lesson syncs',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'learners': [
+              {
+                'id': beginner.id,
+                'name': beginner.name,
+                'age': beginner.age,
+                'cohort': beginner.cohort,
+                'cohortId': beginner.cohortId,
+                'streakDays': beginner.streakDays,
+                'guardianName': beginner.guardianName,
+                'preferredLanguage': beginner.preferredLanguage,
+                'readinessLabel': beginner.readinessLabel,
+                'village': beginner.village,
+                'guardianPhone': beginner.guardianPhone,
+                'sex': beginner.sex,
+                'baselineLevel': beginner.baselineLevel,
+                'consentCaptured': beginner.consentCaptured,
+                'learnerCode': beginner.learnerCode,
+                'caregiverRelationship': beginner.caregiverRelationship,
+                'enrollmentStatus': beginner.enrollmentStatus,
+                'attendanceBand': beginner.attendanceBand,
+                'supportPlan': beginner.supportPlan,
+                'lastLessonSummary': beginner.lastLessonSummary,
+                'lastAttendance': beginner.lastAttendance,
+              },
+            ],
+            'modules': const [],
+            'assignedLessons': [
+              {
+                'id': 'assignment-placeholder:sync-pending-complete',
+                'moduleId': 'english',
+                'title': 'Synced assignment shell',
+                'subject': 'English',
+                'durationMinutes': 12,
+                'status': 'assigned',
+                'mascotName': 'Mallam',
+                'readinessFocus': 'Placeholder should never certify a finished lesson.',
+                'scenario': 'Real lesson payload has not synced to the tablet yet.',
+                'steps': [
+                  {
+                    'id': 'placeholder-step',
+                    'title': 'Wait for sync',
+                    'instruction': 'Refresh before opening this assignment.',
+                    'coachPrompt': 'Sync the real lesson payload first.',
+                    'expectedResponse': 'Sync first.',
+                    'speakerMode': 'guiding',
+                    'type': 'prompt',
+                  },
+                ],
+              },
+            ],
+            'pendingSyncEvents': const [],
+            'activeSession': {
+              'sessionId': 'session-placeholder-complete',
+              'lessonId': 'assignment-placeholder:sync-pending-complete',
+              'lessonTitle': 'Synced assignment shell',
+              'currentLearnerId': beginner.id,
+              'stepIndex': 0,
+              'completionState': 'completed',
+              'speakerMode': 'guiding',
+              'transcript': const [],
+              'startedAt': '2026-04-16T10:00:00.000Z',
+              'lastUpdatedAt': '2026-04-16T10:05:00.000Z',
+            },
+          }),
+        });
+
+        final state = LumoAppState(includeSeedDemoContent: false);
+        await state.restorePersistedState();
+
+        expect(state.currentLearner?.id, beginner.id);
+        expect(state.assignedLessons.single.isAssignmentPlaceholder, isTrue);
+        expect(state.activeSession, isNull);
+        expect(state.hasPendingRecoveredSession, isFalse);
+
+        state.dispose();
+      },
+    );
+
+    test(
       'resume flow rebinds the active learner to the backend session learner',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);

@@ -5754,9 +5754,6 @@ class LumoAppState {
     required LessonSessionState? session,
   }) {
     if (learner == null || session == null) return false;
-    if (session.completionState == LessonCompletionState.complete) {
-      return true;
-    }
 
     final lesson = session.lesson;
     if (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty) {
@@ -5764,6 +5761,9 @@ class LumoAppState {
     }
     if (!learnerMatchesTabletPod(learner)) {
       return false;
+    }
+    if (session.completionState == LessonCompletionState.complete) {
+      return true;
     }
     if (lessonCompletedForLearner(learner, lesson)) {
       return false;
