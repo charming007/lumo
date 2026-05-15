@@ -929,12 +929,20 @@ class LumoAppState {
       );
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
-      activeSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSessionUnsafe =
+          recoveredSession != null &&
+          currentLearner != null &&
+          !_isRecoveredSessionSafeToResume(
+            learner: currentLearner,
+            session: recoveredSession,
+          );
+      activeSession = recoveredSessionUnsafe ? null : recoveredSession;
       if (activeSession != null && currentLearner == null) {
         activeSession = null;
       }
       pendingRecoveredSessionSnapshot =
-          activeSessionRaw is Map && activeSession == null
+          activeSessionRaw is Map && activeSession == null && !recoveredSessionUnsafe
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
@@ -5741,6 +5749,28 @@ class LumoAppState {
     return 'Recovered $lessonLabel is waiting for lesson sync before $progress can resume.';
   }
 
+  bool _isRecoveredSessionSafeToResume({
+    required LearnerProfile? learner,
+    required LessonSessionState? session,
+  }) {
+    if (learner == null || session == null) return false;
+    if (session.completionState == LessonCompletionState.complete) {
+      return true;
+    }
+
+    final lesson = session.lesson;
+    if (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty) {
+      return false;
+    }
+    if (!learnerMatchesTabletPod(learner)) {
+      return false;
+    }
+    if (lessonCompletedForLearner(learner, lesson)) {
+      return false;
+    }
+    return true;
+  }
+
   void _recoverPendingSessionAfterRefresh() {
     final snapshot = pendingRecoveredSessionSnapshot;
     if (snapshot == null || activeSession != null) return;
@@ -5755,7 +5785,14 @@ class LumoAppState {
       return;
     }
     final recovered = _decodeActiveSession(snapshot);
-    if (recovered == null) return;
+    if (!_isRecoveredSessionSafeToResume(
+      learner: currentLearner,
+      session: recovered,
+    )) {
+      pendingRecoveredSessionSnapshot = null;
+      persistStateSoon();
+      return;
+    }
     activeSession = recovered;
     pendingRecoveredSessionSnapshot = null;
   }
