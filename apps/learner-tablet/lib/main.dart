@@ -3191,7 +3191,14 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final assignedLessons = allAssignedLessons.take(3).toList();
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
-    final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
+    final nextLesson =
+        launchableNextLesson ??
+        allAssignedLessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) =>
+              lesson != null && lessonRequiresSyncBeforeStarting(lesson),
+          orElse: () => null,
+        );
     final nextLessonNeedsSync =
         nextLesson != null && lessonRequiresSyncBeforeStarting(nextLesson);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);

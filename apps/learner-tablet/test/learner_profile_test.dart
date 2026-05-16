@@ -86,18 +86,17 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
 
-    final syncRequiredButton = find.widgetWithText(
+    final syncRequiredButtons = find.widgetWithText(
       FilledButton,
       'Sync required before starting',
     );
-    expect(syncRequiredButton, findsOneWidget);
-    expect(
-      tester.widget<FilledButton>(syncRequiredButton).onPressed,
-      isNull,
-    );
+    expect(syncRequiredButtons, findsNWidgets(2));
+    for (final button in tester.widgetList<FilledButton>(syncRequiredButtons)) {
+      expect(button.onPressed, isNull);
+    }
 
-    await tester.ensureVisible(syncRequiredButton);
-    await tester.tap(syncRequiredButton, warnIfMissed: false);
+    await tester.ensureVisible(syncRequiredButtons.first);
+    await tester.tap(syncRequiredButtons.first, warnIfMissed: false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
