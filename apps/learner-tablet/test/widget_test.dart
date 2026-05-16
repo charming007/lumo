@@ -2717,6 +2717,130 @@ void main() {
   );
 
   testWidgets(
+    'go to next learner handoff falls back to the subject board when the same learner\'s next lesson has no synced steps yet',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const learner = LearnerProfile(
+        id: 'learner-shell-steps',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-002',
+        backendRecommendedModuleId: 'math',
+      );
+      const englishModule = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      );
+      const mathModule = LearningModule(
+        id: 'math',
+        title: 'Math',
+        description: 'Math path',
+        voicePrompt: 'Open Math.',
+        readinessGoal: 'Number sense',
+        badge: 'Sync pending',
+      );
+      const completedLesson = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'English warmup',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Completed lesson.',
+        steps: [
+          LessonStep(
+            id: 'english-step-1',
+            type: LessonStepType.practice,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model it first.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const stepLessLesson = LessonCardModel(
+        id: 'math-shell',
+        moduleId: 'math',
+        title: 'Math shell without steps',
+        subject: 'Math',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Wait for live payload',
+        scenario: 'Lesson shell landed without any activities yet.',
+        steps: [],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      state.modules.addAll([englishModule, mathModule]);
+      state.learners.add(learner);
+      state.assignedLessons.addAll([completedLesson, stepLessLesson]);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-step-shell',
+          lessonId: stepLessLesson.id,
+          moduleId: stepLessLesson.moduleId,
+          curriculumModuleId: stepLessLesson.moduleId,
+          lessonTitle: stepLessLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.selectLearner(learner);
+      state.selectModule(englishModule);
+      state.activeSession = LessonSessionState(
+        sessionId: 'session-complete-step-shell',
+        lesson: completedLesson,
+        completionState: LessonCompletionState.complete,
+        startedAt: DateTime.now(),
+        automationStatus: 'Completed on this tablet.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonCompletePage(state: state, lesson: completedLesson),
+        ),
+      );
+      await pumpForUi(tester);
+
+      await tester.ensureVisible(find.text('Go to next learner'));
+      await tester.tap(find.text('Go to next learner'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
       'go to next learner handoff skips learners outside the tablet pod', (
     tester,
   ) async {

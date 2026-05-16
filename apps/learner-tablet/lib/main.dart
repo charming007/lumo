@@ -6068,7 +6068,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final normalizedModuleId = widget.module.id.trim().toLowerCase();
 
     final candidates = widget.state.assignedLessons
-        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .where((lesson) => !lessonRequiresSyncBeforeStarting(lesson))
         .toList(growable: false);
 
     if (normalizedTitle.isNotEmpty) {
@@ -6162,7 +6162,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final resumeLearner = _resumeLearner;
     final resumeMissingLearner =
         widget.resumeFrom != null && resumeLearner == null;
-    final syncPendingLesson = lesson.isAssignmentPlaceholder;
+    final syncPendingLesson = lessonRequiresSyncBeforeStarting(lesson);
 
     return Scaffold(
       body: SafeArea(
@@ -12632,7 +12632,10 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                       );
                                       if (!context.mounted) return;
                                       if (nextLesson != null &&
-                                          handoffLearner.id == learner.id) {
+                                          handoffLearner.id == learner.id &&
+                                          !lessonRequiresSyncBeforeStarting(
+                                            nextLesson,
+                                          )) {
                                         Navigator.of(context).pushReplacement(
                                           MaterialPageRoute(
                                             builder: (_) =>
