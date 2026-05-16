@@ -6839,7 +6839,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         child: Text(
                           resumeMissingLearner
                               ? 'Resume blocked: the original learner for this backend session is not available on this tablet yet. Sync that learner before reopening the session.'
-                              : 'Resume ready from ${matchedResumeSession!.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+                              : 'Resume ready from ${matchedResumeSession.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
                           style: TextStyle(
                             color: resumeMissingLearner
                                 ? const Color(0xFF991B1B)
