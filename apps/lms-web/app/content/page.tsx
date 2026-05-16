@@ -565,7 +565,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                           <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                         </ModalLauncher>
                       ) : (
-                        <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                        <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                           Review gate
                         </Link>
                       )}
@@ -723,7 +723,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                         <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                       </ModalLauncher>
                     ) : (
-                      <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                      <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                         Review gate
                       </Link>
                     )}

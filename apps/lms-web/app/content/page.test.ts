@@ -69,3 +69,11 @@ test('content blocker actions keep multi-lesson gaps on the bulk blocker flow in
     'content blocker actions should not advertise a single-lesson pack CTA that bypasses the bulk blocker flow for multi-lesson gaps',
   );
 });
+
+test('content blocker review-gate CTA keeps exact module scope instead of a fuzzy title-only search', () => {
+  assert.match(
+    contentPageSource,
+    /buildAssessmentReviewHref\(\{ returnPath, moduleTitle: module\.title, moduleId: module\.id, subjectId: moduleSubjectId \}\)/,
+    'content blocker review-gate CTA should carry the exact module id into the assessments board so operators review the intended gate',
+  );
+});
