@@ -4091,6 +4091,76 @@ void main() {
   );
 
   testWidgets(
+    'lesson launch ignores a mismatched resume session instead of locking the wrong learner',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final otherLesson = state.assignedLessons.firstWhere(
+        (item) => item.id != lesson.id,
+        orElse: () => state.assignedLessons.last,
+      );
+      final learner = state.learners.first;
+      final otherLearner = state.learners.firstWhere(
+        (item) => item.id != learner.id,
+      );
+      final mismatchedSession = BackendLessonSession(
+        id: 'runtime-wrong-lesson',
+        sessionId: 'session-wrong-lesson',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: otherLesson.id,
+        lessonTitle: otherLesson.title,
+        moduleId: otherLesson.moduleId,
+        moduleTitle: otherLesson.subject,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the other lesson instead.',
+        currentStepIndex: 1,
+        stepsTotal: otherLesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+            resumeFrom: mismatchedSession,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Resume learner'), findsNothing);
+      expect(find.text('Select available learner'), findsOneWidget);
+      expect(find.text('Resume with ${learner.name}'), findsNothing);
+      expect(find.text('Start with ${learner.name}'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.tap(find.text(otherLearner.name).first);
+      await pumpForUi(tester);
+
+      expect(find.text('Start with ${otherLearner.name}'), findsOneWidget);
+      expect(find.text('Resume with ${learner.name}'), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson session exposes saved voice playback controls during audio-only review',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);

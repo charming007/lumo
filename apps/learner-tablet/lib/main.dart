@@ -6109,6 +6109,18 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     return moduleMatches.length == 1 ? moduleMatches.first : null;
   }
 
+  BackendLessonSession? get _matchedResumeSession {
+    final resumeFrom = widget.resumeFrom;
+    if (resumeFrom == null) return null;
+
+    final resumeLesson = widget.state.lessonForBackendSession(resumeFrom);
+    if (resumeLesson?.id != widget.lesson.id) {
+      return null;
+    }
+
+    return resumeFrom;
+  }
+
   Future<void> _refreshSyncPendingLesson() async {
     await widget.state.bootstrap();
     widget.onChanged();
@@ -6123,7 +6135,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
             onChanged: widget.onChanged,
             lesson: replacementLesson,
             module: widget.module,
-            resumeFrom: widget.resumeFrom,
+            resumeFrom: _matchedResumeSession,
           ),
         ),
       );
@@ -6140,7 +6152,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   }
 
   LearnerProfile? get _resumeLearner {
-    final resumeFrom = widget.resumeFrom;
+    final resumeFrom = _matchedResumeSession;
     if (resumeFrom == null) return null;
 
     for (final learner in widget.state.learners) {
@@ -6152,7 +6164,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     return null;
   }
 
-  bool get _resumeLocksLearner => widget.resumeFrom != null;
+  bool get _resumeLocksLearner => _matchedResumeSession != null;
 
   LearnerProfile? _preferredLaunchLearner() {
     final resumeLearner = _resumeLearner;
@@ -6172,8 +6184,9 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final state = widget.state;
     final lesson = widget.lesson;
     final resumeLearner = _resumeLearner;
+    final matchedResumeSession = _matchedResumeSession;
     final resumeMissingLearner =
-        widget.resumeFrom != null && resumeLearner == null;
+        matchedResumeSession != null && resumeLearner == null;
     final syncPendingLesson = lessonRequiresSyncBeforeStarting(lesson);
 
     return Scaffold(
@@ -6809,7 +6822,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ],
                         ),
                       ),
-                    if (widget.resumeFrom != null)
+                    if (matchedResumeSession != null)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -6826,7 +6839,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         child: Text(
                           resumeMissingLearner
                               ? 'Resume blocked: the original learner for this backend session is not available on this tablet yet. Sync that learner before reopening the session.'
-                              : 'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+                              : 'Resume ready from ${matchedResumeSession!.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
                           style: TextStyle(
                             color: resumeMissingLearner
                                 ? const Color(0xFF991B1B)
@@ -6996,7 +7009,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                       lesson: lesson,
                                       resumeFrom: selectedAvailability
                                               ?.resumableSession ??
-                                          widget.resumeFrom,
+                                          matchedResumeSession,
                                     ),
                                   ),
                                 );
@@ -7150,7 +7163,16 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
     widget.state.selectLearner(widget.learner);
 
     try {
-      widget.state.startLesson(widget.lesson, resumeFrom: widget.resumeFrom);
+      final matchedResumeSession = widget.state.lessonForBackendSession(
+        widget.resumeFrom,
+      )?.id ==
+              widget.lesson.id
+          ? widget.resumeFrom
+          : null;
+      widget.state.startLesson(
+        widget.lesson,
+        resumeFrom: matchedResumeSession,
+      );
     } on StateError catch (error) {
       _navigated = false;
       final message = error.message.toString().trim();
