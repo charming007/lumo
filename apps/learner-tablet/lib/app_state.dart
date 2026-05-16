@@ -1757,8 +1757,12 @@ class LumoAppState {
     return false;
   }
 
+  bool _lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
+    return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
+  }
+
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
-    if (lesson.isAssignmentPlaceholder) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }
     if (isQaLessonUnlockActive) {
@@ -1903,7 +1907,7 @@ class LumoAppState {
     String moduleId,
   ) {
     return lessonsForLearnerAndModule(learner, moduleId)
-        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .where((lesson) => !_lessonRequiresSyncBeforeStarting(lesson))
         .toList(growable: false);
   }
 
@@ -1944,7 +1948,7 @@ class LumoAppState {
     LearnerProfile learner,
     LessonCardModel lesson,
   ) {
-    if (lesson.isAssignmentPlaceholder) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }
     return _isPublishedLearnerLesson(lesson) &&
@@ -2649,7 +2653,8 @@ class LumoAppState {
           assignedLessons.cast<LessonCardModel?>().firstWhere(
                 (lesson) =>
                     lesson?.id == assignmentPack.lessonId &&
-                    lesson?.isAssignmentPlaceholder != true,
+                    lesson != null &&
+                    !_lessonRequiresSyncBeforeStarting(lesson),
                 orElse: () => null,
               );
       if (assignmentLesson != null) return assignmentLesson;
@@ -2660,7 +2665,7 @@ class LumoAppState {
         assignedLessons.cast<LessonCardModel?>().firstWhere(
               (lesson) =>
                   lesson != null &&
-                  !lesson.isAssignmentPlaceholder &&
+                  !_lessonRequiresSyncBeforeStarting(lesson) &&
                   lesson.moduleId == recommendedModuleId &&
                   lesson.id != completedLessonId,
               orElse: () => null,

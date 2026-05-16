@@ -4218,6 +4218,140 @@ void main() {
       state.dispose();
     });
 
+    test('step-less lessons are never launchable for learners', () {
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-a',
+            podLabel: 'Pod A',
+          ),
+        );
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const stepLessLesson = LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'English shell without steps',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Shell landed before activity steps synced.',
+        steps: [],
+      );
+
+      state.learners.add(learner);
+      state.assignedLessons.add(stepLessLesson);
+
+      expect(state.learnerCanOpenLesson(learner, stepLessLesson), isFalse);
+      expect(state.availableLearnersForLesson(stepLessLesson), isEmpty);
+      expect(state.nextAssignedLessonForLearner(learner), isNull);
+
+      state.dispose();
+    });
+
+    test(
+      'step-less lessons do not lock the next real lesson in module progression',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false
+          ..registrationContext = const RegistrationContext(
+            tabletRegistration: TabletRegistration(
+              id: 'tablet-1',
+              podId: 'pod-a',
+              podLabel: 'Pod A',
+            ),
+          );
+        const learner = LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina Bello',
+          age: 7,
+          cohort: 'Pod A',
+          cohortId: 'cohort-a',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        );
+        const stepLessLesson = LessonCardModel(
+          id: 'english-shell',
+          moduleId: 'english',
+          title: 'English shell without steps',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Shell landed before activity steps synced.',
+          steps: [],
+        );
+        const realLesson = LessonCardModel(
+          id: 'english-live',
+          moduleId: 'english',
+          title: 'English greeting lesson',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Real lesson payload has synced.',
+          steps: [
+            LessonStep(
+              id: 'step-1',
+              type: LessonStepType.intro,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model hello.',
+              realWorldCheck: 'Learner greets clearly.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([stepLessLesson, realLesson]);
+
+        expect(
+          state.nextProgressionLessonForLearnerInModule(learner, 'english')?.id,
+          realLesson.id,
+        );
+        expect(state.lessonLockedForLearner(learner, realLesson), isFalse);
+        expect(state.nextAssignedLessonForLearner(learner)?.id, realLesson.id);
+
+        state.dispose();
+      },
+    );
+
     test('startLesson rejects sync-pending assignment placeholder lessons', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final learner = state.learners.first;
