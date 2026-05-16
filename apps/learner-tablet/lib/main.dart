@@ -3205,6 +3205,11 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final recommendedModule = state.recommendedModuleForLearner(learner);
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
     final resumableSession = state.resumableRuntimeSessionForLearner(learner);
+    final resumableLesson = state.lessonForBackendSession(resumableSession);
+    final matchedResumableSession =
+        resumableLesson != null && resumableLesson.id == nextLesson?.id
+            ? resumableSession
+            : null;
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final leaderboardEntry = learnerLeaderboardEntryFor(
       leaderboard,
@@ -3799,13 +3804,13 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                     onChanged: () {},
                                                     lesson: nextLesson,
                                                     resumeFrom:
-                                                        resumableSession,
+                                                        matchedResumableSession,
                                                   );
                                                 },
                                           icon: Icon(
                                             nextLessonNeedsSync
                                                 ? Icons.sync_problem_rounded
-                                                : resumableSession == null
+                                                : matchedResumableSession == null
                                                     ? Icons.play_arrow_rounded
                                                     : Icons
                                                         .play_circle_fill_rounded,
@@ -3815,7 +3820,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                 ? lessonSyncBlockerCtaLabel(
                                                     nextLesson,
                                                   )
-                                                : resumableSession == null
+                                                : matchedResumableSession == null
                                                     ? 'Start assigned lesson'
                                                     : 'Resume assigned lesson',
                                           ),
@@ -3828,7 +3833,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                 const SizedBox(height: 12),
                                 ...assignedLessons.map((lesson) {
                                   final matchesResumableSession =
-                                      resumableSession?.lessonId == lesson.id;
+                                      resumableLesson?.id == lesson.id;
                                   return Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(bottom: 10),

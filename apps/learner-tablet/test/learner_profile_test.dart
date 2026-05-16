@@ -184,4 +184,109 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await state.flushPersistence();
   });
+
+  testWidgets(
+      'learner profile does not offer resume when backend session cannot be matched to the next launchable lesson', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Pod A',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const lesson = LessonCardModel(
+      id: 'english-live-lesson',
+      moduleId: 'english',
+      title: 'English greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson should start fresh if resume payload cannot map back to it.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+    state.learners.add(learner);
+    state.assignedLessons.add(lesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-live',
+        lessonId: lesson.id,
+        moduleId: lesson.moduleId,
+        lessonTitle: lesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+    state.recentRuntimeSessionsByLearnerId[learner.id] = [
+      BackendLessonSession(
+        id: 'session-1',
+        sessionId: 'session-1',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: 'backend-alias-that-does-not-map',
+        lessonTitle: 'Unmapped backend lesson alias',
+        moduleId: 'other-module',
+        moduleTitle: 'Other module',
+        status: 'in_progress',
+        completionState: 'in_progress',
+        automationStatus: 'Backend thinks this is resumable.',
+        currentStepIndex: 1,
+        stepsTotal: 3,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+        startedAt: DateTime(2026, 5, 16, 10),
+        lastActivityAt: DateTime(2026, 5, 16, 10, 5),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerProfilePage(state: state, learner: learner),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Start assigned lesson'), findsOneWidget);
+    expect(find.text('Resume assigned lesson'), findsNothing);
+    expect(find.text('Resume lesson'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await state.flushPersistence();
+  });
 }
