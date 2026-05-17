@@ -1472,7 +1472,9 @@ class HomePage extends StatelessWidget {
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
     final showTrustBanner = hasSyncWarnings && !ultraShortHeight;
+    final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
     final trustBannerCompact = viewportWidth < 900 || viewportHeight <= 1040;
+    final freshnessBannerCompact = viewportWidth < 900 || viewportHeight <= 920;
 
     return Scaffold(
       body: SafeArea(
@@ -1500,6 +1502,12 @@ class HomePage extends StatelessWidget {
                   state: state,
                   onChanged: onChanged,
                   compact: trustBannerCompact,
+                ),
+              ] else if (showFreshnessBanner) ...[
+                const SizedBox(height: 12),
+                _HomeFreshnessBanner(
+                  state: state,
+                  compact: freshnessBannerCompact,
                 ),
               ],
               if (state.hasPendingRecoveredSession && !ultraShortHeight) ...[
@@ -1970,6 +1978,95 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HomeFreshnessBanner extends StatelessWidget {
+  const _HomeFreshnessBanner({required this.state, required this.compact});
+
+  final LumoAppState state;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? 14 : 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: compact ? 36 : 40,
+            height: compact ? 36 : 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Icon(
+              Icons.schedule_rounded,
+              color: Color(0xFF166534),
+            ),
+          ),
+          SizedBox(width: compact ? 10 : 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sync freshness',
+                  style: TextStyle(
+                    fontSize: compact ? 16 : 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                SizedBox(height: compact ? 4 : 6),
+                Text(
+                  state.trustedSyncHeadline,
+                  style: const TextStyle(
+                    color: Color(0xFF166534),
+                    fontWeight: FontWeight.w800,
+                    height: 1.35,
+                  ),
+                ),
+                SizedBox(height: compact ? 2 : 4),
+                Text(
+                  state.rosterFreshnessDetail,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.4,
+                  ),
+                ),
+                SizedBox(height: compact ? 8 : 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    StatusPill(
+                      text: state.rosterFreshnessLabel,
+                      color: LumoTheme.accentGreen,
+                    ),
+                    StatusPill(
+                      text: state.syncQueueLabel,
+                      color: LumoTheme.accentGreen,
+                    ),
+                    StatusPill(
+                      text: state.lastSyncSummaryLabel,
+                      color: LumoTheme.accentGreen,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

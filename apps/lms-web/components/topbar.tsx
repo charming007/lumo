@@ -1,4 +1,5 @@
 import type { BuildSignature } from '../lib/build-signature';
+import type { describePilotShellRoute } from '../lib/pilot-shell';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
 type TopbarProps = {
@@ -6,6 +7,7 @@ type TopbarProps = {
   onToggleSidebarCollapse?: () => void;
   seedCount?: number;
   buildSignature: BuildSignature;
+  pilotRoute: ReturnType<typeof describePilotShellRoute>;
 };
 
 const desktopSidebarToggleStyle: React.CSSProperties = {
@@ -24,11 +26,27 @@ export function Topbar({
   onToggleSidebarCollapse,
   seedCount = 0,
   buildSignature,
+  pilotRoute,
 }: TopbarProps) {
   const dashboardStatus = describeDashboardStatus(seedCount);
+  const routeCalloutTone = pilotRoute.status === 'visible'
+    ? { background: '#ECFDF5', border: '1px solid #BBF7D0', eyebrow: '#166534', title: '#14532D', detail: '#166534' }
+    : pilotRoute.status === 'blocked'
+      ? { background: '#EEF2FF', border: '1px solid #C7D2FE', eyebrow: '#3730A3', title: '#312E81', detail: '#4338CA' }
+      : pilotRoute.status === 'off-shell'
+        ? { background: '#FFF7ED', border: '1px solid #FED7AA', eyebrow: '#9A3412', title: '#7C2D12', detail: '#9A3412' }
+        : { background: '#F8FAFC', border: '1px solid #CBD5E1', eyebrow: '#475569', title: '#0F172A', detail: '#475569' };
 
   return (
-    <div
+    <>
+      <div style={{ marginBottom: 14, padding: '14px 16px', borderRadius: 18, background: routeCalloutTone.background, border: routeCalloutTone.border, display: 'grid', gap: 6 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: routeCalloutTone.eyebrow, fontWeight: 800 }}>
+          {pilotRoute.eyebrow}
+        </div>
+        <strong style={{ color: routeCalloutTone.title, fontSize: 16 }}>{pilotRoute.title}</strong>
+        <div style={{ color: routeCalloutTone.detail, lineHeight: 1.6 }}>{pilotRoute.detail}</div>
+      </div>
+      <div
       style={{
         background: 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
         borderRadius: 28,
@@ -103,5 +121,6 @@ export function Topbar({
         }
       `}</style>
     </div>
+    </>
   );
 }
