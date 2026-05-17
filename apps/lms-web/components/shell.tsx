@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import type { BuildSignature } from '../lib/build-signature';
+import { describePilotShellRoute } from '../lib/pilot-shell';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 
@@ -28,6 +30,8 @@ export function AppShell({
   seedCount?: number;
   buildSignature: BuildSignature;
 }) {
+  const pathname = usePathname() || '/';
+  const pilotRoute = describePilotShellRoute(pathname);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -71,6 +75,7 @@ export function AppShell({
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
           seedCount={seedCount}
           buildSignature={buildSignature}
+          pilotRoute={pilotRoute}
         />
         {children}
       </main>

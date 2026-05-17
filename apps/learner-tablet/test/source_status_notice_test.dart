@@ -63,7 +63,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('healthy home top bar keeps live backend chips visible',
+  testWidgets(
+      'healthy home keeps live backend chips and prominent sync freshness visible',
       (tester) async {
     tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1.0;
@@ -87,7 +88,8 @@ void main() {
 
     expect(find.text('Backend link live'), findsOneWidget);
     expect(find.text('Backend healthy'), findsOneWidget);
-    expect(find.text('Tablet trust check'), findsNothing);
+    expect(find.text('Sync freshness'), findsOneWidget);
+    expect(find.textContaining('Last trusted sync'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
