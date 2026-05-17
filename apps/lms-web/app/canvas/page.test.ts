@@ -79,6 +79,16 @@ test('canvas hard-blocks when core authoring feeds degrade', () => {
     /The fallback create-lesson CTA is only safe when the authoring feeds are healthy enough to trust the scoped context\./,
     'canvas blocker should call out why launching fallback authoring while degraded is unsafe',
   );
+  assert.match(
+    canvasPageSource,
+    /\{ label: 'Review blocker stack', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' \},/,
+    'canvas degraded blocker should route operators back to the scoped blocker stack instead of exposing lesson studio while authoring feeds are blind',
+  );
+  assert.doesNotMatch(
+    canvasPageSource,
+    /\{ label: 'Lesson studio', href: createLessonHref, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' \},/,
+    'canvas degraded blocker should not keep a direct lesson-studio CTA once the route admits fallback authoring is unsafe during feed loss',
+  );
 });
 
 test('canvas fallback create-lesson CTA preserves scoped blocker subject and module context', () => {
