@@ -23,11 +23,29 @@ test('lesson studio create route hard-blocks when production API wiring is unsaf
   );
 });
 
-test('lesson studio create route keeps the deeper blocker focused on missing authoring context after API trust passes', () => {
+test('lesson studio create route blocks when the asset authoring feed is degraded', () => {
+  assert.match(
+    lessonCreatePageSource,
+    /const criticalLessonCreateFailures = \[/,
+    'lesson studio create route should isolate asset-registry failures that make media-backed authoring unsafe',
+  );
+  assert.match(
+    lessonCreatePageSource,
+    /Deployment blocker: lesson asset authoring feeds are degraded\./,
+    'lesson studio create route should hard-block when the live asset registry is blind',
+  );
+  assert.match(
+    lessonCreatePageSource,
+    /save a lesson that looks polished while its media graph is stale, incomplete, or flat-out wrong\./,
+    'lesson studio create blocker should explain the unsafe media-reference failure mode it prevents',
+  );
+});
+
+test('lesson studio create route keeps the deeper blocker focused on missing authoring context after asset safety passes', () => {
   assert.match(
     lessonCreatePageSource,
     /if \(!hasUsableAuthoringContext\)/,
-    'lesson studio create route should keep the degraded authoring-context blocker for real feed loss',
+    'lesson studio create route should keep the degraded authoring-context blocker for real feed loss after asset safety is checked first',
   );
   assert.match(
     lessonCreatePageSource,

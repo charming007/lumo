@@ -92,10 +92,12 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     podsResult.status === 'rejected' ? 'pods' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
     centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
 
-  const hasCoreRosterGap = studentsResult.status === 'rejected';
-  const geographyFilterDegraded = statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+  const hasCoreRosterGap = criticalRosterFailures.length > 0;
+  const geographyFilterDegraded = false;
 
   if (criticalRosterFailures.length) {
     const blockerDetail = criticalRosterFailures.length === 1
@@ -115,8 +117,8 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
           </>
         )}
         whyBlocked={[
-          'Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records. If students, cohorts, pods, mallams, or centers disappear, a polished UI becomes dangerous fiction fast.',
-          'State and local government labels can degrade separately as supporting geography context, but the roster and write paths should stop cold when the core learner-reference feeds are missing.',
+          'Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records. If students, cohorts, pods, mallams, centers, states, or local governments disappear, a polished UI becomes dangerous fiction fast.',
+          'The create/edit forms on this page depend on the same geography feeds they summarize. If states or local governments disappear, learner routing and enrollment writes become polished guesswork, not a tolerable warning state.',
         ]}
         verificationItems={[
           {

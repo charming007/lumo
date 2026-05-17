@@ -5,6 +5,7 @@ import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { podGeographyLabel } from '../../lib/geography';
+import { getPodAdminReferenceHealth } from '../../lib/admin-reference-health';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function formatDateTime(value?: string | null) {
@@ -88,22 +89,31 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
   const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
   const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
   const deviceRegistrations = deviceRegistrationsResult.status === 'fulfilled' ? deviceRegistrationsResult.value : [];
+  const podReferenceHealth = getPodAdminReferenceHealth({
+    pods,
+    centers,
+    mallams,
+    states,
+    localGovernments,
+  });
   const failedSources = [
     podsResult.status === 'rejected' ? 'pods' : null,
     centersResult.status === 'rejected' ? 'centers' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
+    ...podReferenceHealth.missingReferences,
     deviceRegistrationsResult.status === 'rejected' ? 'device registrations' : null,
-  ].filter(Boolean) as string[];
+  ].filter((value, index, source) => Boolean(value) && source.indexOf(value) === index) as string[];
   const criticalPodAdminFailures = [
     podsResult.status === 'rejected' ? 'pods' : null,
     centersResult.status === 'rejected' ? 'centers' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
-  ].filter(Boolean) as string[];
-  const hasCorePodGap = podsResult.status === 'rejected';
+    ...podReferenceHealth.missingReferences,
+  ].filter((value, index, source) => Boolean(value) && source.indexOf(value) === index) as string[];
+  const hasCorePodGap = podsResult.status === 'rejected' || podReferenceHealth.blocked;
 
   if (criticalPodAdminFailures.length) {
     const blockerDetail = criticalPodAdminFailures.length === 1

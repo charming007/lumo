@@ -1136,6 +1136,15 @@ LearnerLessonAvailability learnerLessonAvailability({
     );
   }
 
+  if (lesson.steps.isEmpty) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.unavailable,
+      label: 'Sync incomplete',
+      detail:
+          'This lesson shell landed on the tablet without any activity steps, so it cannot be launched safely yet.',
+    );
+  }
+
   final completedToday = state.lessonCompletedTodayForLearner(learner, lesson);
   if (completedToday) {
     return const LearnerLessonAvailability(
@@ -1269,6 +1278,16 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
     case LearnerLessonAvailabilityKind.unavailable:
       return const Color(0xFF64748B);
   }
+}
+
+bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
+  return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
+}
+
+String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
+  return lessonRequiresSyncBeforeStarting(lesson)
+      ? 'Sync required before starting'
+      : 'Start assigned lesson';
 }
 
 void launchLessonFlow({
@@ -3172,11 +3191,25 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final assignedLessons = allAssignedLessons.take(3).toList();
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
-    final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
+    final nextLesson =
+        launchableNextLesson ??
+        allAssignedLessons.cast<LessonCardModel?>().firstWhere(
+          (lesson) =>
+              lesson != null && lessonRequiresSyncBeforeStarting(lesson),
+          orElse: () => null,
+        );
+    final nextLessonNeedsSync =
+        nextLesson != null && lessonRequiresSyncBeforeStarting(nextLesson);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
     final recommendedModule = state.recommendedModuleForLearner(learner);
     final recentSessions = state.recentRuntimeSessionsForLearner(learner);
     final resumableSession = state.resumableRuntimeSessionForLearner(learner);
+    final resumableLesson = state.lessonForBackendSession(resumableSession);
+    final matchedResumableSession =
+        resumableLesson != null && resumableLesson.id == nextLesson?.id
+            ? resumableSession
+            : null;
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final leaderboardEntry = learnerLeaderboardEntryFor(
       leaderboard,
@@ -3761,26 +3794,35 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                       SizedBox(
                                         width: double.infinity,
                                         child: FilledButton.icon(
-                                          onPressed: () {
-                                            state.selectLearner(learner);
-                                            launchLessonFlow(
-                                              context: context,
-                                              state: state,
-                                              onChanged: () {},
-                                              lesson: nextLesson,
-                                              resumeFrom: resumableSession,
-                                            );
-                                          },
+                                          onPressed: nextLessonNeedsSync
+                                              ? null
+                                              : () {
+                                                  state.selectLearner(learner);
+                                                  launchLessonFlow(
+                                                    context: context,
+                                                    state: state,
+                                                    onChanged: () {},
+                                                    lesson: nextLesson,
+                                                    resumeFrom:
+                                                        matchedResumableSession,
+                                                  );
+                                                },
                                           icon: Icon(
-                                            resumableSession == null
-                                                ? Icons.play_arrow_rounded
-                                                : Icons
-                                                    .play_circle_fill_rounded,
+                                            nextLessonNeedsSync
+                                                ? Icons.sync_problem_rounded
+                                                : matchedResumableSession == null
+                                                    ? Icons.play_arrow_rounded
+                                                    : Icons
+                                                        .play_circle_fill_rounded,
                                           ),
                                           label: Text(
-                                            resumableSession == null
-                                                ? 'Start assigned lesson'
-                                                : 'Resume assigned lesson',
+                                            nextLessonNeedsSync
+                                                ? lessonSyncBlockerCtaLabel(
+                                                    nextLesson,
+                                                  )
+                                                : matchedResumableSession == null
+                                                    ? 'Start assigned lesson'
+                                                    : 'Resume assigned lesson',
                                           ),
                                         ),
                                       ),
@@ -3791,7 +3833,7 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                 const SizedBox(height: 12),
                                 ...assignedLessons.map((lesson) {
                                   final matchesResumableSession =
-                                      resumableSession?.lessonId == lesson.id;
+                                      resumableLesson?.id == lesson.id;
                                   return Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(bottom: 10),
@@ -3853,7 +3895,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           width: double.infinity,
                                           child: FilledButton.tonalIcon(
                                             onPressed:
-                                                lesson.isAssignmentPlaceholder
+                                                lesson.isAssignmentPlaceholder ||
+                                                        lesson.steps.isEmpty
                                                     ? null
                                                     : () {
                                                         state.selectLearner(
@@ -3871,7 +3914,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                         );
                                                       },
                                             icon: Icon(
-                                              lesson.isAssignmentPlaceholder
+                                              lesson.isAssignmentPlaceholder ||
+                                                      lesson.steps.isEmpty
                                                   ? Icons.sync_problem_rounded
                                                   : matchesResumableSession
                                                       ? Icons
@@ -3880,7 +3924,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                           .open_in_new_rounded,
                                             ),
                                             label: Text(
-                                              lesson.isAssignmentPlaceholder
+                                              lesson.isAssignmentPlaceholder ||
+                                                      lesson.steps.isEmpty
                                                   ? 'Sync required before starting'
                                                   : matchesResumableSession
                                                       ? 'Resume lesson'
@@ -4573,11 +4618,13 @@ class _LessonJourneyStepCard extends StatelessWidget {
                           ? 'Completed'
                           : isLocked
                               ? 'Locked'
-                              : isNext
-                                  ? 'Start next lesson'
-                                  : isHighlighted
-                                      ? 'Ready now'
-                                      : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                              : status != null && !status.canLaunch
+                                  ? status.label
+                                  : isNext
+                                      ? 'Start next lesson'
+                                      : isHighlighted
+                                          ? 'Ready now'
+                                          : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4591,9 +4638,11 @@ class _LessonJourneyStepCard extends StatelessWidget {
                             ? const Color(0xFF0F766E)
                             : isLocked
                                 ? const Color(0xFF7C3AED)
-                                : isNext || isHighlighted
-                                    ? palette.first
-                                    : const Color(0xFF64748B),
+                                : status != null && !status.canLaunch
+                                    ? _learnerAvailabilityColor(status.kind)
+                                    : isNext || isHighlighted
+                                        ? palette.first
+                                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -5948,7 +5997,8 @@ class RegistrationSuccessPage extends StatelessWidget {
                           state.selectLearner(learner);
                           state.selectModule(recommendedModule);
                           onChanged();
-                          if (nextLesson != null) {
+                          if (nextLesson != null &&
+                              !lessonRequiresSyncBeforeStarting(nextLesson)) {
                             Navigator.of(context).pushReplacement(
                               MaterialPageRoute(
                                 builder: (_) => LessonLaunchSetupPage(
@@ -5971,11 +6021,18 @@ class RegistrationSuccessPage extends StatelessWidget {
                             ),
                           );
                         },
-                        child: Text(
-                          state.nextAssignedLessonForLearner(learner) == null
-                              ? 'Open subject'
-                              : 'Start assigned lesson',
-                        ),
+                        child: Text(() {
+                          final nextLesson = state.nextAssignedLessonForLearner(
+                            learner,
+                          );
+                          if (nextLesson == null) {
+                            return 'Open subject';
+                          }
+                          if (lessonRequiresSyncBeforeStarting(nextLesson)) {
+                            return 'Open subject';
+                          }
+                          return 'Start assigned lesson';
+                        }()),
                       ),
                       secondary: OutlinedButton(
                         onPressed: () => Navigator.of(
@@ -6023,7 +6080,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final normalizedModuleId = widget.module.id.trim().toLowerCase();
 
     final candidates = widget.state.assignedLessons
-        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .where((lesson) => !lessonRequiresSyncBeforeStarting(lesson))
         .toList(growable: false);
 
     if (normalizedTitle.isNotEmpty) {
@@ -6052,6 +6109,18 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     return moduleMatches.length == 1 ? moduleMatches.first : null;
   }
 
+  BackendLessonSession? get _matchedResumeSession {
+    final resumeFrom = widget.resumeFrom;
+    if (resumeFrom == null) return null;
+
+    final resumeLesson = widget.state.lessonForBackendSession(resumeFrom);
+    if (resumeLesson?.id != widget.lesson.id) {
+      return null;
+    }
+
+    return resumeFrom;
+  }
+
   Future<void> _refreshSyncPendingLesson() async {
     await widget.state.bootstrap();
     widget.onChanged();
@@ -6066,7 +6135,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
             onChanged: widget.onChanged,
             lesson: replacementLesson,
             module: widget.module,
-            resumeFrom: widget.resumeFrom,
+            resumeFrom: _matchedResumeSession,
           ),
         ),
       );
@@ -6083,7 +6152,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   }
 
   LearnerProfile? get _resumeLearner {
-    final resumeFrom = widget.resumeFrom;
+    final resumeFrom = _matchedResumeSession;
     if (resumeFrom == null) return null;
 
     for (final learner in widget.state.learners) {
@@ -6095,7 +6164,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     return null;
   }
 
-  bool get _resumeLocksLearner => widget.resumeFrom != null;
+  bool get _resumeLocksLearner => _matchedResumeSession != null;
 
   LearnerProfile? _preferredLaunchLearner() {
     final resumeLearner = _resumeLearner;
@@ -6115,9 +6184,10 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
     final state = widget.state;
     final lesson = widget.lesson;
     final resumeLearner = _resumeLearner;
+    final matchedResumeSession = _matchedResumeSession;
     final resumeMissingLearner =
-        widget.resumeFrom != null && resumeLearner == null;
-    final syncPendingLesson = lesson.isAssignmentPlaceholder;
+        matchedResumeSession != null && resumeLearner == null;
+    final syncPendingLesson = lessonRequiresSyncBeforeStarting(lesson);
 
     return Scaffold(
       body: SafeArea(
@@ -6752,7 +6822,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                           ],
                         ),
                       ),
-                    if (widget.resumeFrom != null)
+                    if (matchedResumeSession != null)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -6769,7 +6839,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                         child: Text(
                           resumeMissingLearner
                               ? 'Resume blocked: the original learner for this backend session is not available on this tablet yet. Sync that learner before reopening the session.'
-                              : 'Resume ready from ${widget.resumeFrom!.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+                              : 'Resume ready from ${matchedResumeSession.progressLabel.toLowerCase()} for ${resumeLearner!.name}. This learner is locked so the session cannot be resumed under the wrong child.',
                           style: TextStyle(
                             color: resumeMissingLearner
                                 ? const Color(0xFF991B1B)
@@ -6939,7 +7009,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
                                       lesson: lesson,
                                       resumeFrom: selectedAvailability
                                               ?.resumableSession ??
-                                          widget.resumeFrom,
+                                          matchedResumeSession,
                                     ),
                                   ),
                                 );
@@ -7093,7 +7163,16 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
     widget.state.selectLearner(widget.learner);
 
     try {
-      widget.state.startLesson(widget.lesson, resumeFrom: widget.resumeFrom);
+      final matchedResumeSession = widget.state.lessonForBackendSession(
+        widget.resumeFrom,
+      )?.id ==
+              widget.lesson.id
+          ? widget.resumeFrom
+          : null;
+      widget.state.startLesson(
+        widget.lesson,
+        resumeFrom: matchedResumeSession,
+      );
     } on StateError catch (error) {
       _navigated = false;
       final message = error.message.toString().trim();
@@ -12587,7 +12666,10 @@ class _LessonCompletePageState extends State<LessonCompletePage>
                                       );
                                       if (!context.mounted) return;
                                       if (nextLesson != null &&
-                                          handoffLearner.id == learner.id) {
+                                          handoffLearner.id == learner.id &&
+                                          !lessonRequiresSyncBeforeStarting(
+                                            nextLesson,
+                                          )) {
                                         Navigator.of(context).pushReplacement(
                                           MaterialPageRoute(
                                             builder: (_) =>

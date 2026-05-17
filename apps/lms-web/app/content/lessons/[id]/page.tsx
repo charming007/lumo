@@ -151,9 +151,10 @@ export default async function LessonStudioEditPage({
 
   const { items: inventoryLessons, issues: lessonInventoryPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
   const fallbackInventoryLesson = inventoryLessons.find((entry) => entry.id === id) ?? null;
-  const rawLesson = lessonResult.status === 'fulfilled' ? lessonResult.value : fallbackInventoryLesson;
-  const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
-  const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
+  const { lesson: fetchedLesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(lessonResult.status === 'fulfilled' ? lessonResult.value : null);
+  const lessonFeedUnavailable = lessonResult.status === 'rejected';
+  const lesson = fetchedLesson ?? fallbackInventoryLesson;
+  const lessonFeedRecoveredFromInventory = lessonFeedUnavailable && Boolean(fallbackInventoryLesson);
 
   const { items: loadedModules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
   const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
@@ -198,6 +199,61 @@ export default async function LessonStudioEditPage({
     && fallbackModule
     && (loadedSubjects.length === 0 || loadedModules.length === 0),
   );
+  const criticalLessonEditorFailures = [
+    assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalLessonEditorFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalLessonEditorFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Lesson editing is blocked when the live asset library goes blind, because changing media-backed lesson steps against missing references is how you ship broken playback with very confident copy."
+        blockerHeadline="Deployment blocker: lesson asset authoring feeds are degraded."
+        blockerDetail={(
+          <>
+            The {criticalLessonEditorFailures.join(', ')} feed{criticalLessonEditorFailures.length === 1 ? ' failed' : 's failed'} to load from the live API, so Lesson Editor refuses to save blind media and support-audio references for this lesson. {secondaryFailures.length
+              ? `Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+              : ''} Lesson editor recovery build: {LESSON_EDITOR_BUILD_SIGNATURE}.
+          </>
+        )}
+        whyBlocked={[
+          'This editor can rewrite target audio, support audio, and structured media references on an existing live lesson.',
+          'If the asset feed is down, operators can still save a lesson that looks updated while its media graph is stale, incomplete, or broken.',
+          'Blocking the route is safer than trusting humans to avoid every media-touching control during an asset registry outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson asset library',
+            expected: 'Live asset choices load before Lesson Editor allows media-backed updates',
+            failure: 'Editor stays interactive while the asset registry is missing or stale',
+          },
+          {
+            surface: 'Existing lesson media refs',
+            expected: 'Operators can verify and update target/support audio against real asset records',
+            failure: 'Lesson saves can silently preserve or add broken media refs during an asset outage',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the asset feed recovers',
+            failure: 'Lesson Editor keeps its write controls while media references are unverifiable',
+          },
+        ]}
+        fixItems={[
+          { label: 'Critical failed feeds', value: criticalLessonEditorFailures.join(', ') },
+          { label: 'Still required', value: 'Live lesson asset registry and sanitized asset payloads' },
+          { label: 'Operator action', value: 'Restore the asset library feed, then reopen Lesson Editor before changing media-backed lessons' },
+        ]}
+        docs={[
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Content board', href: from, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assessment lane', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
 
   if (!lesson || !hasUsableCurriculumContext) {
     return (
@@ -228,8 +284,8 @@ export default async function LessonStudioEditPage({
           },
           {
             surface: 'Optional metadata feeds',
-            expected: 'Assessment and asset panels can degrade without blocking editing',
-            failure: 'Optional feed loss incorrectly blocks the whole editor',
+            expected: 'Assessment side panels can degrade without blocking editing once lesson identity and asset safety are still intact',
+            failure: 'Non-critical metadata loss incorrectly blocks the whole editor after the lesson and asset registry are still trustworthy',
           },
         ]}
         fixItems={[

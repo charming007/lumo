@@ -929,14 +929,48 @@ class LumoAppState {
       );
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
-      activeSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSessionCanWaitForSync =
+          recoveredSession != null &&
+          _shouldKeepRecoveredSessionPendingUntilSync(recoveredSession);
+      final recoveredSessionUnsafe =
+          recoveredSession != null &&
+          currentLearner != null &&
+          !recoveredSessionCanWaitForSync &&
+          !_isRecoveredSessionSafeToResume(
+            learner: currentLearner,
+            session: recoveredSession,
+          );
+      activeSession = recoveredSessionUnsafe || recoveredSessionCanWaitForSync
+          ? null
+          : recoveredSession;
       if (activeSession != null && currentLearner == null) {
         activeSession = null;
       }
+      final recoveredCompletionState = _readNullableString(
+        activeSessionRaw is Map ? activeSessionRaw['completionState'] : null,
+      )?.trim().toLowerCase();
+      final recoveredSessionMissingLessonPayload =
+          recoveredSession == null &&
+          recoveredCompletionState != 'complete' &&
+          recoveredCompletionState != 'completed';
+      final recoveredSessionShouldStayPending =
+          recoveredSessionCanWaitForSync ||
+          recoveredSessionMissingLessonPayload ||
+          (recoveredSession != null && currentLearner == null);
       pendingRecoveredSessionSnapshot =
-          activeSessionRaw is Map && activeSession == null
+          activeSessionRaw is Map &&
+                  activeSession == null &&
+                  recoveredSessionShouldStayPending
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
+      final recoveredLessonIsPlaceholder =
+          recoveredSession?.lesson.isAssignmentPlaceholder == true;
+      if ((recoveredCompletionState == 'complete' ||
+              recoveredCompletionState == 'completed') &&
+          recoveredLessonIsPlaceholder) {
+        pendingRecoveredSessionSnapshot = null;
+      }
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
       deploymentBlockerReason =
           hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
@@ -1723,8 +1757,12 @@ class LumoAppState {
     return false;
   }
 
+  bool _lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
+    return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
+  }
+
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
-    if (lesson.isAssignmentPlaceholder) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }
     if (isQaLessonUnlockActive) {
@@ -1869,7 +1907,7 @@ class LumoAppState {
     String moduleId,
   ) {
     return lessonsForLearnerAndModule(learner, moduleId)
-        .where((lesson) => !lesson.isAssignmentPlaceholder)
+        .where((lesson) => !_lessonRequiresSyncBeforeStarting(lesson))
         .toList(growable: false);
   }
 
@@ -1910,7 +1948,7 @@ class LumoAppState {
     LearnerProfile learner,
     LessonCardModel lesson,
   ) {
-    if (lesson.isAssignmentPlaceholder) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }
     return _isPublishedLearnerLesson(lesson) &&
@@ -2615,7 +2653,8 @@ class LumoAppState {
           assignedLessons.cast<LessonCardModel?>().firstWhere(
                 (lesson) =>
                     lesson?.id == assignmentPack.lessonId &&
-                    lesson?.isAssignmentPlaceholder != true,
+                    lesson != null &&
+                    !_lessonRequiresSyncBeforeStarting(lesson),
                 orElse: () => null,
               );
       if (assignmentLesson != null) return assignmentLesson;
@@ -2626,7 +2665,7 @@ class LumoAppState {
         assignedLessons.cast<LessonCardModel?>().firstWhere(
               (lesson) =>
                   lesson != null &&
-                  !lesson.isAssignmentPlaceholder &&
+                  !_lessonRequiresSyncBeforeStarting(lesson) &&
                   lesson.moduleId == recommendedModuleId &&
                   lesson.id != completedLessonId,
               orElse: () => null,
@@ -5741,6 +5780,34 @@ class LumoAppState {
     return 'Recovered $lessonLabel is waiting for lesson sync before $progress can resume.';
   }
 
+  bool _shouldKeepRecoveredSessionPendingUntilSync(LessonSessionState session) {
+    final lesson = session.lesson;
+    return session.completionState != LessonCompletionState.complete &&
+        (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty);
+  }
+
+  bool _isRecoveredSessionSafeToResume({
+    required LearnerProfile? learner,
+    required LessonSessionState? session,
+  }) {
+    if (learner == null || session == null) return false;
+
+    final lesson = session.lesson;
+    if (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty) {
+      return false;
+    }
+    if (!learnerMatchesTabletPod(learner)) {
+      return false;
+    }
+    if (session.completionState == LessonCompletionState.complete) {
+      return true;
+    }
+    if (lessonCompletedForLearner(learner, lesson)) {
+      return false;
+    }
+    return true;
+  }
+
   void _recoverPendingSessionAfterRefresh() {
     final snapshot = pendingRecoveredSessionSnapshot;
     if (snapshot == null || activeSession != null) return;
@@ -5755,7 +5822,14 @@ class LumoAppState {
       return;
     }
     final recovered = _decodeActiveSession(snapshot);
-    if (recovered == null) return;
+    if (!_isRecoveredSessionSafeToResume(
+      learner: currentLearner,
+      session: recovered,
+    )) {
+      pendingRecoveredSessionSnapshot = null;
+      persistStateSoon();
+      return;
+    }
     activeSession = recovered;
     pendingRecoveredSessionSnapshot = null;
   }

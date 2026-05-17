@@ -14,7 +14,7 @@ test('dashboard exact blocker CTA carries a module id into the content board', (
   );
 });
 
-test('content board honors the focused module id filter and calls out drift', () => {
+test('content board honors the focused module id filter and hard-blocks scoped drift', () => {
   assert.match(
     contentPageSource,
     /moduleId\?: string \| string\[]/,
@@ -32,7 +32,17 @@ test('content board honors the focused module id filter and calls out drift', ()
   );
   assert.match(
     contentPageSource,
-    /The dashboard passed moduleId \$\{moduleIdFilter\}, but this board cannot find that module in the live curriculum feed\./,
+    /if \(moduleIdFilter && !focusedModule\) \{/,
+    'content page should hard-block when a dashboard-scoped module id no longer exists in the live curriculum feed',
+  );
+  assert.match(
+    contentPageSource,
+    /Deployment blocker: scoped module handoff no longer matches live curriculum\./,
+    'content page should escalate a missing focused module into an explicit deployment blocker',
+  );
+  assert.match(
+    contentPageSource,
+    /The dashboard passed moduleId <code style=\{\{ color: 'white', fontWeight: 900 \}\}>\{moduleIdFilter\}<\/code>, but this board cannot find that module in the live curriculum feed\./,
     'content board should treat a missing focused module as stale or mismatched deployment evidence',
   );
 });
@@ -57,5 +67,13 @@ test('content blocker actions keep multi-lesson gaps on the bulk blocker flow in
     contentPageSource,
     /Add lesson pack/,
     'content blocker actions should not advertise a single-lesson pack CTA that bypasses the bulk blocker flow for multi-lesson gaps',
+  );
+});
+
+test('content blocker review-gate CTA keeps exact module scope instead of a fuzzy title-only search', () => {
+  assert.match(
+    contentPageSource,
+    /buildAssessmentReviewHref\(\{ returnPath, moduleTitle: module\.title, moduleId: module\.id, subjectId: moduleSubjectId \}\)/,
+    'content blocker review-gate CTA should carry the exact module id into the assessments board so operators review the intended gate',
   );
 });

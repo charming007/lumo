@@ -153,6 +153,88 @@ void main() {
   );
 
   testWidgets(
+    'subject page shows sync-incomplete lessons as blocked instead of ready',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const learner = LearnerProfile(
+        id: 'learner-a',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const module = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'Live English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      );
+      const lessonShell = LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'Greeting lesson shell',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Published lesson shell before steps sync.',
+        steps: [],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      addTearDown(state.dispose);
+      state.usingFallbackData = false;
+      state.modules.add(module);
+      state.learners.add(learner);
+      state.assignedLessons.add(lessonShell);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-shell',
+          lessonId: lessonShell.id,
+          moduleId: lessonShell.moduleId,
+          lessonTitle: lessonShell.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.selectLearner(learner);
+      state.selectModule(module);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: () {},
+            module: module,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text(lessonShell.title), findsOneWidget);
+      expect(find.text('Sync incomplete'), findsOneWidget);
+      expect(find.text('Ready now'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'subject page ignores stale learner scope when opened from the home subject grid',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

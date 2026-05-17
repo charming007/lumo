@@ -154,7 +154,7 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
         docs={[
           { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
           { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Lesson studio', href: createLessonHref, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Review blocker stack', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
         ]}
       />
     );

@@ -132,6 +132,61 @@ export default async function LessonStudioCreatePage({
     ? loadedSubjects
     : derivedSubjects;
   const hasUsableAuthoringContext = modules.length > 0 && subjects.length > 0;
+  const criticalLessonCreateFailures = [
+    assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalLessonCreateFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalLessonCreateFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Lesson creation is blocked when the live asset library goes blind, because authoring media-backed lesson steps against missing references is still shipping broken curriculum."
+        blockerHeadline="Deployment blocker: lesson asset authoring feeds are degraded."
+        blockerDetail={(
+          <>
+            The {criticalLessonCreateFailures.join(', ')} feed{criticalLessonCreateFailures.length === 1 ? ' failed' : 's failed'} to load from the live API, so Lesson Studio refuses to create lesson payloads with blind media and support-audio references. {secondaryFailures.length
+              ? `Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'This form does not just draft text. It can attach target audio, support audio, and structured media references that must agree with the live asset registry.',
+          'If the asset feed is down, operators can still save a lesson that looks polished while its media graph is stale, incomplete, or flat-out wrong.',
+          'A loud blocker is safer than pretending asset-backed authoring is still trustworthy during a registry outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson asset library',
+            expected: 'Live asset choices load before Lesson Studio allows media-backed authoring',
+            failure: 'Create form stays interactive while the asset registry is missing or stale',
+          },
+          {
+            surface: 'Support-audio references',
+            expected: 'Operators can resolve target and support audio against real asset records',
+            failure: 'Lesson payload can be saved with blind audio refs during an asset outage',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the asset feed recovers',
+            failure: 'Lesson Studio keeps its buttons while media references are unverifiable',
+          },
+        ]}
+        fixItems={[
+          { label: 'Critical failed feeds', value: criticalLessonCreateFailures.join(', ') },
+          { label: 'Still required', value: 'Live lesson asset registry and sanitized asset payloads' },
+          { label: 'Operator action', value: 'Restore the asset library feed, then reopen Lesson Studio before creating media-backed lessons' },
+        ]}
+        docs={[
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Blocked modules', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+        ]}
+      />
+    );
+  }
 
   if (!hasUsableAuthoringContext) {
     return (
@@ -162,8 +217,8 @@ export default async function LessonStudioCreatePage({
           },
           {
             surface: 'Optional feeds',
-            expected: 'Duplicate source lessons and asset panels can degrade without blocking draft creation',
-            failure: 'Optional feed loss incorrectly blocks the full authoring route',
+            expected: 'Duplicate source lessons can degrade without blocking draft creation once the curriculum lane is still trustworthy',
+            failure: 'Non-critical lesson inventory loss incorrectly blocks the full authoring route after asset safety is already satisfied',
           },
         ]}
         fixItems={[
