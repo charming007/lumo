@@ -9,6 +9,7 @@ const LESSON_ACTIVITY_TYPES = [
   'tap_choice',
   'listen_answer',
   'oral_quiz',
+  'drag_to_match',
 ];
 
 function requireFields(body, fields) {
@@ -130,7 +131,7 @@ function validateLessonActivities(body) {
       throw error;
     }
 
-    ['expectedAnswers', 'media', 'choices', 'tags'].forEach((field) => {
+    ['expectedAnswers', 'media', 'choices', 'tags', 'dragItems', 'dragTargets', 'facilitatorNotes'].forEach((field) => {
       assertArray(`activitySteps[${index}].${field}`, activity[field]);
     });
 
@@ -143,6 +144,30 @@ function validateLessonActivities(body) {
         }
 
         requireFields(choice, ['id', 'label']);
+      });
+    }
+
+    if (activity.dragItems) {
+      activity.dragItems.forEach((item, itemIndex) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          const error = new Error(`Invalid activitySteps[${index}].dragItems[${itemIndex}]`);
+          error.statusCode = 400;
+          throw error;
+        }
+
+        requireFields(item, ['id', 'label']);
+      });
+    }
+
+    if (activity.dragTargets) {
+      activity.dragTargets.forEach((target, targetIndex) => {
+        if (!target || typeof target !== 'object' || Array.isArray(target)) {
+          const error = new Error(`Invalid activitySteps[${index}].dragTargets[${targetIndex}]`);
+          error.statusCode = 400;
+          throw error;
+        }
+
+        requireFields(target, ['id', 'prompt']);
       });
     }
   });

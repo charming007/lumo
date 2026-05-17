@@ -15,8 +15,11 @@ function cloneActivitySteps(input = []) {
     ...step,
     media: Array.isArray(step.media) ? step.media.map((item) => ({ ...item })) : [],
     choices: Array.isArray(step.choices) ? step.choices.map((item) => ({ ...item })) : [],
+    dragItems: Array.isArray(step.dragItems) ? step.dragItems.map((item) => ({ ...item, media: item?.media && typeof item.media === 'object' ? { ...item.media } : item?.media ?? null })) : [],
+    dragTargets: Array.isArray(step.dragTargets) ? step.dragTargets.map((item) => ({ ...item, media: item?.media && typeof item.media === 'object' ? { ...item.media } : item?.media ?? null })) : [],
     expectedAnswers: Array.isArray(step.expectedAnswers) ? [...step.expectedAnswers] : [],
     tags: Array.isArray(step.tags) ? [...step.tags] : [],
+    facilitatorNotes: Array.isArray(step.facilitatorNotes) ? [...step.facilitatorNotes] : [],
   }));
 }
 
@@ -207,6 +210,43 @@ function deriveMallamIdFromPodId(podId) {
     || null;
 }
 
+function buildBaseLearnerCode(student, cohort = null) {
+  const resolvedCohort = cohort || (student?.cohortId ? findCohortById(student.cohortId) : null);
+  const cleanedName = String(student?.name || 'NEW').replace(/[^A-Za-z]/g, '').toUpperCase();
+  const prefix = (cleanedName || 'NEW').slice(0, 3).padEnd(3, 'X');
+  const cohortCode = String(resolvedCohort?.name || 'General Cohort')
+    .split(' ')
+    .map((part) => (part ? part[0] : ''))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+    .padEnd(2, 'G');
+  const ageCode = String(student?.age || 0).padStart(2, '0');
+  return `${prefix}-${cohortCode}${ageCode}`;
+}
+
+function buildCanonicalLearnerCode(student, cohort = null) {
+  const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : '';
+  return persistedLearnerCode || buildBaseLearnerCode(student, cohort);
+}
+
+function ensureUniqueLearnerCode(student, preferredCode) {
+  const normalizedPreferredCode = preferredCode ? String(preferredCode).trim() : '';
+  const fallbackBaseCode = buildBaseLearnerCode(student);
+  const baseCode = normalizedPreferredCode || fallbackBaseCode;
+  const conflicts = data.students.filter((entry) => entry && entry.id !== student.id && String(entry.learnerCode || '').trim() === baseCode);
+
+  if (conflicts.length === 0) {
+    return baseCode;
+  }
+
+  const stableSuffix = String(student?.id || 'student-new')
+    .replace(/^student-/i, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase() || 'X';
+  return `${baseCode}-${stableSuffix}`;
+}
+
 function normalizeStudentRecord(student) {
   if (!student || typeof student !== 'object') return student;
 
@@ -216,6 +256,8 @@ function normalizeStudentRecord(student) {
   if (student.podId !== canonicalPodId) {
     student.podId = canonicalPodId;
   }
+
+  student.learnerCode = ensureUniqueLearnerCode(student, buildCanonicalLearnerCode(student, cohort));
 
   if (Object.prototype.hasOwnProperty.call(student, 'podLabel')) {
     delete student.podLabel;
@@ -514,6 +556,7 @@ function createStudent(input) {
     supportPlan: input.supportPlan || '',
     village: input.village || '',
     deviceAccess: input.deviceAccess || 'shared-tablet',
+    learnerCode: input.learnerCode || null,
   };
 
   normalizeStudentRecord(student);
@@ -549,6 +592,7 @@ function updateStudent(id, input) {
     supportPlan: input.supportPlan ?? student.supportPlan,
     village: input.village ?? student.village,
     deviceAccess: input.deviceAccess ?? student.deviceAccess,
+    learnerCode: input.learnerCode ?? student.learnerCode,
   });
 
   normalizeStudentRecord(student);

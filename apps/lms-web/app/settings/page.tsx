@@ -13,7 +13,7 @@ import type { AssetRuntimeReport, MetaResponse, OperationsReport, RewardSnapshot
 const EMPTY_META: MetaResponse = {
   actor: {
     role: 'admin',
-    name: 'Pilot Admin',
+    name: 'Lumo Admin',
   },
   mode: 'offline',
   seedSummary: {},
@@ -255,8 +255,97 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalSettingsFailures = [
+    storageStatusResult.status === 'rejected' ? 'storage status' : null,
+    integrityResult.status === 'rejected' ? 'storage integrity' : null,
+    backupsResult.status === 'rejected' ? 'storage backups' : null,
+  ].filter(Boolean) as string[];
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
+
+  if (assetRuntimeAuthBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Settings"
+        subtitle="Protected asset audits are blocked, so this trust center is not allowed to cosplay as a safe admin cockpit."
+        blockerHeadline="Deployment blocker: LMS admin API key cannot unlock settings audit feeds."
+        blockerDetail={(
+          <>
+            The LMS cannot authenticate to <code style={{ color: 'white', fontWeight: 900 }}>/api/v1/admin/assets/runtime</code>. Set the correct <code style={{ color: 'white', fontWeight: 900 }}>LUMO_ADMIN_API_KEY</code> in the LMS deployment, redeploy, then re-check settings, dashboard, and asset library before calling this stack production-ready.
+          </>
+        )}
+        whyBlocked={[
+          'Settings is the trust center for storage posture, backups, rewards, and asset readiness. If protected admin audit auth is broken, the page should not keep rendering polished fallback numbers and hope nobody notices.',
+          'A banner is too weak here. Reviewers can still misread the rest of the page as a valid live ops surface even though one of the critical protected feeds is locked.',
+          'Hard-blocking this route keeps the deployment story honest until the LMS and API share the same admin key again.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Protected asset runtime audit',
+            expected: 'Settings can read /api/v1/admin/assets/runtime without auth failure.',
+            failure: 'The route 401s or otherwise rejects the LMS admin key while the page still pretends the trust center is usable.',
+          },
+          {
+            surface: 'Settings trust center',
+            expected: 'Storage, backup, rewards, and asset posture all render from live authenticated feeds.',
+            failure: 'Fallback metrics or empty audit sections appear after the auth fix supposedly shipped.',
+          },
+          {
+            surface: 'Cross-check routes',
+            expected: 'Dashboard and asset library agree that asset audits are unlocked again after redeploy.',
+            failure: 'Settings recovers but dashboard or /content/assets still shows the protected-feed blocker.',
+          },
+        ]}
+        docs={[
+          { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
+          { label: 'Open asset library', href: '/content/assets', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
+        ]}
+      />
+    );
+  }
+
+  if (criticalSettingsFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalSettingsFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Settings"
+        subtitle="Storage operations are blocked while the live persistence audit feeds are degraded, because checkpointing or repair against blind state is how you turn an outage into data loss."
+        blockerHeadline="Deployment blocker: settings storage audit feeds are degraded."
+        blockerDetail={secondaryFailures.length
+          ? `Critical failed feed${criticalSettingsFailures.length === 1 ? '' : 's'}: ${criticalSettingsFailures.join(', ')}. Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+          : `Critical failed feed${criticalSettingsFailures.length === 1 ? '' : 's'}: ${criticalSettingsFailures.join(', ')}.`}
+        whyBlocked={[
+          'This page can create checkpoints, run integrity repair, restore backups, and delete backups. Those controls cannot stay live when storage status, integrity, or backup inventory is missing.',
+          'A nice degraded banner is bullshit here. Operators would still see polished forms and action buttons while the persistence truth itself is blind or stale.',
+          'Leaderboard, geography, or reporting context can degrade separately, but the storage control surface should stop cold when the storage audit feeds disappear.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Storage control center',
+            expected: 'Mode, persistence, timestamps, integrity counts, and backup inventory all load before any checkpoint or repair action is offered.',
+            failure: 'Create checkpoint or repair buttons remain clickable while the storage audit feeds are missing or stale.',
+          },
+          {
+            surface: 'Backup restore/delete controls',
+            expected: 'Operators only see restore/delete actions when the live backup inventory is trustworthy.',
+            failure: 'The route implies restore or delete is safe while the backup feed is degraded.',
+          },
+          {
+            surface: 'Cross-route trust check',
+            expected: 'Dashboard and settings agree that storage operations are blocked until the audit feeds recover.',
+            failure: 'Settings stays interactive even though the trust surfaces disagree about storage readiness.',
+          },
+        ]}
+        docs={[
+          { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
+          { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
+          { label: 'Open reports', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+        ]}
+      />
+    );
+  }
 
   const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
   const watch = workboard.filter((item) => item.progressionStatus === 'watch').length;
@@ -274,19 +363,26 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
   const visibleBackups = backups.items.length ? backups.items : (storageStatus?.backups ?? []);
   const catalogStateDetail = describeCatalogState(seedCount);
   const seededCatalogVisible = seedCount > 0;
-  const trustState = failedSources.length
-    ? 'Operator review required'
+  const trustTone = failedSources.length
+    ? { background: '#fff7ed', border: '#fed7aa' }
     : integrity.summary.issueCount
-      ? 'Integrity issues need cleanup'
+      ? { background: '#FFF7ED', border: '#FDBA74' }
+      : storagePersistent
+        ? { background: '#ECFDF5', border: '#BBF7D0' }
+        : { background: '#FEF3C7', border: '#FDE68A' };
+  const trustState = failedSources.length
+    ? 'Live checks incomplete'
+    : integrity.summary.issueCount
+      ? 'Live backend with cleanup items'
       : storagePersistent
         ? seededCatalogVisible
           ? 'Live backend + starter catalog visible'
           : 'Live backend posture visible'
         : 'Volatile mode — do not fake confidence';
   const trustDetail = failedSources.length
-    ? `Settings is missing ${failedSources.join(', ')} data, so treat this surface as advisory until the feeds recover.`
+    ? `Settings is missing ${failedSources.join(', ')} data, so treat this surface as advisory until those live checks recover.`
     : integrity.summary.issueCount
-      ? `${integrity.summary.issueCount} integrity issue${integrity.summary.issueCount === 1 ? '' : 's'} are visible. Fix those before calling the stack healthy.`
+      ? `${integrity.summary.issueCount} integrity issue${integrity.summary.issueCount === 1 ? '' : 's'} ${integrity.summary.issueCount === 1 ? 'is' : 'are'} reported. The stack is still reachable, but clear those items before calling storage posture fully clean.`
       : storagePersistent
         ? describeLiveBackendWithCatalog(seedCount, String(storageMode || 'unknown'), visibleBackups.length)
         : 'This environment is still volatile. Nice-looking controls do not magically make ephemeral storage safe.';
@@ -353,7 +449,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
       <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16, marginBottom: 20 }}>
         <Card title="Production trust center" eyebrow="Operational truth, not vibes">
           <div style={{ display: 'grid', gap: 14 }}>
-            <div style={{ padding: '18px 20px', borderRadius: 18, background: failedSources.length ? '#fff7ed' : integrity.summary.issueCount ? '#FEF2F2' : storagePersistent ? '#ECFDF5' : '#FEF3C7', border: `1px solid ${failedSources.length ? '#fed7aa' : integrity.summary.issueCount ? '#fecaca' : storagePersistent ? '#bbf7d0' : '#FDE68A'}` }}>
+            <div style={{ padding: '18px 20px', borderRadius: 18, background: trustTone.background, border: `1px solid ${trustTone.border}` }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800, marginBottom: 8 }}>Trust status</div>
               <strong style={{ display: 'block', fontSize: 22, color: '#0f172a', marginBottom: 6 }}>{trustState}</strong>
               <div style={{ color: '#475569', lineHeight: 1.7 }}>{trustDetail}</div>
@@ -460,7 +556,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         <Card title="Route handoff" eyebrow="Use the right surface next">
           <div style={{ display: 'grid', gap: 12 }}>
             {[
-              { label: 'Dashboard', href: '/', detail: 'Return to the pilot front door and re-check deployment trust, readiness counts, and blocker visibility.' },
+              { label: 'Dashboard', href: '/', detail: 'Return to the admin front door and re-check deployment trust, readiness counts, and blocker visibility.' },
               { label: 'Progress', href: '/progress', detail: 'Cross-check whether progression readiness, watchlist learners, and override pressure match the trust picture here.' },
               { label: 'Content Library', href: '/content', detail: 'Use the scoped authoring board when integrity or asset issues mean the release lane still needs cleanup.' },
             ].map((item) => (

@@ -1,12 +1,55 @@
 import Link from 'next/link';
 import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterMallamsByGeography, mallamGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Mallams"
+        subtitle="Facilitator roster control is blocked until the LMS is wired to a real production API, because fake-empty staffing screens are operationally toxic."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: mallams API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the facilitator roster cannot be trusted for pod ownership, staffing coverage, or learner routing. Fix the env var, redeploy, then verify live mallam data.
+          </>
+        )}
+        whyBlocked={[
+          'Mallams is a live staffing surface, not decorative reporting. It controls who owns pods, who carries learners, and who is even active in the field.',
+          'If production is pointed at localhost, a placeholder host, or no real backend, a calm-looking empty roster becomes a lie with deployment consequences.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mallam roster',
+            expected: 'Live facilitator rows, statuses, geography, and pod coverage load from the backend',
+            failure: 'Table looks clean only because the LMS never connected to the real API',
+          },
+          {
+            surface: 'Add / edit mallam flows',
+            expected: 'Center, pod, state, and local government selectors load and submit against the live backend',
+            failure: 'Forms open with dead selectors, stale references, or writes that go nowhere',
+          },
+          {
+            surface: 'Roster ownership',
+            expected: 'Primary pod ownership and mallam coverage still match the live deployment footprint after save',
+            failure: 'Operators think facilitator coverage changed when the deployment was disconnected the whole time',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const stateId = typeof query?.stateId === 'string' ? query.stateId : '';
   const localGovernmentId = typeof query?.localGovernmentId === 'string' ? query.localGovernmentId : '';
@@ -36,17 +79,73 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalMallamFailures = [
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
   const hasCoreRosterGap = mallamsResult.status === 'rejected';
-  const geographyFilterDegraded = centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+  const geographyFilterDegraded = statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+
+  if (criticalMallamFailures.length) {
+    const blockerDetail = criticalMallamFailures.length === 1
+      ? `The ${criticalMallamFailures[0]} feed failed to load from the live API. Leaving facilitator create, edit, or pod-coverage controls up would let operators rewrite mallam ownership while the staffing graph is blind.`
+      : `The ${criticalMallamFailures.join(', ')} feeds failed to load from the live API. Leaving facilitator create, edit, or pod-coverage controls up would let operators rewrite mallam ownership while the staffing graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Mallams"
+        subtitle="Facilitator admin is a live staffing control surface, not a decorative directory. If the core staffing feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: mallam staffing feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalMallamFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalMallamFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalMallamFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to create facilitators, reassign primary pod ownership, and maintain live staffing coverage. If mallams, centers, pods, states, or local governments disappear, a polished UI becomes dangerous fiction fast.',
+          'Learner counts can degrade separately as supporting context, but the staffing roster and write paths should stop cold when the core facilitator-reference graph is missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Facilitator roster + ownership graph',
+            expected: 'Live mallams, centers, pods, states, and local governments all load before operators trust staffing admin',
+            failure: 'Add, edit, delete, or roster actions remain reachable while the core facilitator-reference graph is missing or stale',
+          },
+          {
+            surface: 'Profile and coverage forms',
+            expected: 'Center, state, local government, and pod references load from the live backend before a facilitator write is allowed',
+            failure: 'Forms stay interactive while the core staffing references are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the core staffing feeds recover',
+            failure: 'The route implies facilitator operations are safe when the staffing control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const filteredMallams = filterMallamsByGeography(mallams, centers, { stateId, localGovernmentId, podId });
   const active = filteredMallams.filter((mallam) => (mallam.status || '').toLowerCase() === 'active');
   const podCoverageCount = new Set(mallams.flatMap((mallam) => mallam.podLabels || [])).size;
+  const primaryPodCoverageCount = new Set(filteredMallams.map((mallam) => mallam.podLabels?.[0]).filter(Boolean)).size;
 
   return (
     <PageShell
       title="Mallams"
-      subtitle="Manage facilitator profiles with pod assignment as the main operational workflow."
+      subtitle="Manage facilitator profiles with primary pod assignment as the main operational workflow."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
@@ -54,7 +153,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             <ModalLauncher
               buttonLabel="Add mallam"
               title="Add mallam"
-              description="Create an independent mallam profile, then attach it to pods as the operational assignment flow."
+              description="Create a mallam profile, then attach it to the primary pod they will actually own or support."
               eyebrow="Mallam admin"
               disabled={hasCoreRosterGap}
             >
@@ -66,6 +165,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
               items={[
                 { label: 'Mallams', value: String(filteredMallams.length) },
                 { label: 'Active', value: String(active.length) },
+                { label: 'Primary pods covered', value: String(primaryPodCoverageCount) },
                 { label: 'Pods covered', value: String(podCoverageCount) },
               ]}
             />
@@ -95,10 +195,10 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             : `Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} in the selected geography slice.`}
       />
       <SimpleTable
-        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Languages', 'Center', 'Actions']}
+        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Pod coverage', 'Languages', 'Center', 'Actions']}
         rows={hasCoreRosterGap ? [[
           <span key="mallams-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Mallam roster unavailable. Recover the mallams feed before using facilitator admin actions.</span>,
-          '', '', '', '', '', '', '',
+          '', '', '', '', '', '', '', '',
         ]] : filteredMallams.map((mallam) => [
           <div key={`${mallam.id}-name`}>
             <strong>{mallam.displayName || mallam.name}</strong>
@@ -108,6 +208,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
           mallamGeographyLabel(mallam, centers, states, localGovernments),
           String(mallam.learnerCount || 0),
           mallam.podLabels?.[0] || '—',
+          String(mallam.podLabels?.length || 0),
           (mallam.languages || []).join(', ') || '—',
           mallam.centerName || '—',
           <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -142,7 +243,7 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
               <div style={{ display: 'grid', gap: 16 }}>
                 <Card title="Mallam roster manager" eyebrow="Roster control">
                   <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                    Use the mallam profile for the full roster surface. This quick action is intentionally lightweight from the table.
+                    Use the mallam profile for the full roster surface. This quick action stays lightweight here so pod-first routing still happens in one focused place.
                   </div>
                 </Card>
                 <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>

@@ -64,7 +64,271 @@ void main() {
   });
 
   testWidgets(
-      'backend banner escalates unknown learner sync failures into a pilot blocker',
+      'healthy home keeps live backend chips and prominent sync freshness visible',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backend link live'), findsOneWidget);
+    expect(find.text('Backend healthy'), findsOneWidget);
+    expect(find.text('Sync freshness'), findsOneWidget);
+    expect(find.textContaining('Last trusted sync'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'home trust banner stays visible on landscape tablets when sync warnings exist',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = true
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(hours: 2))
+      ..pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Refresh sync'), findsOneWidget);
+    expect(find.text('Offline pack curriculum'), findsOneWidget);
+    expect(find.text('Sync stale'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test(
+      'placeholder assignments never advertise a learner as ready before lesson sync lands',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      cohortId: 'cohort-1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const placeholderLesson = LessonCardModel(
+      id: 'assignment-placeholder:lesson-placeholder',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Assignment visible before payload sync.',
+      steps: [],
+    );
+
+    state.learners.add(learner);
+    state.assignedLessons.add(placeholderLesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-1',
+        lessonId: placeholderLesson.id,
+        moduleId: placeholderLesson.moduleId,
+        lessonTitle: placeholderLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+
+    final availability = learnerLessonAvailability(
+      state: state,
+      learner: learner,
+      lesson: placeholderLesson,
+    );
+
+    expect(availability.kind, LearnerLessonAvailabilityKind.unavailable);
+    expect(availability.label, 'Waiting for sync');
+    expect(availability.canLaunch, isFalse);
+  });
+
+  test(
+      'live lessons without synced activity steps stay blocked instead of ready',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      cohortId: 'cohort-1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const shellLesson = LessonCardModel(
+      id: 'lesson-shell-1',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson shell synced before activity steps land.',
+      steps: [],
+    );
+
+    state.learners.add(learner);
+    state.assignedLessons.add(shellLesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-1',
+        lessonId: shellLesson.id,
+        moduleId: shellLesson.moduleId,
+        lessonTitle: shellLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+
+    final availability = learnerLessonAvailability(
+      state: state,
+      learner: learner,
+      lesson: shellLesson,
+    );
+
+    expect(availability.kind, LearnerLessonAvailabilityKind.unavailable);
+    expect(availability.label, 'Sync incomplete');
+    expect(availability.detail, contains('without any activity steps'));
+    expect(availability.canLaunch, isFalse);
+  });
+
+  test('subject cards stay hidden until a synced learner lands on the tablet',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      )
+      ..assignedLessons.add(
+        const LessonCardModel(
+          id: 'english-live-lesson',
+          moduleId: 'english',
+          title: 'Greetings with Mallam',
+          subject: 'English',
+          durationMinutes: 10,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Lesson is synced before any learner roster lands.',
+          steps: [],
+        ),
+      );
+    addTearDown(state.dispose);
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, isEmpty);
+  });
+
+  test(
+      'source status escalates pending learner registration sync over generic queue copy',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      )
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-lesson-1',
+          type: 'lesson_completed',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    final signal = buildLearnerSourceStatusSignal(state);
+
+    expect(signal.id, 'runtime-pending-registration-1');
+    expect(signal.label, '1 learner still needs backend registration');
+    expect(signal.detail, contains('live roster is not trustworthy'));
+  });
+
+  testWidgets(
+      'backend banner escalates unknown learner sync failures into a deployment-trust blocker',
       (tester) async {
     tester.view.physicalSize = const Size(900, 1200);
     tester.view.devicePixelRatio = 1.0;

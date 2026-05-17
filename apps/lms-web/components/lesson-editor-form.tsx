@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
 import { LessonAssetLibraryPanel } from './lesson-asset-library-panel';
 import { LessonStepPreviewCard } from './lesson-step-preview-card';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { buildActivityDraftsFromLesson, buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
 import { findModuleForLesson } from '../lib/module-lesson-match';
-import { filterModulesForSubject } from '../lib/module-subject-match';
+import { filterModulesForSubject, findSubjectByContext } from '../lib/module-subject-match';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
 import {
   getLessonStepTypeGuidance,
@@ -137,6 +137,13 @@ function makeActivityDraftBase(index: number, overrides: Partial<{
     durationMinutes: '2',
     detail: '',
     evidence: '',
+    targetText: '',
+    supportText: '',
+    targetAudioAssetRef: '',
+    supportAudioMode: 'none',
+    supportAudioAssetRef: '',
+    supportAudioPhraseId: '',
+    supportAudioPhraseText: '',
     expectedAnswers: '',
     tags: '',
     facilitatorNotes: '',
@@ -146,7 +153,7 @@ function makeActivityDraftBase(index: number, overrides: Partial<{
   };
 }
 
-type ActivityDraft = ReturnType<typeof makeActivityDraftBase>;
+type ActivityDraft = LessonActivityDraft;
 
 function nextActivityDraftId(current: Array<ActivityDraft>) {
   const highestIndex = current.reduce((max, item) => {
@@ -207,8 +214,13 @@ export function LessonEditorForm({
   action: (formData: FormData) => void;
   returnPath?: string;
 }) {
-  const [subjectId, setSubjectId] = useState(lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''));
-  const [moduleId, setModuleId] = useState(lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '');
+  const initialSubject = findSubjectByContext(subjects, {
+    subjectId: lesson.subjectId,
+    subjectName: lesson.subjectName,
+  }) ?? subjects[0] ?? null;
+  const recoveredInitialModule = findModuleForLesson(modules, lesson);
+  const [subjectId, setSubjectId] = useState(initialSubject?.id ?? '');
+  const [moduleId, setModuleId] = useState(recoveredInitialModule?.id ?? lesson.moduleId ?? modules[0]?.id ?? '');
   const [title, setTitle] = useState(lesson.title);
   const [durationMinutes, setDurationMinutes] = useState(String(lesson.durationMinutes));
   const [mode, setMode] = useState(lesson.mode);
@@ -218,6 +230,15 @@ export function LessonEditorForm({
   const [learningObjectivesText, setLearningObjectivesText] = useState(asArray<string>(lesson.learningObjectives).join('\n'));
   const [supportLanguage, setSupportLanguage] = useState(String(lesson.localization?.supportLanguage ?? 'ha'));
   const [supportLanguageLabel, setSupportLanguageLabel] = useState(String(lesson.localization?.supportLanguageLabel ?? 'Hausa'));
+  const [defaultStepSupportText, setDefaultStepSupportText] = useState(String(lesson.localization?.defaultStepSupportText ?? ''));
+  const [defaultStepSupportAudioMode, setDefaultStepSupportAudioMode] = useState<'none' | 'asset' | 'phrase-bank'>(() => {
+    const source = String(lesson.localization?.defaultStepSupportAudio?.source ?? '').trim();
+    return source === 'asset' || source === 'phrase-bank' ? source : 'none';
+  });
+  const [defaultStepSupportAudioAssetRef, setDefaultStepSupportAudioAssetRef] = useState(String(lesson.localization?.defaultStepSupportAudio?.value ?? ''));
+  const [defaultStepSupportAudioPhraseId, setDefaultStepSupportAudioPhraseId] = useState(String(lesson.localization?.defaultStepSupportAudio?.phraseId ?? ''));
+  const [defaultStepSupportAudioPhraseText, setDefaultStepSupportAudioPhraseText] = useState(String(lesson.localization?.defaultStepSupportAudio?.phraseText ?? ''));
+  const [lessonTargetAudioAssetRef, setLessonTargetAudioAssetRef] = useState(String(lesson.localization?.lessonTargetAudio?.value ?? ''));
   const [localizationNotesText, setLocalizationNotesText] = useState(asArray<string>(lesson.localization?.notes).join('\n'));
   const [assessmentTitle, setAssessmentTitle] = useState(String(lesson.lessonAssessment?.title ?? ''));
   const [assessmentKind, setAssessmentKind] = useState(String(lesson.lessonAssessment?.kind ?? 'observational'));
@@ -226,33 +247,18 @@ export function LessonEditorForm({
       .map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`)
       .join('\n'),
   );
-  const [activityDrafts, setActivityDrafts] = useState<ActivityDraft[]>(
-    asArray<any>(lesson.activitySteps ?? lesson.activities).length > 0
-      ? asArray<any>(lesson.activitySteps ?? lesson.activities).map((step, index) => ({
-          id: step.id || `activity-${index + 1}`,
-          title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
-          prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
-          type: step.type ?? 'speak_answer',
-          durationMinutes: String(step.durationMinutes ?? 2),
-          detail: step.detail ?? '',
-          evidence: step.evidence ?? '',
-          expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
-          tags: asArray<string>(step.tags).join(', '),
-          facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
-            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
-            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
-              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
-              : '';
-            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-          }).join('\n'),
-          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
-        }))
-      : [makeActivityDraft(0)],
-  );
+  const [activityDrafts, setActivityDrafts] = useState<ActivityDraft[]>(() => {
+    const drafts: ActivityDraft[] = buildActivityDraftsFromLesson(lesson).map((draft): ActivityDraft => ({
+      ...draft,
+      supportAudioMode: (draft.supportAudioMode === 'asset' || draft.supportAudioMode === 'phrase-bank'
+        ? draft.supportAudioMode
+        : 'none') as ActivityDraft['supportAudioMode'],
+    }));
+    return drafts.length ? drafts : [makeActivityDraft(0)];
+  });
   const initialSnapshot = useMemo(() => JSON.stringify({
-    subjectId: lesson.subjectId ?? (lesson.subjectName ? subjects.find((item) => item.name === lesson.subjectName)?.id ?? subjects[0]?.id ?? '' : subjects[0]?.id ?? ''),
-    moduleId: lesson.moduleId ?? findModuleForLesson(modules, lesson)?.id ?? modules[0]?.id ?? '',
+    subjectId: initialSubject?.id ?? '',
+    moduleId: recoveredInitialModule?.id ?? lesson.moduleId ?? modules[0]?.id ?? '',
     title: lesson.title,
     durationMinutes: String(lesson.durationMinutes),
     mode: lesson.mode,
@@ -262,35 +268,34 @@ export function LessonEditorForm({
     learningObjectivesText: asArray<string>(lesson.learningObjectives).join('\n'),
     supportLanguage: String(lesson.localization?.supportLanguage ?? 'ha'),
     supportLanguageLabel: String(lesson.localization?.supportLanguageLabel ?? 'Hausa'),
+    defaultStepSupportText: String(lesson.localization?.defaultStepSupportText ?? ''),
+    defaultStepSupportAudioMode: (() => {
+      const source = String(lesson.localization?.defaultStepSupportAudio?.source ?? '').trim();
+      return source === 'asset' || source === 'phrase-bank' ? source : 'none';
+    })(),
+    defaultStepSupportAudioAssetRef: String(lesson.localization?.defaultStepSupportAudio?.value ?? ''),
+    defaultStepSupportAudioPhraseId: String(lesson.localization?.defaultStepSupportAudio?.phraseId ?? ''),
+    defaultStepSupportAudioPhraseText: String(lesson.localization?.defaultStepSupportAudio?.phraseText ?? ''),
+    lessonTargetAudioAssetRef: String(lesson.localization?.lessonTargetAudio?.value ?? ''),
     localizationNotesText: asArray<string>(lesson.localization?.notes).join('\n'),
     assessmentTitle: String(lesson.lessonAssessment?.title ?? ''),
     assessmentKind: String(lesson.lessonAssessment?.kind ?? 'observational'),
     assessmentItemsText: asArray<{ prompt?: string; evidence?: string }>(lesson.lessonAssessment?.items).map((item) => `${item.prompt ?? ''}|${item.evidence ?? 'teacher-check'}`).join('\n'),
-    activityDrafts: asArray<any>(lesson.activitySteps ?? lesson.activities).length > 0
-      ? asArray<any>(lesson.activitySteps ?? lesson.activities).map((step, index) => ({
-          id: step.id || `activity-${index + 1}`,
-          title: step.title ?? step.prompt ?? `Activity ${index + 1}`,
-          prompt: step.prompt ?? step.title ?? `Activity ${index + 1}`,
-          type: step.type ?? 'speak_answer',
-          durationMinutes: String(step.durationMinutes ?? 2),
-          detail: step.detail ?? '',
-          evidence: step.evidence ?? '',
-          expectedAnswers: asArray<string>(step.expectedAnswers).join(', '),
-          tags: asArray<string>(step.tags).join(', '),
-          facilitatorNotes: asArray<string>(step.facilitatorNotes).join('\n'),
-          choiceLines: asArray<{ id?: string; label?: string; isCorrect?: boolean; media?: { kind?: unknown; value?: unknown } | null }>(step.choices).map((choice, choiceIndex) => {
-            const mediaKind = choice?.media && typeof choice.media === 'object' && 'kind' in choice.media ? `|${String((choice.media as { kind?: unknown }).kind ?? '')}` : '';
-            const mediaValue = choice?.media && typeof choice.media === 'object' && 'value' in choice.media
-              ? `|${Array.isArray((choice.media as { value?: unknown }).value) ? ((choice.media as { value: string[] }).value).join(', ') : String((choice.media as { value?: unknown }).value ?? '')}`
-              : '';
-            return `${choice.id || `choice-${choiceIndex + 1}`}|${choice.label || ''}|${choice.isCorrect ? 'correct' : 'wrong'}${mediaKind}${mediaValue}`;
-          }).join('\n'),
-          mediaLines: asArray<{ kind?: string; value?: string | string[] | null }>(step.media).map((item) => `${item.kind || 'image'}|${Array.isArray(item.value) ? item.value.join(', ') : String(item.value ?? '')}`).join('\n'),
-        }))
-      : [makeActivityDraft(0)],
-  }), [lesson, modules, subjects]);
+    activityDrafts: (() => {
+      const drafts: ActivityDraft[] = buildActivityDraftsFromLesson(lesson).map((draft): ActivityDraft => ({
+        ...draft,
+        supportAudioMode: (draft.supportAudioMode === 'asset' || draft.supportAudioMode === 'phrase-bank'
+          ? draft.supportAudioMode
+          : 'none') as ActivityDraft['supportAudioMode'],
+      }));
+      return drafts.length ? drafts : [makeActivityDraft(0)];
+    })(),
+  }), [initialSubject, lesson, modules]);
 
-  const activeSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? subjects[0] ?? null, [subjectId, subjects]);
+  const activeSubject = useMemo(
+    () => findSubjectByContext(subjects, { subjectId }) ?? initialSubject ?? null,
+    [initialSubject, subjectId, subjects],
+  );
   const filteredModules = useMemo(() => {
     const scoped = filterModulesForSubject(modules, activeSubject);
     return scoped.length ? scoped : modules;
@@ -315,11 +320,26 @@ export function LessonEditorForm({
   const localization = useMemo(
     () => ({
       locale: String(lesson.localization?.locale ?? 'en-NG'),
-      supportLanguage,
-      supportLanguageLabel,
+      supportLanguage: supportLanguage.trim() || 'ha',
+      supportLanguageLabel: supportLanguageLabel.trim() || 'Hausa',
+      targetLanguage: 'en',
+      targetLanguageLabel: 'English',
+      defaultStepSupportText: defaultStepSupportText.trim() || undefined,
+      defaultStepSupportAudio: defaultStepSupportAudioMode === 'asset'
+        ? (defaultStepSupportAudioAssetRef.trim() ? { source: 'asset', value: defaultStepSupportAudioAssetRef.trim() } : undefined)
+        : defaultStepSupportAudioMode === 'phrase-bank'
+          ? ((defaultStepSupportAudioPhraseId.trim() || defaultStepSupportAudioPhraseText.trim())
+            ? {
+                source: 'phrase-bank',
+                ...(defaultStepSupportAudioPhraseId.trim() ? { phraseId: defaultStepSupportAudioPhraseId.trim() } : {}),
+                ...(defaultStepSupportAudioPhraseText.trim() ? { phraseText: defaultStepSupportAudioPhraseText.trim() } : {}),
+              }
+            : undefined)
+          : undefined,
+      lessonTargetAudio: lessonTargetAudioAssetRef.trim() ? { source: 'asset', value: lessonTargetAudioAssetRef.trim() } : undefined,
       notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
     }),
-    [lesson.localization?.locale, supportLanguage, supportLanguageLabel, localizationNotesText],
+    [lesson.localization?.locale, supportLanguage, supportLanguageLabel, defaultStepSupportText, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText, lessonTargetAudioAssetRef, localizationNotesText],
   );
 
   const lessonAssessment = useMemo(
@@ -343,24 +363,7 @@ export function LessonEditorForm({
     [lesson.lessonAssessment, assessmentTitle, assessmentKind, assessmentItemsText],
   );
 
-  const activitySteps = useMemo(
-    () => activityDrafts.map((draft, index) => ({
-      id: draft.id || `activity-${index + 1}`,
-      order: index + 1,
-      type: draft.type,
-      title: draft.title,
-      prompt: draft.prompt || draft.title,
-      durationMinutes: Number(draft.durationMinutes) || 0,
-      detail: draft.detail,
-      evidence: draft.evidence,
-      expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
-      tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
-      facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-      choices: parseActivityChoices(draft.choiceLines),
-      media: parseActivityMedia(draft.mediaLines),
-    })),
-    [activityDrafts],
-  );
+  const activitySteps = useMemo(() => buildActivityStepsFromDrafts(activityDrafts), [activityDrafts]);
 
   const visibleLessonTypes = useMemo(
     () => Array.from(new Set(activitySteps.map((step) => step.type).filter(Boolean))),
@@ -373,10 +376,21 @@ export function LessonEditorForm({
     [activitySteps],
   );
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
+  const audioReferenceBlockers = useMemo(() => {
+    const blockers: string[] = [];
+    if (defaultStepSupportAudioMode === 'asset' && !defaultStepSupportAudioAssetRef.trim()) blockers.push('Default Hausa support audio is set to asset mode but has no asset reference.');
+    if (defaultStepSupportAudioMode === 'phrase-bank' && !defaultStepSupportAudioPhraseId.trim() && !defaultStepSupportAudioPhraseText.trim()) blockers.push('Default Hausa support audio is set to phrase-bank mode but has no phrase reference.');
+    activityDrafts.forEach((activity, index) => {
+      if (activity.targetAudioAssetRef.trim() === '' && activity.targetText.trim()) blockers.push(`Step ${index + 1}: add English target audio or clear the target text if this step is intentionally text-only.`);
+      if (activity.supportAudioMode === 'asset' && !activity.supportAudioAssetRef.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in asset mode but missing its reference.`);
+      if (activity.supportAudioMode === 'phrase-bank' && !activity.supportAudioPhraseId.trim() && !activity.supportAudioPhraseText.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in phrase-bank mode but missing its phrase reference.`);
+    });
+    return blockers;
+  }, [activityDrafts, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText]);
   const assetRuntimeBlockers = useMemo(() => activitySteps.flatMap((step, index) => {
     const runtime = getStepRuntimePreviewHints(step, assets);
     return runtime.hints
-      .filter((hint) => /asset registry|managed asset|archived media|legacy URL\/path alias/i.test(hint))
+      .filter((hint) => /asset registry|managed asset|archived media/i.test(hint))
       .map((hint) => `Step ${index + 1}: ${hint}`);
   }), [activitySteps, assets]);
   const readinessBlockers = useMemo(() => ([
@@ -387,8 +401,9 @@ export function LessonEditorForm({
     activitySteps.length >= 3 ? null : 'Build at least 3 activity steps so the lesson has a real learner flow.',
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing the lesson is bullshit until the lane is release-safe.',
+    ...audioReferenceBlockers,
     ...assetRuntimeBlockers,
-  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, assetRuntimeBlockers]);
+  ].filter(Boolean) as string[]), [title, durationMinutes, learningObjectives.length, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, audioReferenceBlockers, assetRuntimeBlockers]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = publishIntent && readinessBlockers.length > 0;
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -403,14 +418,37 @@ export function LessonEditorForm({
     learningObjectivesText,
     supportLanguage,
     supportLanguageLabel,
+    defaultStepSupportText,
+    defaultStepSupportAudioMode,
+    defaultStepSupportAudioAssetRef,
+    defaultStepSupportAudioPhraseId,
+    defaultStepSupportAudioPhraseText,
+    lessonTargetAudioAssetRef,
     localizationNotesText,
     assessmentTitle,
     assessmentKind,
     assessmentItemsText,
     activityDrafts,
-  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
+  }), [subjectId, moduleId, title, durationMinutes, mode, status, targetAgeRange, voicePersona, learningObjectivesText, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText, assessmentTitle, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== initialSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
+
+  useEffect(() => {
+    if (findSubjectByContext(subjects, { subjectId })) return;
+    const fallbackSubjectId = String(initialSubject?.id ?? subjects[0]?.id ?? '');
+    if (fallbackSubjectId !== subjectId) {
+      setSubjectId(fallbackSubjectId);
+    }
+  }, [initialSubject, subjectId, subjects]);
+
+  useEffect(() => {
+    const nextModuleId = filteredModules.some((module) => module.id === moduleId)
+      ? moduleId
+      : String(filteredModules[0]?.id ?? modules[0]?.id ?? '');
+    if (nextModuleId !== moduleId) {
+      setModuleId(nextModuleId);
+    }
+  }, [filteredModules, moduleId, modules]);
   const activityHealthTone = durationGap === 0
     ? { background: '#DCFCE7', color: '#166534', label: 'Runtime aligned' }
     : Math.abs(durationGap) <= 2
@@ -519,7 +557,7 @@ export function LessonEditorForm({
           <select value={subjectId} onChange={(event) => {
             const next = event.target.value;
             setSubjectId(next);
-            const nextSubject = subjects.find((subject) => subject.id === next) ?? null;
+            const nextSubject = findSubjectByContext(subjects, { subjectId: next }) ?? null;
             const nextModules = filterModulesForSubject(modules, nextSubject);
             setModuleId(nextModules[0]?.id ?? modules[0]?.id ?? '');
           }} style={inputStyle}>
@@ -627,6 +665,18 @@ export function LessonEditorForm({
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           The editor now flags the exact blockers inline before someone saves an approved or published lesson that still has obvious holes.
         </div>
+        {learningObjectives.length === 0 ? (
+          <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, color: '#991B1B' }}>Lesson objective is missing</div>
+            <div style={{ color: '#475569', lineHeight: 1.6 }}>
+              Step type does not matter here — even image-choice lessons still need a lesson-level objective. Add it right here instead of hunting through the form.
+            </div>
+            <FieldLabel>
+              Lesson learning objectives (one per line)
+              <textarea value={learningObjectivesText} onChange={(event) => setLearningObjectivesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 116, background: '#fff' }} />
+            </FieldLabel>
+          </div>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {readinessBlockers.length ? readinessBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: `1px solid ${blockSubmit ? '#FECACA' : '#E2E8F0'}`, color: '#475569', lineHeight: 1.6 }}>
@@ -654,7 +704,47 @@ export function LessonEditorForm({
                   Support language label
                   <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
                 </FieldLabel>
+                <FieldLabel>
+                  Target language
+                  <input value="English" readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+                </FieldLabel>
               </div>
+              <FieldLabel>
+                Default Hausa support cue for steps
+                <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+              </FieldLabel>
+              <div style={{ ...autoFitCompactFields, marginTop: 12 }}>
+                <FieldLabel>
+                  Default Hausa support audio source
+                  <select value={defaultStepSupportAudioMode} onChange={(event) => setDefaultStepSupportAudioMode(event.target.value as 'none' | 'asset' | 'phrase-bank')} style={inputStyle}>
+                    <option value="none">None</option>
+                    <option value="phrase-bank">Phrase bank reference</option>
+                    <option value="asset">Direct audio asset</option>
+                  </select>
+                </FieldLabel>
+                <FieldLabel>
+                  Lesson-level English target audio
+                  <input value={lessonTargetAudioAssetRef} onChange={(event) => setLessonTargetAudioAssetRef(event.target.value)} placeholder="asset:english-audio-... or URL" style={inputStyle} />
+                </FieldLabel>
+              </div>
+              {defaultStepSupportAudioMode === 'asset' ? (
+                <FieldLabel>
+                  Default Hausa support audio asset
+                  <input value={defaultStepSupportAudioAssetRef} onChange={(event) => setDefaultStepSupportAudioAssetRef(event.target.value)} placeholder="asset:hausa-support-... or URL" style={inputStyle} />
+                </FieldLabel>
+              ) : null}
+              {defaultStepSupportAudioMode === 'phrase-bank' ? (
+                <div style={{ ...autoFitCompactFields, marginTop: 12 }}>
+                  <FieldLabel>
+                    Default Hausa phrase-bank id
+                    <input value={defaultStepSupportAudioPhraseId} onChange={(event) => setDefaultStepSupportAudioPhraseId(event.target.value)} placeholder="ha-greet-and-model-once" style={inputStyle} />
+                  </FieldLabel>
+                  <FieldLabel>
+                    Default Hausa phrase-bank text
+                    <textarea value={defaultStepSupportAudioPhraseText} onChange={(event) => setDefaultStepSupportAudioPhraseText(event.target.value)} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                  </FieldLabel>
+                </div>
+              ) : null}
               <FieldLabel>
                 Localization notes (one per line)
                 <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={{ ...inputStyle, minHeight: 144 }} />
@@ -806,6 +896,7 @@ export function LessonEditorForm({
                         <option value="oral_quiz">Oral quiz</option>
                         <option value="listen_answer">Listen answer</option>
                         <option value="tap_choice">Tap choice</option>
+                        <option value="drag_to_match">Drag to match</option>
                         <option value="letter_intro">Letter intro</option>
                       </select>
                     </FieldLabel>
@@ -843,6 +934,53 @@ export function LessonEditorForm({
 
                   <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
                     <FieldLabel>
+                      English target text
+                      <input value={activity.targetText} onChange={(event) => updateActivity(index, { targetText: event.target.value })} style={inputStyle} />
+                      <FieldHint>The exact English word, phrase, sentence, or answer this step is trying to teach.</FieldHint>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Hausa support override
+                      <textarea value={activity.supportText} onChange={(event) => updateActivity(index, { supportText: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      <FieldHint>Optional step-specific Hausa coaching. Leave blank to rely on the lesson default support cue.</FieldHint>
+                    </FieldLabel>
+                  </div>
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
+                      English target audio asset
+                      <input value={activity.targetAudioAssetRef} onChange={(event) => updateActivity(index, { targetAudioAssetRef: event.target.value })} placeholder="asset:english-target-audio or URL" style={inputStyle} />
+                      <FieldHint>Point at a prerecorded English asset, URL, or stable storage key.</FieldHint>
+                    </FieldLabel>
+                    <FieldLabel>
+                      Hausa support audio source
+                      <select value={activity.supportAudioMode} onChange={(event) => updateActivity(index, { supportAudioMode: event.target.value as ActivityDraft['supportAudioMode'] })} style={inputStyle}>
+                        <option value="none">None</option>
+                        <option value="phrase-bank">Phrase bank reference</option>
+                        <option value="asset">Direct audio asset</option>
+                      </select>
+                      <FieldHint>Use phrase bank for reusable Hausa coaching, or asset mode for uploaded step-specific support.</FieldHint>
+                    </FieldLabel>
+                  </div>
+                  {activity.supportAudioMode === 'asset' ? (
+                    <FieldLabel>
+                      Hausa support audio asset
+                      <input value={activity.supportAudioAssetRef} onChange={(event) => updateActivity(index, { supportAudioAssetRef: event.target.value })} placeholder="asset:hausa-support-audio or URL" style={inputStyle} />
+                    </FieldLabel>
+                  ) : null}
+                  {activity.supportAudioMode === 'phrase-bank' ? (
+                    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                      <FieldLabel>
+                        Hausa support phrase-bank id
+                        <input value={activity.supportAudioPhraseId} onChange={(event) => updateActivity(index, { supportAudioPhraseId: event.target.value })} placeholder="ha-step-coaching-..." style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Hausa support phrase-bank text
+                        <textarea value={activity.supportAudioPhraseText} onChange={(event) => updateActivity(index, { supportAudioPhraseText: event.target.value })} rows={3} style={{ ...inputStyle, minHeight: 104 }} />
+                      </FieldLabel>
+                    </div>
+                  ) : null}
+
+                  <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+                    <FieldLabel>
                       Tags (comma separated)
                       <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
                       <FieldHint>{typeGuide.tagsHint}</FieldHint>
@@ -855,7 +993,7 @@ export function LessonEditorForm({
                   </div>
 
                   <div style={{ padding: 12, borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#475569', lineHeight: 1.6, fontSize: 13 }}>
-                    Asset entries are references, not uploads. Prefer canonical values like asset:&lt;id&gt;; older URLs, storage paths, or stable keys may still resolve but should be normalized when possible.
+                    Asset entries are references, not uploads. Paste the final URL, storage path, or stable asset key you expect runtime to resolve.
                   </div>
 
                   <LessonAssetLibraryPanel
@@ -865,7 +1003,9 @@ export function LessonEditorForm({
                     activitySteps={activitySteps}
                     assets={assets}
                     subjectId={subjectId}
+                    subjectName={activeSubject?.name}
                     moduleId={moduleId}
+                    moduleTitle={activeModule?.title}
                     lessonId={lesson.id}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
@@ -877,7 +1017,9 @@ export function LessonEditorForm({
                     mediaLines={activity.mediaLines}
                     assets={assets}
                     subjectId={subjectId}
+                    subjectName={activeSubject?.name}
                     moduleId={moduleId}
+                    moduleTitle={activeModule?.title}
                     lessonId={lesson.id}
                     onChoiceLinesChange={(value) => updateActivity(index, { choiceLines: value })}
                     onMediaLinesChange={(value) => updateActivity(index, { mediaLines: value })}

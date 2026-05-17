@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ActionButton } from './action-button';
+import { moduleBelongsToSubject } from '../lib/module-subject-match';
 import { useUnsavedChangesGuard } from './use-unsaved-changes-guard';
 import { LessonActivityStructuredBuilders } from './lesson-activity-structured-builders';
-import { countNonEmptyLines, getDraftAssetIntentSummary, parseActivityChoices, parseActivityMedia } from './lesson-authoring-shared';
+import { buildActivityStepsFromDrafts, countNonEmptyLines, getDraftAssetIntentSummary, type LessonActivityDraft } from './lesson-authoring-shared';
 import {
   getLessonStepTypeGuidance,
   getLessonStepTypeWarnings,
@@ -14,6 +15,7 @@ import {
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
+import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -87,6 +89,7 @@ const typeOptions = [
   { value: 'oral_quiz', label: 'Oral quiz' },
   { value: 'listen_answer', label: 'Listen answer' },
   { value: 'tap_choice', label: 'Tap choice' },
+  { value: 'drag_to_match', label: 'Drag to match' },
   { value: 'letter_intro', label: 'Letter intro' },
 ];
 
@@ -117,20 +120,7 @@ const templatePresets = [
   },
 ] as const;
 
-type ActivityDraft = {
-  id: string;
-  title: string;
-  type: string;
-  durationMinutes: string;
-  prompt: string;
-  detail: string;
-  evidence: string;
-  expectedAnswers: string;
-  tags: string;
-  facilitatorNotes: string;
-  choiceLines: string;
-  mediaLines: string;
-};
+type ActivityDraft = LessonActivityDraft;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14, minWidth: 0 }}>{children}</label>;
@@ -145,6 +135,13 @@ function makeActivityDraft(index: number, overrides: Partial<ActivityDraft> = {}
     prompt: '',
     detail: '',
     evidence: '',
+    targetText: '',
+    supportText: '',
+    targetAudioAssetRef: '',
+    supportAudioMode: 'none',
+    supportAudioAssetRef: '',
+    supportAudioPhraseId: '',
+    supportAudioPhraseText: '',
     expectedAnswers: '',
     tags: 'english',
     facilitatorNotes: '',
@@ -204,7 +201,7 @@ export function EnglishStudioAuthoringForm({
   action: (formData: FormData) => void;
 }) {
   const englishSubject = subjects.find((subject) => subject.name.toLowerCase().includes('english')) ?? null;
-  const englishModules = modules.filter((module) => module.subjectId === englishSubject?.id || module.subjectName?.toLowerCase().includes('english'));
+  const englishModules = modules.filter((module) => moduleBelongsToSubject(module, englishSubject) || module.subjectName?.toLowerCase().includes('english'));
   const starterPreset = templatePresets[0];
   const [moduleId, setModuleId] = useState(englishModules[0]?.id ?? '');
   const [title, setTitle] = useState<string>(starterPreset.title);
@@ -213,6 +210,12 @@ export function EnglishStudioAuthoringForm({
   const [status, setStatus] = useState<string>('draft');
   const [supportLanguage, setSupportLanguage] = useState('ha');
   const [supportLanguageLabel, setSupportLanguageLabel] = useState('Hausa');
+  const [defaultStepSupportText, setDefaultStepSupportText] = useState('');
+  const [defaultStepSupportAudioMode, setDefaultStepSupportAudioMode] = useState<'none' | 'asset' | 'phrase-bank'>('none');
+  const [defaultStepSupportAudioAssetRef, setDefaultStepSupportAudioAssetRef] = useState('');
+  const [defaultStepSupportAudioPhraseId, setDefaultStepSupportAudioPhraseId] = useState('');
+  const [defaultStepSupportAudioPhraseText, setDefaultStepSupportAudioPhraseText] = useState('');
+  const [lessonTargetAudioAssetRef, setLessonTargetAudioAssetRef] = useState('');
   const [localizationNotesText, setLocalizationNotesText] = useState('Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.');
   const [assessmentKind, setAssessmentKind] = useState('observational');
   const [assessmentItemsText, setAssessmentItemsText] = useState('Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check');
@@ -225,7 +228,9 @@ export function EnglishStudioAuthoringForm({
     hasEnglishModules ? null : 'English Studio cannot create a lesson until at least one English module is available.',
     moduleId && activeModule ? null : 'Pick a valid English module before creating a lesson.',
   ].filter(Boolean) as string[];
-  const activeAssessment = assessments.find((assessment) => assessment.moduleId === activeModule?.id || assessment.moduleTitle === activeModule?.title) ?? null;
+  const activeAssessment = activeModule
+    ? assessments.find((assessment) => assessmentMatchesModule(activeModule, assessment)) ?? null
+    : null;
   const objective = buildEnglishObjective(title);
   const vocabulary = inferVocabulary(title);
   const generatedActivities = useMemo(() => buildEnglishActivities({
@@ -256,6 +261,12 @@ export function EnglishStudioAuthoringForm({
     status: 'draft',
     supportLanguage: 'ha',
     supportLanguageLabel: 'Hausa',
+    defaultStepSupportText: '',
+    defaultStepSupportAudioMode: 'none',
+    defaultStepSupportAudioAssetRef: '',
+    defaultStepSupportAudioPhraseId: '',
+    defaultStepSupportAudioPhraseText: '',
+    lessonTargetAudioAssetRef: '',
     localizationNotesText: 'Anchor examples in familiar community contexts.\nKeep prompts short and repeatable.',
     assessmentKind: 'observational',
     assessmentItemsText: 'Can the learner say one complete sentence about the topic?|spoken-response\nCan the learner use at least one target word correctly?|teacher-check',
@@ -287,10 +298,25 @@ export function EnglishStudioAuthoringForm({
   const learningObjectives = useMemo(() => [objective, `Use ${vocabulary.join(', ')} in supported speaking turns.`], [objective, vocabulary]);
   const localization = useMemo(() => ({
     locale: 'en-NG',
-    supportLanguage,
-    supportLanguageLabel,
+    supportLanguage: supportLanguage.trim() || 'ha',
+    supportLanguageLabel: supportLanguageLabel.trim() || 'Hausa',
+    targetLanguage: 'en',
+    targetLanguageLabel: 'English',
+    defaultStepSupportText: defaultStepSupportText.trim() || undefined,
+    defaultStepSupportAudio: defaultStepSupportAudioMode === 'asset'
+      ? (defaultStepSupportAudioAssetRef.trim() ? { source: 'asset', value: defaultStepSupportAudioAssetRef.trim() } : undefined)
+      : defaultStepSupportAudioMode === 'phrase-bank'
+        ? ((defaultStepSupportAudioPhraseId.trim() || defaultStepSupportAudioPhraseText.trim())
+          ? {
+              source: 'phrase-bank',
+              ...(defaultStepSupportAudioPhraseId.trim() ? { phraseId: defaultStepSupportAudioPhraseId.trim() } : {}),
+              ...(defaultStepSupportAudioPhraseText.trim() ? { phraseText: defaultStepSupportAudioPhraseText.trim() } : {}),
+            }
+          : undefined)
+        : undefined,
+    lessonTargetAudio: lessonTargetAudioAssetRef.trim() ? { source: 'asset', value: lessonTargetAudioAssetRef.trim() } : undefined,
     notes: localizationNotesText.split('\n').map((item) => item.trim()).filter(Boolean),
-  }), [supportLanguage, supportLanguageLabel, localizationNotesText]);
+  }), [supportLanguage, supportLanguageLabel, defaultStepSupportText, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText, lessonTargetAudioAssetRef, localizationNotesText]);
   const assessmentTitle = activeAssessment?.title ?? `${title} quick check`;
   const lessonAssessment = useMemo(() => ({
     assessmentId: activeAssessment?.id ?? null,
@@ -302,25 +328,22 @@ export function EnglishStudioAuthoringForm({
     }).filter((item) => item.prompt),
   }), [activeAssessment?.id, assessmentTitle, assessmentKind, assessmentItemsText]);
 
-  const activitySteps = useMemo(() => activityDrafts.map((draft, index) => ({
-    id: draft.id || `english-${index + 1}`,
-    order: index + 1,
-    type: draft.type,
-    prompt: draft.prompt || draft.title,
-    title: draft.title,
-    durationMinutes: Number(draft.durationMinutes) || 0,
-    detail: draft.detail,
-    evidence: draft.evidence,
-    expectedAnswers: draft.expectedAnswers.split(',').map((item) => item.trim()).filter(Boolean),
-    tags: draft.tags.split(',').map((item) => item.trim()).filter(Boolean),
-    facilitatorNotes: draft.facilitatorNotes.split('\n').map((item) => item.trim()).filter(Boolean),
-    choices: parseActivityChoices(draft.choiceLines),
-    media: parseActivityMedia(draft.mediaLines),
-  })), [activityDrafts]);
+  const activitySteps = useMemo(() => buildActivityStepsFromDrafts(activityDrafts), [activityDrafts]);
 
   const totalActivityMinutes = useMemo(() => activitySteps.reduce((sum, item) => sum + (item.durationMinutes || 0), 0), [activitySteps]);
   const durationGap = (Number(durationMinutes) || 0) - totalActivityMinutes;
   const typeReadinessWarnings = useMemo(() => activityDrafts.flatMap((activity, index) => getLessonStepTypeWarnings(activity).map((warning) => `Step ${index + 1}: ${warning}`)), [activityDrafts]);
+  const audioReferenceBlockers = useMemo(() => {
+    const blockers: string[] = [];
+    if (defaultStepSupportAudioMode === 'asset' && !defaultStepSupportAudioAssetRef.trim()) blockers.push('Default Hausa support audio is set to asset mode but has no asset reference.');
+    if (defaultStepSupportAudioMode === 'phrase-bank' && !defaultStepSupportAudioPhraseId.trim() && !defaultStepSupportAudioPhraseText.trim()) blockers.push('Default Hausa support audio is set to phrase-bank mode but has no phrase reference.');
+    activityDrafts.forEach((activity, index) => {
+      if (activity.targetAudioAssetRef.trim() === '' && activity.targetText.trim()) blockers.push(`Step ${index + 1}: add English target audio or clear the target text if this step is intentionally text-only.`);
+      if (activity.supportAudioMode === 'asset' && !activity.supportAudioAssetRef.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in asset mode but missing its reference.`);
+      if (activity.supportAudioMode === 'phrase-bank' && !activity.supportAudioPhraseId.trim() && !activity.supportAudioPhraseText.trim()) blockers.push(`Step ${index + 1}: Hausa support audio is in phrase-bank mode but missing its phrase reference.`);
+    });
+    return blockers;
+  }, [activityDrafts, defaultStepSupportAudioMode, defaultStepSupportAudioAssetRef, defaultStepSupportAudioPhraseId, defaultStepSupportAudioPhraseText]);
   const readinessBlockers = useMemo(() => ([
     title.trim().length >= 8 ? null : 'Give the lesson a specific title with at least 8 characters.',
     (Number(durationMinutes) || 0) >= 8 ? null : 'Set a credible lesson duration of at least 8 minutes.',
@@ -330,7 +353,8 @@ export function EnglishStudioAuthoringForm({
     Math.abs(durationGap) <= 2 ? null : `Bring lesson timing closer to the activity spine (${Math.abs(durationGap)} min ${durationGap > 0 ? 'buffer' : 'overrun'} right now).`,
     !(activeModule?.status === 'draft' && (status === 'approved' || status === 'published')) ? null : 'This module is still draft, so approving or publishing from English Studio is premature.',
     ...typeReadinessWarnings,
-  ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings]);
+    ...audioReferenceBlockers,
+  ].filter(Boolean) as string[]), [title, durationMinutes, activeAssessment, lessonAssessment.items.length, activitySteps.length, durationGap, activeModule?.status, status, typeReadinessWarnings, audioReferenceBlockers]);
   const publishIntent = status === 'approved' || status === 'published';
   const blockSubmit = dependencyBlockers.length > 0 || (publishIntent && readinessBlockers.length > 0);
 
@@ -347,11 +371,17 @@ export function EnglishStudioAuthoringForm({
     status,
     supportLanguage,
     supportLanguageLabel,
+    defaultStepSupportText,
+    defaultStepSupportAudioMode,
+    defaultStepSupportAudioAssetRef,
+    defaultStepSupportAudioPhraseId,
+    defaultStepSupportAudioPhraseText,
+    lessonTargetAudioAssetRef,
     localizationNotesText,
     assessmentKind,
     assessmentItemsText,
     activityDrafts,
-  }), [moduleId, title, durationMinutes, mode, status, supportLanguage, supportLanguageLabel, localizationNotesText, assessmentKind, assessmentItemsText, activityDrafts]);
+  }), [moduleId, title, durationMinutes, mode, status, supportLanguage, supportLanguageLabel, defaultStepSupportText, localizationNotesText, assessmentKind, assessmentItemsText, activityDrafts]);
   const isDirty = currentSnapshot !== initialSnapshot;
   const { allowNextNavigation, confirmationDialog } = useUnsavedChangesGuard({ isDirty });
 
@@ -425,7 +455,7 @@ export function EnglishStudioAuthoringForm({
       {confirmationDialog}
       <form action={action} onSubmitCapture={() => allowNextNavigation()} style={cardStyle}>
       <input type="hidden" name="subjectId" value={englishSubject?.id ?? ''} />
-      <input type="hidden" name="returnPath" value="/content" />
+      <input type="hidden" name="returnPath" value="/english" />
       <input type="hidden" name="targetAgeRange" value={targetAgeRange} />
       <input type="hidden" name="voicePersona" value={voicePersona} />
       <input type="hidden" name="learningObjectives" value={JSON.stringify(learningObjectives)} />
@@ -445,7 +475,7 @@ export function EnglishStudioAuthoringForm({
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button type="button" onClick={regenerateFromBlueprint} style={ghostButtonStyle}>Reset spine from generator</button>
-          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}&from=%2Fcontent`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={`/content/lessons/new?subjectId=${englishSubject?.id ?? ''}&moduleId=${moduleId}&from=%2Fenglish`} style={{ ...ghostButtonStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Open full lesson studio
           </Link>
         </div>
@@ -507,6 +537,18 @@ export function EnglishStudioAuthoringForm({
         <div style={{ color: '#64748b', lineHeight: 1.6 }}>
           English Studio now surfaces the obvious release blockers inline so authors stop guessing whether the blueprint is actually safe to ship.
         </div>
+        {learningObjectives.length === 0 ? (
+          <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+            <div style={{ fontWeight: 800, color: '#991B1B' }}>Lesson objective is missing</div>
+            <div style={{ color: '#475569', lineHeight: 1.6 }}>
+              Image-choice and other step templates still publish against lesson-level objectives. Add the outcome here instead of digging through the wider studio form.
+            </div>
+            <FieldLabel>
+              Lesson learning objectives (one per line)
+              <textarea value={learningObjectives.join('\n')} readOnly rows={4} style={{ ...inputStyle, minHeight: 116, background: '#fff' }} />
+            </FieldLabel>
+          </div>
+        ) : null}
         <div style={{ display: 'grid', gap: 8 }}>
           {dependencyBlockers.length ? dependencyBlockers.map((blocker) => (
             <div key={blocker} style={{ padding: 12, borderRadius: 14, background: '#fff', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6 }}>
@@ -555,7 +597,47 @@ export function EnglishStudioAuthoringForm({
                 Support language label
                 <input value={supportLanguageLabel} onChange={(event) => setSupportLanguageLabel(event.target.value)} style={inputStyle} />
               </FieldLabel>
+              <FieldLabel>
+                Target language
+                <input value="English" readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#475569' }} />
+              </FieldLabel>
             </div>
+            <FieldLabel>
+              Default Hausa support cue for steps
+              <textarea value={defaultStepSupportText} onChange={(event) => setDefaultStepSupportText(event.target.value)} rows={3} style={inputStyle} />
+            </FieldLabel>
+            <div style={{ ...autoFitCompactFields, marginTop: 10 }}>
+              <FieldLabel>
+                Default Hausa support audio source
+                <select value={defaultStepSupportAudioMode} onChange={(event) => setDefaultStepSupportAudioMode(event.target.value as 'none' | 'asset' | 'phrase-bank')} style={inputStyle}>
+                  <option value="none">None</option>
+                  <option value="phrase-bank">Phrase bank reference</option>
+                  <option value="asset">Direct audio asset</option>
+                </select>
+              </FieldLabel>
+              <FieldLabel>
+                Lesson-level English target audio
+                <input value={lessonTargetAudioAssetRef} onChange={(event) => setLessonTargetAudioAssetRef(event.target.value)} placeholder="asset:english-audio-... or URL" style={inputStyle} />
+              </FieldLabel>
+            </div>
+            {defaultStepSupportAudioMode === 'asset' ? (
+              <FieldLabel>
+                Default Hausa support audio asset
+                <input value={defaultStepSupportAudioAssetRef} onChange={(event) => setDefaultStepSupportAudioAssetRef(event.target.value)} placeholder="asset:hausa-support-... or URL" style={inputStyle} />
+              </FieldLabel>
+            ) : null}
+            {defaultStepSupportAudioMode === 'phrase-bank' ? (
+              <div style={{ ...autoFitCompactFields, marginTop: 10 }}>
+                <FieldLabel>
+                  Default Hausa phrase-bank id
+                  <input value={defaultStepSupportAudioPhraseId} onChange={(event) => setDefaultStepSupportAudioPhraseId(event.target.value)} placeholder="ha-greet-and-model-once" style={inputStyle} />
+                </FieldLabel>
+                <FieldLabel>
+                  Default Hausa phrase-bank text
+                  <textarea value={defaultStepSupportAudioPhraseText} onChange={(event) => setDefaultStepSupportAudioPhraseText(event.target.value)} rows={3} style={inputStyle} />
+                </FieldLabel>
+              </div>
+            ) : null}
             <FieldLabel>
               Localization notes
               <textarea value={localizationNotesText} onChange={(event) => setLocalizationNotesText(event.target.value)} rows={4} style={inputStyle} />
@@ -744,6 +826,52 @@ export function EnglishStudioAuthoringForm({
 
                     <div style={autoFitCompactFields}>
                       <FieldLabel>
+                        English target text
+                        <input value={activity.targetText} onChange={(event) => updateActivity(index, { targetText: event.target.value })} style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Hausa support override
+                        <textarea value={activity.supportText} onChange={(event) => updateActivity(index, { supportText: event.target.value })} rows={2} style={inputStyle} />
+                      </FieldLabel>
+                    </div>
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
+                        English target audio asset
+                        <input value={activity.targetAudioAssetRef} onChange={(event) => updateActivity(index, { targetAudioAssetRef: event.target.value })} placeholder="asset:english-target-audio or URL" style={inputStyle} />
+                      </FieldLabel>
+                      <FieldLabel>
+                        Hausa support audio source
+                        <select value={activity.supportAudioMode} onChange={(event) => updateActivity(index, { supportAudioMode: event.target.value as ActivityDraft['supportAudioMode'] })} style={inputStyle}>
+                          <option value="none">None</option>
+                          <option value="phrase-bank">Phrase bank reference</option>
+                          <option value="asset">Direct audio asset</option>
+                        </select>
+                      </FieldLabel>
+                    </div>
+
+                    {activity.supportAudioMode === 'asset' ? (
+                      <FieldLabel>
+                        Hausa support audio asset
+                        <input value={activity.supportAudioAssetRef} onChange={(event) => updateActivity(index, { supportAudioAssetRef: event.target.value })} placeholder="asset:hausa-support-audio or URL" style={inputStyle} />
+                      </FieldLabel>
+                    ) : null}
+
+                    {activity.supportAudioMode === 'phrase-bank' ? (
+                      <div style={autoFitCompactFields}>
+                        <FieldLabel>
+                          Hausa support phrase-bank id
+                          <input value={activity.supportAudioPhraseId} onChange={(event) => updateActivity(index, { supportAudioPhraseId: event.target.value })} placeholder="ha-step-coaching-..." style={inputStyle} />
+                        </FieldLabel>
+                        <FieldLabel>
+                          Hausa support phrase-bank text
+                          <textarea value={activity.supportAudioPhraseText} onChange={(event) => updateActivity(index, { supportAudioPhraseText: event.target.value })} rows={2} style={inputStyle} />
+                        </FieldLabel>
+                      </div>
+                    ) : null}
+
+                    <div style={autoFitCompactFields}>
+                      <FieldLabel>
                         Tags
                         <input value={activity.tags} onChange={(event) => updateActivity(index, { tags: event.target.value })} style={inputStyle} />
                       </FieldLabel>
@@ -766,7 +894,9 @@ export function EnglishStudioAuthoringForm({
                       fieldLabel={(children) => <FieldLabel>{children}</FieldLabel>}
                       assets={assets}
                       subjectId={englishSubject?.id ?? undefined}
+                      subjectName={englishSubject?.name}
                       moduleId={moduleId}
+                      moduleTitle={activeModule?.title}
                     />
                   </div>
                 );

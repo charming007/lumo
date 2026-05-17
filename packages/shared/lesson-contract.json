@@ -17,6 +17,20 @@
     },
     "localization": {
       "type": ["object", "null"],
+      "properties": {
+        "locale": { "type": ["string", "null"] },
+        "supportLanguage": { "type": ["string", "null"], "enum": ["ha", null] },
+        "supportLanguageLabel": { "type": ["string", "null"] },
+        "targetLanguage": { "type": ["string", "null"], "enum": ["en", null] },
+        "targetLanguageLabel": { "type": ["string", "null"] },
+        "defaultStepSupportText": { "type": ["string", "null"] },
+        "defaultStepSupportAudio": { "$ref": "#/$defs/audioReference" },
+        "lessonTargetAudio": { "$ref": "#/$defs/audioReference" },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
       "additionalProperties": true
     },
     "lessonAssessment": {
@@ -34,6 +48,19 @@
     }
   },
   "$defs": {
+    "audioReference": {
+      "type": ["object", "null"],
+      "properties": {
+        "source": { "type": ["string", "null"], "enum": ["asset", "phrase-bank", null] },
+        "assetId": { "type": ["string", "null"] },
+        "value": { "type": ["string", "null"] },
+        "phraseId": { "type": ["string", "null"] },
+        "phraseText": { "type": ["string", "null"] },
+        "label": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
     "activityStep": {
       "type": "object",
       "required": ["id", "type", "prompt"],
@@ -49,12 +76,17 @@
             "speak_answer",
             "word_build",
             "tap_choice",
+            "drag_to_match",
             "listen_answer",
             "oral_quiz"
           ]
         },
         "prompt": { "type": "string" },
         "hint": { "type": "string" },
+        "targetText": { "type": "string" },
+        "supportText": { "type": "string" },
+        "targetAudio": { "$ref": "#/$defs/audioReference" },
+        "supportAudio": { "$ref": "#/$defs/audioReference" },
         "expectedAnswers": {
           "type": "array",
           "items": { "type": "string" }
@@ -68,6 +100,47 @@
               "id": { "type": "string" },
               "label": { "type": "string" },
               "isCorrect": { "type": "boolean" },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string" },
+                  "value": {}
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "dragItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "targetId"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "targetId": { "type": "string" },
+              "media": {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string" },
+                  "value": {}
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "dragTargets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "prompt"],
+            "properties": {
+              "id": { "type": "string" },
+              "prompt": { "type": "string" },
               "media": {
                 "type": "object",
                 "properties": {

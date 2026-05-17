@@ -38,20 +38,24 @@ class LearnerDialogue {
 
   static String successStatus(
       {required bool independent, required bool repeated}) {
-    if (repeated) return 'Mallam heard a clear repeat. Time for the next one.';
-    if (independent) return 'Mallam got a clear answer. On to the next one.';
-    return 'Mallam got it. Let\'s keep moving.';
+    if (repeated) {
+      return 'Mallam ya ji maimaitawa da kyau. Mu wuce zuwa na gaba.';
+    }
+    if (independent) {
+      return 'Mallam ya ji amsa a sarari. Mu wuce zuwa na gaba.';
+    }
+    return 'Madalla. Mu ci gaba.';
   }
 
   static String retryStatus(
       {required int attemptNumber, required bool repeatAfterMe}) {
     if (repeatAfterMe) {
-      return 'Mallam will say it again. The learner can echo once more.';
+      return 'Mallam zai sake fada. Mai koyo zai kara maimaitawa sau daya.';
     }
     if (attemptNumber >= 2) {
-      return 'Mallam will model it once, then the learner tries again.';
+      return 'Mallam zai bada misali sau daya, sannan mai koyo ya sake gwadawa.';
     }
-    return 'Not quite yet. Mallam will give a small hint and try again.';
+    return 'Ba daidai ba tukuna. Mallam zai bada karamar alama sannan a sake gwadawa.';
   }
 
   static String supportPrompt({
@@ -59,18 +63,33 @@ class LearnerDialogue {
     required String learnerName,
     required String prompt,
     required String expected,
+    String supportLanguage = 'Hausa',
+    String targetLanguage = 'English',
   }) {
+    final usesHausaSupport = supportLanguage.trim().toLowerCase() == 'hausa' &&
+        targetLanguage.trim().toLowerCase() == 'english';
+
     switch (supportType) {
       case 'hint':
-        return '$learnerName, listen again. $prompt If you need help, say: $expected';
+        return usesHausaSupport
+            ? '$learnerName, saurara kuma. $prompt Idan kina bukatar taimako, ki ce: $expected'
+            : '$learnerName, listen again. $prompt If you need help, say: $expected';
       case 'model':
-        return 'My turn first, $learnerName. Say it with me: $expected';
+        return usesHausaSupport
+            ? 'Da farko ni zan fada, $learnerName. Ki fada tare da ni: $expected'
+            : 'My turn first, $learnerName. Say it with me: $expected';
       case 'slow':
-        return 'Let\'s take it slowly, $learnerName. $prompt';
+        return usesHausaSupport
+            ? 'Mu yi a hankali, $learnerName. $prompt'
+            : 'Let\'s take it slowly, $learnerName. $prompt';
       case 'wait':
-        return 'Take your time, $learnerName. I am here.';
+        return usesHausaSupport
+            ? 'Ki dauki lokaci, $learnerName. Ina nan.'
+            : 'Take your time, $learnerName. I am here.';
       case 'translate':
-        return 'Give the prompt in the learner\'s stronger language, then come back to the target answer.';
+        return usesHausaSupport
+            ? 'Za mu yi bayanin a Hausa, sannan mu koma amsar Turanci: $expected'
+            : 'Give the prompt in the learner\'s stronger language, then come back to the target answer.';
       default:
         return prompt;
     }
@@ -79,28 +98,29 @@ class LearnerDialogue {
   static String supportStatus(String supportType) {
     switch (supportType) {
       case 'hint':
-        return 'Small hint given. The learner can try again now.';
+        return 'An ba da karamar alama. Yanzu mai koyo zai sake gwadawa.';
       case 'model':
-        return 'Model answer played. Now the learner repeats it.';
+        return 'Mallam ya bada amsar misali. Yanzu mai koyo zai maimaita.';
       case 'slow':
-        return 'Slow replay done. The learner can answer now.';
+        return 'An sake fada a hankali. Yanzu mai koyo zai amsa.';
       case 'translate':
-        return 'Translation support played. The learner can answer now.';
+        return 'An bada taimakon Hausa. Yanzu mai koyo zai amsa a Turanci.';
       case 'wait':
-        return 'Think time is over. The learner can answer now.';
+        return 'Lokacin tunani ya kare. Yanzu mai koyo zai amsa.';
       default:
-        return 'Mallam replayed the line. The learner can answer now.';
+        return 'Mallam ya sake fada. Yanzu mai koyo zai amsa.';
     }
   }
 
   static String promptReady({bool resumed = false}) {
     return resumed
-        ? 'We are back. Listen, then answer.'
-        : 'Mallam is done. It\'s your turn.';
+        ? 'Mun dawo. Ki saurara, sannan ki amsa.'
+        : 'Mallam ya gama. Yanzu naki ne.';
   }
 
   static String replayedPrompt() =>
-      'Mallam said it again. The learner can listen once more.';
+      'Mallam ya sake fada. Mai koyo zai iya sake sauraro.';
 
-  static String movingToNext() => 'Good answer captured. Mallam is moving on.';
+  static String movingToNext() =>
+      'An karbi amsa mai kyau. Mallam yana wucewa zuwa na gaba.';
 }

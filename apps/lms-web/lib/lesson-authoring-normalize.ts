@@ -1,7 +1,24 @@
-import type { Lesson, LessonActivityChoice, LessonActivityMedia, LessonActivityStep, LessonAssessmentItem, LessonAsset } from './types';
+import type {
+  Assessment,
+  CurriculumModule,
+  Lesson,
+  LessonActivityChoice,
+  LessonActivityDragItem,
+  LessonActivityDragTarget,
+  LessonActivityMedia,
+  LessonActivityStep,
+  LessonAssessmentItem,
+  LessonAsset,
+  Subject,
+} from './types';
 
 type LessonAuthoringNormalization = {
   lesson: Lesson | null;
+  issues: string[];
+};
+
+type AuthoringCollectionNormalization<T> = {
+  items: T[];
   issues: string[];
 };
 
@@ -48,13 +65,79 @@ function normalizeChoice(value: unknown, index: number): LessonActivityChoice | 
   };
 }
 
+
+function normalizeDragItem(value: unknown, index: number): LessonActivityDragItem | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  return {
+    id: asString(item.id, `item-${index + 1}`),
+    label: asString(item.label, `Item ${index + 1}`),
+    targetId: asString(item.targetId),
+    media: normalizeMedia(item.media),
+  };
+}
+
+function normalizeDragTarget(value: unknown, index: number): LessonActivityDragTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const target = value as Record<string, unknown>;
+  return {
+    id: asString(target.id, `target-${index + 1}`),
+    prompt: asString(target.prompt, `Target ${index + 1}`),
+    media: normalizeMedia(target.media),
+  };
+}
+
+function normalizeLegacyDragItem(value: unknown, index: number): LessonActivityDragItem | null {
+  if (!value || typeof value !== 'object') return null;
+  const item = value as Record<string, unknown>;
+  const media = normalizeMedia(item.media);
+  return {
+    id: asString(item.id, `item-${index + 1}`),
+    label: asString(item.label, `Item ${index + 1}`),
+    targetId: asString(item.targetId),
+    media,
+  };
+}
+
+function normalizeLegacyDragTarget(value: unknown, index: number): LessonActivityDragTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const target = value as Record<string, unknown>;
+  const nestedMedia = normalizeMedia(target.media);
+  const directMedia = nestedMedia ?? (('kind' in target || 'value' in target) ? normalizeMedia(target) : null);
+  return {
+    id: asString(target.id, `target-${index + 1}`),
+    prompt: asString(target.prompt, asString(target.label, `Target ${index + 1}`)),
+    media: directMedia,
+  };
+}
+
 function normalizeStep(value: unknown, index: number): LessonActivityStep | null {
   if (!value || typeof value !== 'object') return null;
   const step = value as Record<string, unknown>;
+  const type = asString(step.type, 'speak_answer');
+  const normalizedChoices = Array.isArray(step.choices)
+    ? step.choices.map((choice, choiceIndex) => normalizeChoice(choice, choiceIndex)).filter(Boolean) as LessonActivityChoice[]
+    : [];
+  const normalizedMedia = Array.isArray(step.media)
+    ? step.media.map((media) => normalizeMedia(media)).filter(Boolean) as LessonActivityMedia[]
+    : [];
+  const normalizedDragItems = Array.isArray(step.dragItems)
+    ? step.dragItems.map((item, itemIndex) => normalizeDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
+    : [];
+  const normalizedDragTargets = Array.isArray(step.dragTargets)
+    ? step.dragTargets.map((target, targetIndex) => normalizeDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
+    : [];
+  const fallbackDragItems = type === 'drag_to_match' && normalizedDragItems.length === 0 && Array.isArray(step.choices)
+    ? step.choices.map((item, itemIndex) => normalizeLegacyDragItem(item, itemIndex)).filter(Boolean) as LessonActivityDragItem[]
+    : [];
+  const fallbackDragTargets = type === 'drag_to_match' && normalizedDragTargets.length === 0 && Array.isArray(step.media)
+    ? step.media.map((target, targetIndex) => normalizeLegacyDragTarget(target, targetIndex)).filter(Boolean) as LessonActivityDragTarget[]
+    : [];
+
   return {
     id: asString(step.id, `activity-${index + 1}`),
     order: asNumber(step.order, index + 1),
-    type: asString(step.type, 'speak_answer'),
+    type,
     title: asString(step.title, asString(step.prompt, `Activity ${index + 1}`)),
     prompt: asString(step.prompt, asString(step.title, `Activity ${index + 1}`)),
     durationMinutes: asNumber(step.durationMinutes, 2),
@@ -63,12 +146,10 @@ function normalizeStep(value: unknown, index: number): LessonActivityStep | null
     expectedAnswers: asStringArray(step.expectedAnswers),
     tags: asStringArray(step.tags),
     facilitatorNotes: asStringArray(step.facilitatorNotes),
-    choices: Array.isArray(step.choices)
-      ? step.choices.map((choice, choiceIndex) => normalizeChoice(choice, choiceIndex)).filter(Boolean) as LessonActivityChoice[]
-      : [],
-    media: Array.isArray(step.media)
-      ? step.media.map((media) => normalizeMedia(media)).filter(Boolean) as LessonActivityMedia[]
-      : [],
+    choices: normalizedChoices,
+    media: normalizedMedia,
+    dragItems: normalizedDragItems.length > 0 ? normalizedDragItems : fallbackDragItems,
+    dragTargets: normalizedDragTargets.length > 0 ? normalizedDragTargets : fallbackDragTargets,
   };
 }
 
@@ -80,6 +161,97 @@ function normalizeAssessmentItem(value: unknown, index: number): LessonAssessmen
     prompt: asString(item.prompt),
     evidence: asString(item.evidence),
   };
+}
+
+export function normalizeSubjectsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Subject> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Subject[], issues: payload == null ? [] : ['Subject feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Subject row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const subject = entry as Record<string, unknown>;
+    const id = asString(subject.id).trim();
+    const name = asString(subject.name).trim();
+    if (!id || !name) {
+      issues.push(`Subject row ${index + 1} is missing ${!id && !name ? 'id and name' : !id ? 'id' : 'name'}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      name,
+      icon: asString(subject.icon) || undefined,
+      order: typeof subject.order === 'number' && Number.isFinite(subject.order) ? subject.order : undefined,
+      status: asString(subject.status) || undefined,
+    } satisfies Subject];
+  });
+
+  return { items, issues };
+}
+
+export function normalizeModulesForAuthoring(payload: unknown): AuthoringCollectionNormalization<CurriculumModule> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as CurriculumModule[], issues: payload == null ? [] : ['Module feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Module row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const module = entry as Record<string, unknown>;
+    const id = asString(module.id).trim();
+    const title = asString(module.title).trim();
+    const subjectName = asString(module.subjectName).trim();
+    if (!id || !title || !subjectName) {
+      const missing = [!id ? 'id' : null, !title ? 'title' : null, !subjectName ? 'subjectName' : null].filter(Boolean).join(', ');
+      issues.push(`Module row ${index + 1} is missing ${missing}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      subjectId: asNullableString(module.subjectId),
+      subjectName,
+      strandId: asNullableString(module.strandId),
+      level: asString(module.level),
+      title,
+      lessonCount: asNumber(module.lessonCount, 0),
+      status: asString(module.status, 'draft'),
+      strandName: asString(module.strandName),
+    } satisfies CurriculumModule];
+  });
+
+  return { items, issues };
+}
+
+export function normalizeLessonsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Lesson> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Lesson[], issues: payload == null ? [] : ['Lesson feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    const normalized = normalizeLessonForAuthoring(entry);
+    if (!normalized.lesson) {
+      issues.push(...normalized.issues.map((issue) => `Lesson row ${index + 1}: ${issue}`));
+      return [];
+    }
+    if (normalized.issues.length) {
+      issues.push(...normalized.issues.map((issue) => `Lesson row ${index + 1}: ${issue}`));
+    }
+    return [normalized.lesson];
+  });
+
+  return { items, issues };
 }
 
 export function normalizeLessonAssetsForAuthoring(payload: unknown) {
@@ -128,6 +300,50 @@ export function normalizeLessonAssetsForAuthoring(payload: unknown) {
   });
 
   return { assets, issues };
+}
+
+export function normalizeAssessmentsForAuthoring(payload: unknown): AuthoringCollectionNormalization<Assessment> {
+  if (!Array.isArray(payload)) {
+    return { items: [] as Assessment[], issues: payload == null ? [] : ['Assessment feed returned a non-array payload.'] };
+  }
+
+  const issues: string[] = [];
+  const items = payload.flatMap((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      issues.push(`Assessment row ${index + 1} is malformed.`);
+      return [];
+    }
+
+    const assessment = entry as Record<string, unknown>;
+    const id = asString(assessment.id).trim();
+    const title = asString(assessment.title).trim();
+    const moduleTitle = asString(assessment.moduleTitle).trim();
+    const subjectName = asString(assessment.subjectName).trim();
+    if (!id || !title || !moduleTitle || !subjectName) {
+      const missing = [!id ? 'id' : null, !title ? 'title' : null, !moduleTitle ? 'moduleTitle' : null, !subjectName ? 'subjectName' : null]
+        .filter(Boolean)
+        .join(', ');
+      issues.push(`Assessment row ${index + 1} is missing ${missing}.`);
+      return [];
+    }
+
+    return [{
+      id,
+      subjectId: asNullableString(assessment.subjectId),
+      moduleId: asNullableString(assessment.moduleId),
+      title,
+      kind: asString(assessment.kind, 'observational'),
+      trigger: asString(assessment.trigger),
+      triggerLabel: asString(assessment.triggerLabel),
+      progressionGate: asString(assessment.progressionGate),
+      passingScore: asNumber(assessment.passingScore, 0),
+      subjectName,
+      moduleTitle,
+      status: asString(assessment.status, 'draft'),
+    } satisfies Assessment];
+  });
+
+  return { items, issues };
 }
 
 export function normalizeLessonForAuthoring(payload: unknown): LessonAuthoringNormalization {

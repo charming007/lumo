@@ -4,14 +4,17 @@ import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 export const dynamic = 'force-dynamic';
 
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
-import { API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
+import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
+import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
+import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
-import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
-import { filterLessonsForModule } from '../lib/module-lesson-match';
-import { resolveModuleSubjectId } from '../lib/module-subject-match';
+import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '../lib/backend-target-diagnosis';
+import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
+import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
+import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -159,6 +162,40 @@ function describeGateWarning(moduleCount: number, liveModuleCount: number) {
   return `${moduleCount} draft module${moduleCount === 1 ? '' : 's'} ${moduleCount === 1 ? 'is' : 'are'} still missing a progression gate. Fix that before anybody gets cute with publish state.`;
 }
 
+function describeReleaseBlockerSnapshot({
+  blockerCount,
+  draftModuleCount,
+  missingLessonCount,
+  missingGateCount,
+}: {
+  blockerCount: number;
+  draftModuleCount: number;
+  missingLessonCount: number;
+  missingGateCount: number;
+}) {
+  if (!blockerCount) {
+    return 'No release blockers are visible in the live curriculum feeds. Open Content Library if you want the detailed board.';
+  }
+
+  const signals: string[] = [];
+
+  if (draftModuleCount > 0) {
+    signals.push(`${draftModuleCount} draft module${draftModuleCount === 1 ? '' : 's'} still need authoring follow-up`);
+  }
+  if (missingLessonCount > 0) {
+    signals.push(`${missingLessonCount} missing lesson gap${missingLessonCount === 1 ? '' : 's'} still block release coverage`);
+  }
+  if (missingGateCount > 0) {
+    signals.push(`${missingGateCount} module${missingGateCount === 1 ? '' : 's'} still need assessment gates`);
+  }
+
+  if (!signals.length) {
+    return `${blockerCount} blocked module${blockerCount === 1 ? '' : 's'} still need release triage. Open Content Library for the real blocker workflow.`;
+  }
+
+  return `${signals.join('. ')}. Open Content Library for the real blocker workflow.`;
+}
+
 function dashboardApiSourceDetail() {
   if (API_BASE_SOURCE === 'missing-production-env') {
     return {
@@ -180,7 +217,7 @@ function dashboardApiSourceDetail() {
 
   return {
     label: 'Local development API',
-    note: 'Dashboard is using the local development API fallback. Fine for local work, not a deployment signal.',
+    note: `Dashboard is using the local development API fallback (${API_BASE}). Fine for local work, not a deployment signal.`,
     tone: { background: '#E5E7EB', border: '1px solid #CBD5E1', text: '#334155' },
   };
 }
@@ -191,7 +228,13 @@ function assetReadinessTone(readiness: AssetRuntimeReport['summary']['readiness'
   return { background: '#ECFDF5', border: '1px solid #BBF7D0', text: '#166534' };
 }
 
+function describeApiTarget() {
+  return API_BASE_DIAGNOSTIC.configuredApiBase ?? API_BASE;
+}
+
 export default async function HomePage() {
+  const buildSignature = getBuildSignature();
+  const apiTarget = describeApiTarget();
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -229,7 +272,13 @@ export default async function HomePage() {
             failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
           },
         ]}
+        fixItems={[
+          { label: 'Frontend build', value: buildSignature.summary },
+          { label: 'Current API target', value: apiTarget },
+          { label: 'Deployment action', value: 'Set NEXT_PUBLIC_API_BASE_URL to the real HTTPS API origin, redeploy the LMS, then re-check the root dashboard.' },
+        ]}
         docs={[
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
           { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
           { label: 'Settings blocker', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
@@ -281,7 +330,7 @@ export default async function HomePage() {
       : null;
   const dashboardRenderedAt = new Date();
 
-  const failedSources = [
+  const dashboardFeedEntries = [
     { label: 'dashboard summary', result: summaryResult },
     { label: 'insights', result: insightsResult },
     { label: 'workboard', result: workboardResult },
@@ -292,8 +341,39 @@ export default async function HomePage() {
     { label: 'assessments', result: assessmentsResult },
     { label: 'asset runtime', result: assetRuntimeResult },
     { label: 'subjects', result: subjectsResult },
-  ].filter((entry) => entry.result.status === 'rejected').map((entry) => entry.label);
+  ];
+  const totalDashboardFeedCount = dashboardFeedEntries.length;
+  const failedFeedEntries = dashboardFeedEntries.filter(
+    (entry): entry is { label: string; result: PromiseRejectedResult } => entry.result.status === 'rejected',
+  );
+  const failedSources = failedFeedEntries.map((entry) => entry.label);
   const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
+  const backendTargetDiagnosis = diagnoseBackendTargetMismatch(
+    failedFeedEntries.map((entry) => ({ label: entry.label, error: entry.result.reason })),
+  );
+  const backendTargetEvidence = backendTargetDiagnosis
+    ? summarizeBackendTargetEvidence(backendTargetDiagnosis.requestUrls)
+    : null;
+  const backendTargetCommandBlock = backendTargetDiagnosis
+    ? [`export API=${apiTarget || API_BASE_DIAGNOSTIC.configuredApiBase || 'https://your-lumo-api.up.railway.app'}`,
+        '',
+        'curl -i "$API/health"',
+        'curl -i "$API/readyz"',
+        "curl -i \"$API/api/v1/meta\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/assets\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/admin/config/audit\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+        "curl -i \"$API/api/v1/admin/assets/runtime\" -H 'x-lumo-role: admin' -H 'x-lumo-user: Pilot Admin'",
+      ].join('\n')
+    : undefined;
+  const backendTargetEvidenceLines = backendTargetDiagnosis
+    ? [
+        `Failing feeds: ${backendTargetDiagnosis.failingFeeds.join(', ')}`,
+        `Failing routes: ${backendTargetDiagnosis.requestUrls.join(', ')}`,
+        `Route summary: ${backendTargetEvidence?.routeSummary ?? 'Unknown routes'}`,
+        `Host summary: ${backendTargetEvidence?.hostSummary ?? apiTarget}`,
+      ]
+    : [];
+  const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const criticalDashboardFailures = [
     !summaryAvailable ? 'dashboard summary' : null,
     !workboardAvailable ? 'workboard' : null,
@@ -304,15 +384,10 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
-    assetRuntimeResult.status === 'rejected' ? 'asset runtime' : null,
+    assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
-  const hasDashboardPageBlocker = shouldBlockDashboardPage({
-    criticalDashboardFailureCount: criticalDashboardFailures.length,
-    criticalReleaseFailureCount: criticalReleaseFailures.length,
-    hasCriticalAssetOpsGap,
-  });
-  const healthyFeedCount = 10 - failedSources.length;
+  const healthyFeedCount = Math.max(totalDashboardFeedCount - failedSources.length, 0);
   const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
     ? 'Blocked'
     : failedSources.length
@@ -335,90 +410,68 @@ export default async function HomePage() {
     .slice()
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
     .slice(0, 5);
-  const moduleHasAssessmentGate = (module: CurriculumModule) => assessments.some(
-    (assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment),
-  );
-  const releaseBlockers = modules
-    .map((module) => {
-      const moduleLessons = filterLessonsForModule(lessons, module);
-      const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-      const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
-      const hasAssessmentGate = moduleHasAssessmentGate(module);
-      const isDraftModule = module.status === 'draft';
-      const blockerCount = missingLessons + (hasAssessmentGate ? 0 : 1) + (isDraftModule ? 1 : 0);
-
-      if (!blockerCount) {
-        return null;
-      }
-
-      const subjectId = resolveModuleSubjectId(module, subjects);
-
-      return {
-        id: module.id,
-        title: module.title,
-        subjectId,
-        subjectName: module.subjectName ?? '—',
-        missingLessons,
-        hasAssessmentGate,
-        isDraftModule,
-        hasAuthoringContext: Boolean(subjectId),
-        blockerCount,
-        priorityWeight: !hasAssessmentGate && !isDraftModule
-          ? 4
-          : !isDraftModule
-            ? 3
-            : !hasAssessmentGate
-              ? 2
-              : 1,
-      };
-    })
-    .filter((module): module is NonNullable<typeof module> => Boolean(module))
-    .sort((left, right) => right.priorityWeight - left.priorityWeight || right.blockerCount - left.blockerCount || right.missingLessons - left.missingLessons || left.title.localeCompare(right.title));
+  const releaseBlockers = getDashboardReleaseBlockers({
+    modules,
+    lessons,
+    assessments,
+    subjects,
+  });
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
+  const hasEmptyReleaseBoard = releaseFeedsAvailable && modules.length === 0 && lessons.length === 0 && assessments.length === 0;
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
+  const missingLessonGapCount = releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
-  const topReleaseBlockerBoardHref = topReleaseBlocker
-    ? `/content?view=blocked${topReleaseBlocker.subjectId ? `&subject=${encodeURIComponent(topReleaseBlocker.subjectId)}` : ''}&q=${encodeURIComponent(topReleaseBlocker.title)}`
-    : '/content?view=blocked';
-  const canLaunchTopReleaseLessonCreate = Boolean(
+  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlocker);
+  const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons
-    && topReleaseBlocker.hasAuthoringContext
-    && subjects.some((subject) => subject.id === topReleaseBlocker.subjectId),
+    && !topReleaseBlocker.hasAuthoringContext
+    && !subjectFeedAvailable,
   );
-  const topReleaseBlockerPrimaryHref = canLaunchTopReleaseLessonCreate && topReleaseBlocker
-    ? `/content/lessons/new?subjectId=${encodeURIComponent(topReleaseBlocker.subjectId)}&moduleId=${encodeURIComponent(topReleaseBlocker.id)}&from=${encodeURIComponent(topReleaseBlockerBoardHref)}&focus=blockers`
-    : topReleaseBlockerBoardHref;
-  const topReleaseBlockerPrimaryLabel = canLaunchTopReleaseLessonCreate && topReleaseBlocker
-    ? topReleaseBlocker.missingLessons === 1
-      ? 'Create missing lesson'
-      : `Create ${topReleaseBlocker.missingLessons} missing lessons`
-    : topReleaseBlocker?.missingLessons
-      ? 'Recover subject context first'
-      : 'Open exact blocker';
+  const topReleaseBlockerCta = topReleaseBlocker
+    ? resolveTopReleaseBlockerCta({
+        missingLessons: topReleaseBlocker.missingLessons,
+        hasAuthoringContext: topReleaseBlocker.hasAuthoringContext,
+        subjectMetadataDegraded: topReleaseBlockerSubjectMetadataMissing,
+      })
+    : null;
+  const canLaunchTopReleaseLessonCreate = Boolean(topReleaseBlockerCta?.canLaunchLessonStudio && topReleaseBlocker);
+  const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref({
+    blocker: topReleaseBlocker,
+    boardHref: topReleaseBlockerBoardHref,
+    canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
+  });
+  const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
 
-  if (hasCriticalDashboardGap || criticalReleaseFailures.length || hasCriticalAssetOpsGap) {
-    const blockerDetail = hasCriticalDashboardGap
-      ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
-        ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-        : !summaryAvailable && !workboardAvailable
-          ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
-          : !summaryAvailable
-            ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
-            : !workboardAvailable
-              ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
-              : !mallamsAvailable && !assignmentsAvailable
-                ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
-                : !mallamsAvailable
-                  ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
-                  : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
-      : hasCriticalAssetOpsGap
+  if (shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+    hasEmptyReleaseBoard,
+  })) {
+    const blockerDetail = backendTargetDiagnosis
+      ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
+      : hasCriticalDashboardGap
+        ? !summaryAvailable && !workboardAvailable && !mallamsAvailable && !assignmentsAvailable
+          ? 'Dashboard summary, progression workboard, mallam coverage, and assignment pressure all failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+          : !summaryAvailable && !workboardAvailable
+            ? 'Both the dashboard summary and progression workboard failed to load from the live API. Leaving the root route up with empty metrics would turn an outage into a fake sign-off surface.'
+            : !summaryAvailable
+              ? 'The dashboard summary feed failed to load from the live API. Without top-line counts, this route cannot honestly represent learner activity, pod coverage, or deployment readiness.'
+              : !workboardAvailable
+                ? 'The progression workboard failed to load from the live API. Without the live intervention queue, this route cannot honestly show who is ready, blocked, or quietly slipping.'
+                : !mallamsAvailable && !assignmentsAvailable
+                  ? 'Mallam coverage and assignment pressure both failed to load from the live API. That strips out the facilitator and delivery checks operators use before trusting this dashboard.'
+                  : !mallamsAvailable
+                    ? 'The mallam coverage feed failed to load from the live API. Without the live roster, this dashboard cannot honestly represent facilitator coverage.'
+                    : 'The assignment pressure feed failed to load from the live API. Without the live delivery queue, this dashboard cannot honestly represent workload or due-soon risk.'
+        : hasCriticalAssetOpsGap
         ? assetRuntimeResult.status === 'rejected'
           ? assetRuntimeAuthBlocked
             ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
-            : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for pilot content operations.'
+            : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for live content operations.'
           : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
         : !modules.length && !lessons.length && !assessments.length
           ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
@@ -429,18 +482,26 @@ export default async function HomePage() {
     return (
       <DeploymentBlockerCard
         title="Dashboard"
-        subtitle={hasCriticalDashboardGap
-          ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
-          : hasCriticalAssetOpsGap
-            ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
-            : 'The admin landing page also blocks when release-readiness feeds are blind.'}
-        blockerHeadline={hasCriticalDashboardGap
-          ? 'Deployment blocker: dashboard live feeds are degraded.'
-          : hasCriticalAssetOpsGap
-            ? assetRuntimeAuthBlocked
-              ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
-              : 'Deployment blocker: asset operations are not trustworthy.'
-            : 'Deployment blocker: release-readiness feeds are degraded.'}
+        subtitle={backendTargetDiagnosis
+          ? 'The admin landing page is blocked because the configured API host looks like the wrong or stale backend build.'
+          : hasCriticalDashboardGap
+            ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
+            : hasCriticalAssetOpsGap
+              ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
+              : hasEmptyReleaseBoard
+                ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
+                : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+        blockerHeadline={backendTargetDiagnosis
+          ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
+          : hasCriticalDashboardGap
+            ? 'Deployment blocker: dashboard live feeds are degraded.'
+            : hasCriticalAssetOpsGap
+              ? assetRuntimeAuthBlocked
+                ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
+                : 'Deployment blocker: asset operations are not trustworthy.'
+              : hasEmptyReleaseBoard
+                ? 'Deployment blocker: release board came back empty.'
+                : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -448,13 +509,19 @@ export default async function HomePage() {
               : 'The dashboard refused to guess.'}
           </>
         )}
-        whyBlocked={hasCriticalDashboardGap
+        whyBlocked={backendTargetDiagnosis
           ? [
-              'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
-              'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
-              'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+              'The failure pattern matches route-level 404s across multiple LMS feeds. That usually means the host behind NEXT_PUBLIC_API_BASE_URL is stale or simply the wrong service, not that one dashboard card had a bad day.',
+              'If the front door only says “feeds degraded,” deployment reviewers waste time poking the UI while the real problem sits behind the API hostname.',
+              'Calling out a likely wrong backend directly is safer than making operators reverse-engineer 404 patterns from scattered empty states.',
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
+            ? [
+                'The root route is the deployment reviewer’s first trust check. If summary, progression, mallam coverage, or assignment pressure is missing, the page should not cosplay as a healthy command center.',
+                'Operators use this screen to decide who needs intervention now, whether facilitators are actually covered, and whether delivery load is under control. Missing any of those turns this into vibes-based operations.',
+                'A loud blocker is safer than polished blanks, fake zeros, or “looks mostly fine” cards during an outage.',
+              ]
+            : hasCriticalAssetOpsGap
             ? assetRuntimeAuthBlocked
               ? [
                   'The dashboard now depends on protected audit feeds to prove whether asset operations are genuinely healthy. If the LMS cannot authenticate to those endpoints, the front door should block instead of hand-waving.',
@@ -462,7 +529,7 @@ export default async function HomePage() {
                   'A loud auth blocker is safer than shipping a dashboard that implies lesson media is trustworthy while its protected audits are still locked.',
                 ]
               : [
-                  'This pilot depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
+                  'This deployment depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
                   'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
                   'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
                 ]
@@ -499,7 +566,7 @@ export default async function HomePage() {
                 {
                   surface: 'Lesson media pipeline',
                   expected: 'Managed lesson assets resolve cleanly without broken or unresolved references',
-                  failure: 'Pilot lessons can silently lose media even though the root route still looks green',
+                  failure: 'Live lessons can silently lose media even though the root route still looks green',
                 },
                 {
                   surface: 'Cross-check routes',
@@ -521,49 +588,81 @@ export default async function HomePage() {
                 {
                   surface: 'Cross-check routes',
                   expected: '/content and /assignments agree with the root release-readiness board after recovery',
-                  failure: 'Dashboard says release is reviewable while the pilot content and delivery routes still show degraded curriculum or assignment data',
+                  failure: 'Dashboard says release is reviewable while the live content and delivery routes still show degraded curriculum or assignment data',
                 },
               ]}
-        fixItems={hasCriticalDashboardGap
+        fixItems={backendTargetDiagnosis
           ? [
-              { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
-              { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
-              { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
+              { label: 'Frontend build', value: buildSignature.summary },
+              { label: 'Current API target', value: apiTarget },
+              { label: 'Likely cause', value: 'NEXT_PUBLIC_API_BASE_URL points at a stale or wrong backend build' },
+              { label: 'Failing feeds', value: backendTargetDiagnosis.failingFeeds.join(', ') },
+              { label: 'Route evidence', value: backendTargetEvidence?.routeSummary ?? 'Unknown routes' },
+              { label: 'Failing host', value: backendTargetEvidence?.hostSummary ?? apiTarget },
+              { label: 'Operator action', value: 'Verify the API host serves current /api/v1/* and admin runtime routes, then redeploy the LMS if the env target changes' },
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
+            ? [
+                { label: 'Frontend build', value: buildSignature.summary },
+                { label: 'Current API target', value: apiTarget },
+                { label: 'Failing feeds', value: criticalDashboardFailures.length ? criticalDashboardFailures.join(', ') : 'dashboard summary, workboard, mallams, assignments' },
+                { label: 'Operator action', value: 'Restore the critical live feeds before using this route as a release signal' },
+                { label: 'Cross-check', value: 'Verify /progress, /assignments, and the dashboard facilitator-coverage cards after the upstream fix lands' },
+              ]
+            : hasCriticalAssetOpsGap
             ? assetRuntimeAuthBlocked
               ? [
+                  { label: 'Frontend build', value: buildSignature.summary },
+                  { label: 'Current API target', value: apiTarget },
                   { label: 'Failing area', value: 'protected asset runtime audit authentication' },
                   { label: 'Operator action', value: 'Set the correct LUMO_ADMIN_API_KEY in the LMS deployment so protected audit endpoints can answer' },
                   { label: 'Cross-check', value: 'Verify /settings and /content/assets stop 401ing before trusting the dashboard again' },
                 ]
               : [
+                  { label: 'Frontend build', value: buildSignature.summary },
+                  { label: 'Current API target', value: apiTarget },
                   { label: 'Failing area', value: assetOpsCriticalFailure ?? 'asset operations' },
                   { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
                   { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
                 ]
             : [
-                { label: 'Failing feeds', value: criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
-                { label: 'Operator action', value: 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+                { label: 'Frontend build', value: buildSignature.summary },
+                { label: 'Current API target', value: apiTarget },
+                { label: hasEmptyReleaseBoard ? 'Observed state' : 'Failing feeds', value: hasEmptyReleaseBoard ? 'modules, lessons, and assessments all resolved empty' : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
+                { label: 'Operator action', value: hasEmptyReleaseBoard ? 'Verify the API is serving real curriculum, lesson, and assessment data before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
               ]}
-        docs={hasCriticalDashboardGap
+        docs={backendTargetDiagnosis
           ? [
-              { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-              { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-              { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+              { label: 'Deploy verification guide', href: '/LUMO_MVP_QA_UAT_GUIDE.html', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+              { label: 'Open content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
             ]
-          : hasCriticalAssetOpsGap
+          : hasCriticalDashboardGap
             ? [
+                { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+                { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+                { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              ]
+            : hasCriticalAssetOpsGap
+            ? [
+                { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
                 { label: 'Open asset library', href: '/content/assets', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                 { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Cross-check content', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]
             : [
+                { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
                 { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                 { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]}
+        evidenceTitle={backendTargetDiagnosis ? 'Wrong-backend evidence' : undefined}
+        evidenceLines={backendTargetDiagnosis ? backendTargetEvidenceLines : undefined}
+        commandTitle={backendTargetDiagnosis ? 'Copy-paste backend verification' : undefined}
+        commandBlock={backendTargetDiagnosis ? backendTargetCommandBlock : undefined}
       />
     );
   }
@@ -630,12 +729,33 @@ export default async function HomePage() {
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
             <div style={{ color: '#334155', lineHeight: 1.6 }}>
-              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/10 dashboard feeds responding.
+              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
             <div style={{ color: '#64748b', lineHeight: 1.6 }}>
               If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
             </div>
+          </div>
+
+          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#0F172A', border: '1px solid #1E293B', display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <strong style={{ color: 'white' }}>Deployment trace</strong>
+              <Pill label={buildSignature.commitShort} tone="#EEF2FF" text="#3730A3" />
+            </div>
+            <div style={{ color: '#CBD5E1', lineHeight: 1.6 }}>
+              Frontend build: {buildSignature.summary}
+            </div>
+            <div style={{ color: '#E2E8F0', lineHeight: 1.6 }}>
+              API target: <code style={{ color: 'white', fontWeight: 800 }}>{apiTarget}</code>
+            </div>
+            <div style={{ color: '#94A3B8', lineHeight: 1.6 }}>
+              When reviewers think they are staring at a stale deploy, these two facts should be visible without opening DevTools or guessing which environment won the roulette wheel.
+            </div>
+            {!buildSignature.metadataTrusted ? (
+              <div style={{ color: '#FDE68A', lineHeight: 1.6 }}>
+                Deployment metadata is incomplete in this build, so the dashboard now says that plainly instead of faking a fresh timestamp. Treat missing commit/build provenance as a release-trace gap until the deploy pipeline restores it.
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -699,9 +819,12 @@ export default async function HomePage() {
               <div style={{ marginTop: 6, fontSize: 28, fontWeight: 900, color: '#0f172a' }}>{releaseFeedsAvailable ? releaseBlockers.length : '—'}</div>
               <div style={{ marginTop: 6, color: '#64748b', lineHeight: 1.6 }}>
                 {releaseFeedsAvailable
-                  ? releaseBlockers.length
-                    ? `${draftModuleBlockers.length} draft module${draftModuleBlockers.length === 1 ? '' : 's'} still need authoring follow-up. Open Content Library for the real blocker workflow.`
-                    : 'No release blockers are visible in the live curriculum feeds. Open Content Library if you want the detailed board.'
+                  ? describeReleaseBlockerSnapshot({
+                      blockerCount: releaseBlockers.length,
+                      draftModuleCount: draftModuleBlockers.length,
+                      missingLessonCount: missingLessonGapCount,
+                      missingGateCount: missingGateBlockers.length,
+                    })
                   : 'Curriculum release feeds are unavailable, so the dashboard is intentionally showing only a handoff summary.'}
               </div>
             </div>
@@ -719,6 +842,7 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
+            {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane. Use Content Library if you need the full blocker board.', 'warning') : null}
             {releaseFeedsAvailable && topReleaseBlocker ? (
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -755,8 +879,12 @@ export default async function HomePage() {
                 </div>
                 <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                   {canLaunchTopReleaseLessonCreate
-                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so pilot operators do not end up juggling two competing release boards.'
-                    : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
+                    ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
+                    : topReleaseBlocker.missingLessons > 1 && topReleaseBlocker.hasAuthoringContext
+                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough.'
+                      : topReleaseBlockerSubjectMetadataMissing
+                        ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
+                        : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
@@ -779,7 +907,7 @@ export default async function HomePage() {
                     <strong style={{ fontSize: 18, color: assetReadinessTone(assetRuntime.summary.readiness).text }}>{assetRuntime.summary.headline}</strong>
                     <div style={{ color: assetReadinessTone(assetRuntime.summary.readiness).text, lineHeight: 1.6 }}>
                       {assetOpsVisibleBlocker
-                        ? `${assetRuntime.summary.operatorAction} Do not let a pilot reviewer mistake a broken asset registry for “content is ready anyway.”`
+                        ? `${assetRuntime.summary.operatorAction} Do not let a deployment reviewer mistake a broken asset registry for “content is ready anyway.”`
                         : 'Shared media registry, uploads, and reference integrity look usable from the runtime audit. Keep it that way.'}
                     </div>
                   </div>
@@ -809,12 +937,12 @@ export default async function HomePage() {
                   </Link>
                 </div>
               </div>
-            ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for pilot content ops.', 'warning')}
+            ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for live content ops.', 'warning')}
             <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gap: 6 }}>
                 <strong style={{ color: '#3730A3' }}>Curriculum action lives in Content Library</strong>
                 <span style={{ color: '#4338CA', lineHeight: 1.6 }}>
-                  The dashboard stays a thin pilot front door: scan the counts here, then use Content Library for blocker triage, lesson authoring, and release cleanup.
+                  The dashboard stays a thin admin front door: scan the counts here, then use Content Library for blocker triage, lesson authoring, and release cleanup.
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -845,6 +973,7 @@ export default async function HomePage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Pill label={`Attendance ${Math.round(item.attendanceRate * 100)}%`} tone="#F8FAFC" text="#334155" />
                       <Pill label={`Mastery ${Math.round(item.mastery * 100)}%`} tone="#EEF2FF" text="#3730A3" />
+                      <Pill label={`${item.totalXp} pts`} tone="#FEF3C7" text="#92400E" />
                       <Pill label={`Level ${item.levelLabel}`} tone="#ECFDF5" text="#166534" />
                       <Pill label={`${item.badgesUnlocked} badge${item.badgesUnlocked === 1 ? '' : 's'}`} tone="#FDF2F8" text="#9D174D" />
                     </div>
@@ -852,6 +981,9 @@ export default async function HomePage() {
                       Next module: {item.recommendedNextModuleTitle ?? 'No recommendation yet'}
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <Link href={item.studentId ? `/progress?student=${encodeURIComponent(item.studentId)}&q=${encodeURIComponent(item.studentName)}` : `/progress?q=${encodeURIComponent(item.studentName)}`} style={{ ...quickActionStyle, background: '#F8FAFC', color: '#0F172A', border: '1px solid #CBD5E1', padding: '10px 12px' }}>
+                        Open learner progress
+                      </Link>
                       <Link href="/progress" style={{ ...quickActionStyle, background: '#111827', color: 'white', padding: '10px 12px' }}>
                         Open progress board
                       </Link>
@@ -868,30 +1000,59 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="LMS route map" eyebrow="Admin shell">
+        <Card title="Pilot route map" eyebrow="Visible shell">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Pilot routes</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible pilot routes</div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {navigationItems.map((item) => (
-                  <Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
+                  <Pill
+                    key={item.id}
+                    label={item.label}
+                    tone="#DCFCE7"
+                    text="#166534"
+                  />
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                The dashboard now reflects the actual pilot operating loop instead of advertising side routes that intentionally stop behind scope blockers.
+                This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live.
+              </div>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Off-shell specialist routes</div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PILOT_OFF_SHELL_ROUTE_LABELS.map((label) => (
+                  <Pill key={label} label={label} tone="#FFFFFF" text="#9A3412" />
+                ))}
+              </div>
+              <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
+                “Not in nav” is not the same thing as “blocked.” These specialist routes still exist, but they stay out of the pilot shell so the dashboard does not fake a broader deployment target than the team can honestly support.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Why this matters for launch</div>
-              <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                A pilot dashboard should not invite operators into routes that only explain why they are blocked. Keeping the front door aligned with the real launch loop reduces dead-end clicks and makes screenshots, walkthroughs, and handoff guidance match what ships.
-              </div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked surfaces</div>
+              {PILOT_BLOCKED_ROUTE_LABELS.length ? (
+                <>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
+                      <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                    If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
+                  </div>
+                </>
+              ) : (
+                <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                  No pilot routes are intentionally blocked right now. If that changes, say it here instead of making operators infer it from missing nav links.
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
-              <Link href="/content" style={{ ...quickActionStyle, background: '#3730A3', color: 'white' }}>Open content</Link>
+              <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open content</Link>
               <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open progress</Link>
+              <Link href="/progress" style={{ ...quickActionStyle, background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>Open progress</Link>
               <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
             </div>
           </div>

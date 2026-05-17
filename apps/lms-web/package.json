@@ -6,7 +6,7 @@
     "dev": "next dev --webpack",
     "build": "node ./scripts/validate-build-env.mjs && next build --webpack",
     "start": "next start",
-    "test": "node --test lib/*.test.ts"
+    "test": "node --test $(find . -name '*.test.ts' | sort)"
   },
   "dependencies": {
     "next": "16.2.3",

@@ -1,5 +1,14 @@
 'use client';
 
+const secondaryActionStyle = {
+  borderRadius: 999,
+  border: '1px solid #cbd5e1',
+  color: '#0f172a',
+  fontWeight: 700,
+  padding: '12px 18px',
+  textDecoration: 'none',
+} as const;
+
 export default function GlobalError({
   error,
   reset,
@@ -24,7 +33,7 @@ export default function GlobalError({
         <main
           style={{
             width: '100%',
-            maxWidth: 560,
+            maxWidth: 640,
             background: 'white',
             border: '1px solid #e2e8f0',
             borderRadius: 24,
@@ -36,11 +45,29 @@ export default function GlobalError({
             Lumo LMS
           </p>
           <h1 style={{ margin: '12px 0 8px', fontSize: 32, lineHeight: 1.1 }}>
-            Dashboard crashed before it could render.
+            LMS route crashed before it could render.
           </h1>
           <p style={{ margin: 0, color: '#475569', lineHeight: 1.6 }}>
             This route hit an unrecoverable client/runtime error. Retry once. If it keeps happening, the deployment is not healthy enough to trust.
           </p>
+          <div
+            style={{
+              marginTop: 18,
+              padding: '16px 18px',
+              borderRadius: 18,
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              color: '#9a3412',
+              display: 'grid',
+              gap: 10,
+              lineHeight: 1.6,
+            }}
+          >
+            <strong style={{ color: '#7c2d12' }}>Treat this as a deployment blocker until proven otherwise.</strong>
+            <span>
+              If retry fails, open settings to verify the configured API target, then use the deploy checklist before calling this LMS build healthy.
+            </span>
+          </div>
           {error.digest ? (
             <p style={{ margin: '16px 0 0', color: '#94a3b8', fontSize: 14 }}>
               Error digest: {error.digest}
@@ -60,20 +87,16 @@ export default function GlobalError({
                 cursor: 'pointer',
               }}
             >
-              Retry dashboard
+              Retry page
             </button>
-            <a
-              href="/settings"
-              style={{
-                borderRadius: 999,
-                border: '1px solid #cbd5e1',
-                color: '#0f172a',
-                fontWeight: 700,
-                padding: '12px 18px',
-                textDecoration: 'none',
-              }}
-            >
+            <a href="/settings" style={secondaryActionStyle}>
               Open settings
+            </a>
+            <a href="/DEPLOY_VERIFICATION_CHECKLIST.html" style={secondaryActionStyle}>
+              Open deploy checklist
+            </a>
+            <a href="/content?view=blocked" style={secondaryActionStyle}>
+              Review content blockers
             </a>
           </div>
         </main>

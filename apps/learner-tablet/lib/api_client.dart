@@ -8,6 +8,10 @@ import 'models.dart';
 
 const String kDefaultProductionApiBaseUrl =
     'https://lumo-api-production-303a.up.railway.app';
+const String kConfiguredApiBaseUrl = String.fromEnvironment(
+  'LUMO_API_BASE_URL',
+  defaultValue: kDefaultProductionApiBaseUrl,
+);
 
 class TutorVoiceClip {
   final Uint8List audioBytes;
@@ -23,25 +27,25 @@ class TutorVoiceClip {
   });
 }
 
+class LessonAssetRecord {
+  final String id;
+  final String? fileUrl;
+
+  const LessonAssetRecord({required this.id, this.fileUrl});
+}
+
 class LumoApiClient {
   LumoApiClient({http.Client? client, String? baseUrl, this.deviceIdentifier})
       : _client = client ?? http.Client(),
         _hasExplicitBaseUrl =
             baseUrl != null || const bool.hasEnvironment('LUMO_API_BASE_URL'),
-        baseUrl = normalizeBaseUrl(
-          baseUrl ??
-              const String.fromEnvironment(
-                'LUMO_API_BASE_URL',
-                defaultValue: kDefaultProductionApiBaseUrl,
-              ),
-        );
+        baseUrl = normalizeBaseUrl(baseUrl ?? kConfiguredApiBaseUrl);
 
   final http.Client _client;
   final bool _hasExplicitBaseUrl;
   final String baseUrl;
   String? deviceIdentifier;
   static const Duration _requestTimeout = Duration(seconds: 12);
-  static const Duration _bootstrapTimeout = Duration(seconds: 3);
 
   static String normalizeBaseUrl(String rawBaseUrl) {
     final trimmed = rawBaseUrl.trim();
@@ -73,8 +77,8 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    if (!hasExplicitConfig && normalized != kDefaultProductionApiBaseUrl) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly for release tablets before shipping.';
+    if (!hasExplicitConfig) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets, even for the canonical production learner API.';
     }
 
     final parsed = Uri.tryParse(normalized);
@@ -191,16 +195,14 @@ class LumoApiClient {
       includeDeviceIdentifierQuery: true,
     );
     final response = await _send(
-      () => _client
-          .get(
-            uri,
-            headers: _jsonHeadersWithDevice(
-              overrideDeviceIdentifier: overrideDeviceIdentifier,
-              includeContentType: false,
-              includeDeviceIdentifierHeader: false,
-            ),
-          )
-          .timeout(_bootstrapTimeout),
+      () => _client.get(
+        uri,
+        headers: _jsonHeadersWithDevice(
+          overrideDeviceIdentifier: overrideDeviceIdentifier,
+          includeContentType: false,
+          includeDeviceIdentifierHeader: false,
+        ),
+      ),
       action: 'load learner app bootstrap',
       uri: uri,
     );
@@ -373,6 +375,7 @@ class LumoApiClient {
   Future<TutorVoiceClip?> fetchTutorVoiceReplay({
     required String text,
     required SpeakerMode mode,
+    String? supportLanguage,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
@@ -385,6 +388,8 @@ class LumoApiClient {
         body: jsonEncode({
           'text': trimmed,
           'mode': mode.name,
+          if (supportLanguage != null && supportLanguage.trim().isNotEmpty)
+            'supportLanguage': supportLanguage.trim(),
         }),
       ),
       action: 'load tutor voice replay audio',
@@ -401,6 +406,33 @@ class LumoApiClient {
       contentType: response.headers['content-type'] ?? 'audio/mpeg',
       provider: response.headers['x-lumo-voice-provider'],
       model: response.headers['x-lumo-voice-model'],
+    );
+  }
+
+  Future<LessonAssetRecord?> fetchLessonAsset(String assetId) async {
+    final trimmed = assetId.trim();
+    if (trimmed.isEmpty) return null;
+
+    final uri = _learnerAppUri('/api/v1/assets/$trimmed');
+    final response = await _send(
+      () => _client.get(
+        uri,
+        headers: _jsonHeadersWithDevice(includeContentType: false),
+      ),
+      action: 'load lesson asset $trimmed',
+      uri: uri,
+    );
+
+    if (response.statusCode == 404) {
+      return null;
+    }
+
+    _ensureOk(response, 'load lesson asset $trimmed', uri);
+    final decoded = _decodeObject(response.body,
+        action: 'load lesson asset $trimmed', uri: uri);
+    return LessonAssetRecord(
+      id: decoded['id']?.toString() ?? trimmed,
+      fileUrl: decoded['fileUrl']?.toString(),
     );
   }
 
@@ -430,9 +462,20 @@ class LumoApiClient {
     );
 
     _ensureOk(response, 'load learner rewards', uri);
-    return RewardSnapshot.fromJson(
-      _decodeObject(response.body, action: 'load learner rewards', uri: uri),
+    final decoded = _decodeObject(
+      response.body,
+      action: 'load learner rewards',
+      uri: uri,
     );
+    final snapshotPayload = decoded['snapshot'];
+    if (snapshotPayload is Map<String, dynamic>) {
+      return RewardSnapshot.fromJson(snapshotPayload);
+    }
+    if (snapshotPayload is Map) {
+      return RewardSnapshot.fromJson(
+          Map<String, dynamic>.from(snapshotPayload));
+    }
+    return RewardSnapshot.fromJson(decoded);
   }
 
   String _canonicalSyncEventType(String type) {

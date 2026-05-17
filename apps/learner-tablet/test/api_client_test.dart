@@ -40,6 +40,30 @@ void main() {
       await client.fetchBootstrap();
     });
 
+    test('allows slower bootstrap responses without timing out early',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          await Future<void>.delayed(const Duration(seconds: 4));
+          return http.Response(
+            jsonEncode({
+              'learners': const [],
+              'modules': const [],
+              'lessons': const [],
+              'assignments': const [],
+              'registrationContext': const {},
+              'meta': const {},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+      );
+
+      await expectLater(client.fetchBootstrap(), completes);
+    });
+
     test(
         'sends device identifier on learner registration and skips manual backendTarget when tablet identity is present',
         () async {
@@ -149,26 +173,34 @@ void main() {
 
   group('LumoApiClient.productionBaseUrlIssue', () {
     test(
-        'allows the bundled production default when explicit release config is absent',
+        'rejects release builds that omit explicit API config even for the canonical production host',
         () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
           hasExplicitConfig: false,
         ),
-        isNull,
+        contains('LUMO_API_BASE_URL is missing'),
       );
     });
 
-    test(
-        'still rejects missing release config when the implicit target is not the bundled production default',
-        () {
+    test('still rejects missing release config for other implicit targets', () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://staging-lumo-api.example.org',
           hasExplicitConfig: false,
         ),
         contains('LUMO_API_BASE_URL is missing'),
+      );
+    });
+
+    test('accepts an explicit canonical production host', () {
+      expect(
+        LumoApiClient.productionBaseUrlIssue(
+          'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitConfig: true,
+        ),
+        isNull,
       );
     });
 

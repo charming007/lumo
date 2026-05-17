@@ -680,9 +680,18 @@ function normalizeLearnerAppStudentPayload(body = {}) {
 function findStudentByLearnerCode(learnerCode) {
   if (!learnerCode) return null;
 
+  const normalizedLearnerCode = String(learnerCode).trim();
+  if (!normalizedLearnerCode) return null;
+
   return store
     .listStudents()
-    .find((student) => presenters.presentLearnerProfile(student).learnerCode === learnerCode) || null;
+    .find((student) => {
+      const persistedLearnerCode = student?.learnerCode ? String(student.learnerCode).trim() : null;
+      if (persistedLearnerCode && persistedLearnerCode === normalizedLearnerCode) {
+        return true;
+      }
+      return presenters.presentLearnerProfile(student).learnerCode === normalizedLearnerCode;
+    }) || null;
 }
 
 function buildScopedLearnerAssignments({ podId = null } = {}) {
@@ -953,11 +962,47 @@ function coerceOptionalNumber(value) {
 }
 
 function resolveStudentScope({ learnerId = null, learnerCode = null } = {}) {
-  return learnerId
-    ? store.findStudentById(String(learnerId))
-    : learnerCode
-      ? findStudentByLearnerCode(String(learnerCode))
-      : null;
+  const normalizedLearnerId = learnerId ? String(learnerId).trim() : null;
+  const normalizedLearnerCode = learnerCode ? String(learnerCode).trim() : null;
+
+  if (normalizedLearnerCode) {
+    const studentByCode = findStudentByLearnerCode(normalizedLearnerCode);
+    if (studentByCode) {
+      return studentByCode;
+    }
+  }
+
+  if (normalizedLearnerId) {
+    const student = store.findStudentById(normalizedLearnerId);
+    if (student) {
+      return student;
+    }
+  }
+
+  return null;
+}
+
+function resolveStudentForSyncPayload(payload = {}) {
+  const directIdCandidates = [payload.studentId, payload.learnerId]
+    .map((value) => (value === undefined || value === null ? null : String(value).trim()))
+    .filter(Boolean);
+  const learnerCode = payload.learnerCode ? String(payload.learnerCode).trim() : null;
+
+  if (learnerCode) {
+    const studentByCode = findStudentByLearnerCode(learnerCode);
+    if (studentByCode) {
+      return studentByCode;
+    }
+  }
+
+  for (const candidateId of directIdCandidates) {
+    const student = store.findStudentById(candidateId);
+    if (student) {
+      return student;
+    }
+  }
+
+  return null;
 }
 
 function buildProgressionOverrideResponse(record) {
@@ -1410,9 +1455,7 @@ function syncLearnerAppEvents(events = [], options = {}) {
     }
 
     if (['lesson_session_started', 'learner_response_captured', 'coach_support_used', 'facilitator_observation_added', 'learner_audio_captured', 'lesson_step_completed', 'lesson_step_advanced'].includes(type)) {
-      const student = payload.studentId
-        ? store.findStudentById(payload.studentId)
-        : findStudentByLearnerCode(payload.learnerCode);
+      const student = resolveStudentForSyncPayload(payload);
 
       if (!student) {
         const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || 'missing identifier'}`);
@@ -1444,13 +1487,11 @@ function syncLearnerAppEvents(events = [], options = {}) {
       };
     }
 
-    if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped'].includes(type)) {
-      const student = payload.studentId
-        ? store.findStudentById(payload.studentId)
-        : findStudentByLearnerCode(payload.learnerCode);
+    if (['lesson_completed', 'learner_marked_absent', 'lesson_skipped', 'learner_reward_redeemed'].includes(type)) {
+      const student = resolveStudentForSyncPayload(payload);
 
       if (!student) {
-        const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || 'missing identifier'}`);
+        const error = new Error(`Unknown learner for sync event: ${payload.learnerCode || payload.studentId || payload.learnerId || 'missing identifier'}`);
         error.statusCode = 400;
         throw error;
       }
@@ -1496,6 +1537,42 @@ function syncLearnerAppEvents(events = [], options = {}) {
                 supportLevel: payload.review === 'needsSupport' ? 'guided' : 'independent',
               });
             });
+        }
+      }
+
+      if (type === 'learner_reward_redeemed') {
+        const xpCost = Math.max(0, Number(payload.cost || 0));
+        const existingRedemption = store
+          .listRewardTransactions()
+          .find((entry) => entry.studentId === student.id
+            && entry.kind === 'redemption'
+            && entry.metadata?.clientRewardId
+            && entry.metadata.clientRewardId === (payload.rewardId || clientId));
+
+        if (existingRedemption) {
+          rewardResult = { snapshot: rewards.buildLearnerRewards(student.id), delta: { xpDelta: 0, awardedBadgeIds: [] } };
+        } else {
+          store.createRewardTransaction({
+            studentId: student.id,
+            kind: 'redemption',
+            xpDelta: xpCost > 0 ? -xpCost : 0,
+            label: payload.title || 'Tablet reward redeemed',
+            metadata: {
+              source: 'learner-app-sync',
+              clientRewardId: payload.rewardId || clientId || null,
+              optionId: payload.optionId || null,
+              category: payload.category || null,
+              celebrationCue: payload.celebrationCue || null,
+              note: payload.note || null,
+              redeemedAt: payload.redeemedAt || null,
+              learnerCode: payload.learnerCode || null,
+              status: payload.status || 'redeemed',
+            },
+          });
+          rewardResult = {
+            snapshot: rewards.buildLearnerRewards(student.id),
+            delta: { xpDelta: xpCost > 0 ? -xpCost : 0, awardedBadgeIds: [] },
+          };
         }
       }
 
@@ -1935,7 +2012,8 @@ app.post('/api/v1/learner-app/voice/replay', async (req, res, next) => {
   try {
     const text = String(req.body?.text || '').trim();
     const mode = String(req.body?.mode || 'guiding').trim().toLowerCase() || 'guiding';
-    const clip = await synthesizeTutorVoice({ text, mode });
+    const supportLanguage = String(req.body?.supportLanguage || '').trim();
+    const clip = await synthesizeTutorVoice({ text, mode, supportLanguage });
 
     if (!clip.ok) {
       if (clip.status === 204) {
@@ -2435,6 +2513,16 @@ app.get('/api/v1/learner-app/rewards/catalog', (_req, res) => {
 });
 
 app.get('/api/v1/learner-app/rewards', (req, res) => {
+  const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
+
+  if (!learner) {
+    return res.status(404).json({ message: 'Learner not found' });
+  }
+
+  return res.json(rewards.buildLearnerRewards(learner.id));
+});
+
+app.get('/api/v1/learner-app/rewards/hub', (req, res) => {
   const learner = resolveStudentScope({ learnerId: req.query.learnerId, learnerCode: req.query.learnerCode });
 
   if (!learner) {

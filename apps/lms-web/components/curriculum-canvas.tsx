@@ -3,6 +3,7 @@
 import type React from 'react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { findSubjectByContext, subjectMatchesContext } from '../lib/module-subject-match';
 import { Pill } from '../lib/ui';
 import { ModalLauncher } from './modal-launcher';
 import type { Assessment } from '../lib/types';
@@ -90,6 +91,16 @@ function moduleUrl(subjectId: string, moduleId: string, searchTerm: string, read
   if (searchTerm) params.set('q', searchTerm);
   if (readinessFilter !== 'all') params.set('readiness', readinessFilter);
   return `/canvas?${params.toString()}`;
+}
+
+function assessmentBoardHref({ subjectId, moduleId, query, from }: { subjectId?: string; moduleId?: string; query?: string; from?: string }) {
+  const params = new URLSearchParams();
+  params.set('view', 'assessments');
+  if (subjectId) params.set('subject', subjectId);
+  if (moduleId) params.set('moduleId', moduleId);
+  if (query) params.set('q', query);
+  if (from) params.set('from', from);
+  return `/content?${params.toString()}`;
 }
 
 type CanvasUrlState = {
@@ -384,7 +395,10 @@ export function CurriculumCanvas({
   const filteredSubjects = useMemo(() => {
     const query = normalize(searchTerm);
     return data.subjects
-      .filter((subject) => subjectFilter === 'all' || subject.id === subjectFilter)
+      .filter((subject) => subjectFilter === 'all' || subjectMatchesContext(subject, {
+        subjectIds: [subjectFilter],
+        subjectNames: [subjectFilter],
+      }))
       .map((subject) => {
         const strands = subject.strands
           .map((strand) => {
@@ -441,7 +455,10 @@ export function CurriculumCanvas({
 
   const selectSubject = (nextSubjectId: string) => {
     setSubjectFilter(nextSubjectId);
-    const nextSubject = data.subjects.find((subject) => subject.id === nextSubjectId) ?? null;
+    const nextSubject = data.subjects.find((subject) => subjectMatchesContext(subject, {
+      subjectIds: [nextSubjectId],
+      subjectNames: [nextSubjectId],
+    })) ?? null;
     const nextModule = nextSubject?.strands[0]?.modules[0] ?? null;
     if (nextModule) {
       setSelectedModuleId(nextModule.id);
@@ -549,7 +566,7 @@ export function CurriculumCanvas({
     subjectFilter !== 'all'
       ? {
           id: 'subject',
-          label: `Subject: ${data.subjects.find((subject) => subject.id === subjectFilter)?.name ?? subjectFilter}`,
+          label: `Subject: ${findSubjectByContext(data.subjects, { subjectId: subjectFilter, subjectName: subjectFilter })?.name ?? subjectFilter}`,
           clear: () => setSubjectFilter('all'),
         }
       : null,
@@ -728,8 +745,14 @@ export function CurriculumCanvas({
                 <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Choose subject first</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {data.subjects.map((subject) => {
-                    const active = subject.id === subjectFilter;
-                    const visibleSubject = filteredSubjects.find((entry) => entry.id === subject.id);
+                    const active = subjectMatchesContext(subject, {
+                      subjectIds: [subjectFilter],
+                      subjectNames: [subjectFilter],
+                    });
+                    const visibleSubject = filteredSubjects.find((entry) => subjectMatchesContext(entry, {
+                      subjectIds: [subject.id],
+                      subjectNames: [subject.name],
+                    }));
                     const subjectModuleCount = visibleSubject?.totals.modules ?? subject.strands.reduce((sum, strand) => sum + strand.modules.length, 0);
                     const subjectLessonCount = visibleSubject?.totals.lessons ?? subject.strands.reduce((sum, strand) => sum + strand.modules.reduce((moduleSum, module) => moduleSum + module.lessons.length, 0), 0);
                     return (
@@ -910,13 +933,13 @@ export function CurriculumCanvas({
                     >
                       {copiedState === 'copied' ? 'Copied node link' : 'Copy share link'}
                     </button>
-                    <Link href={`/content?subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                    <Link href={`/content?subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                       Open module board
                     </Link>
                     <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
                       Add lesson in module
                     </Link>
-                    <Link href={`/content?view=blocked&subject=${selected.subject.id}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
+                    <Link href={`/content?view=blocked&subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
                       Clear this blocker stack
                     </Link>
                   </div>
@@ -1374,7 +1397,7 @@ function CanvasEmptyState({ failedSources, compact = false, searchAware = false 
             { label: 'Open content board', href: '/content', note: 'See the full curriculum library and filter by module, subject, or blockers.', background: '#ffffff', color: '#0f172a' },
             { label: 'Create a lesson', href: '/content/lessons/new?from=%2Fcanvas', note: 'Jump straight into authoring instead of waiting for the graph to fill in.', background: '#4F46E5', color: '#ffffff' },
             { label: 'Review blockers', href: '/content?view=blocked', note: 'Find modules missing ready lessons or assessment gates.', background: '#FEF3C7', color: '#92400E' },
-            { label: 'Open assessments', href: '/assessments', note: 'Manage progression gates and release readiness from the real board.', background: '#EDE9FE', color: '#5B21B6' },
+            { label: 'Open assessments', href: assessmentBoardHref({}), note: 'Manage progression gates and release readiness from the live content board.', background: '#EDE9FE', color: '#5B21B6' },
           ].map((item) => (
             <div key={item.label} style={{ padding: 16, borderRadius: 20, background: 'rgba(15,23,42,0.72)', border: '1px solid rgba(148,163,184,0.16)', display: 'grid', gap: 12 }}>
               <div style={{ color: '#e2e8f0', fontWeight: 800 }}>{item.label}</div>
@@ -1420,7 +1443,7 @@ function AssessmentNode({ assessment, selected, onInspect, returnPath }: { asses
       <div style={{ color: '#cbd5e1', lineHeight: 1.5 }}>{assessmentLabel(assessment)}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={onInspect} style={{ ...filterButtonStyle, background: selected ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>{selected ? 'Inspecting now' : 'Inspect gate'}</button>
-        <Link href={`/assessments?from=${encodeURIComponent(returnPath)}`} style={{ color: '#ddd6fe', fontWeight: 800, textDecoration: 'none' }}>Open assessments →</Link>
+        <Link href={assessmentBoardHref({ from: returnPath })} style={{ color: '#ddd6fe', fontWeight: 800, textDecoration: 'none' }}>Open assessments →</Link>
       </div>
     </div>
   );
@@ -1524,7 +1547,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
                   </div>
                   <div style={{ color: '#cbd5e1', lineHeight: 1.6, fontSize: 14 }}>{assessmentLabel(assessment)}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(assessment.title)}`} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
+                    <Link href={assessmentBoardHref({ subjectId, query: assessment.title })} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
                       Open gate search →
                     </Link>
                     <form action={quickLinkCanvasLessonAssessmentAction}>
@@ -1621,7 +1644,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
         <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link>
         <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link>
-        <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(lesson.assessmentTitle ?? lesson.title)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
+        <Link href={assessmentBoardHref({ subjectId, query: lesson.assessmentTitle ?? lesson.title })} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
       </div>
     </ModalShell>
   );
@@ -1710,9 +1733,9 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
       </form>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        <Link href={`/assessments?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
-        <Link href={`/content?subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
-        <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
+        <Link href={assessmentBoardHref({ subjectId, moduleId: assessment.moduleId ?? undefined, query: moduleTitle })} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>
+        <Link href={`/content?subject=${encodeURIComponent(subjectId)}${assessment.moduleId ? `&moduleId=${encodeURIComponent(assessment.moduleId)}` : ''}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Open related module work</Link>
+        <Link href={`/content?view=blocked&subject=${encodeURIComponent(subjectId)}${assessment.moduleId ? `&moduleId=${encodeURIComponent(assessment.moduleId)}` : ''}&q=${encodeURIComponent(moduleTitle)}`} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>See blockers around this gate</Link>
       </div>
     </ModalShell>
   );

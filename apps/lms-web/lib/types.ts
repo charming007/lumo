@@ -287,6 +287,29 @@ export type LessonActivityChoice = {
   media?: LessonActivityMedia | null;
 };
 
+export type LessonActivityDragItem = {
+  id: string;
+  label: string;
+  targetId: string;
+  media?: LessonActivityMedia | null;
+};
+
+export type LessonActivityDragTarget = {
+  id: string;
+  prompt: string;
+  media?: LessonActivityMedia | null;
+};
+
+export type LessonAudioReference = {
+  source?: 'asset' | 'phrase-bank';
+  assetId?: string;
+  value?: string;
+  phraseId?: string;
+  phraseText?: string;
+  label?: string;
+  notes?: string;
+};
+
 export type LessonActivityStep = {
   id: string;
   type: string;
@@ -296,9 +319,15 @@ export type LessonActivityStep = {
   durationMinutes?: number;
   detail?: string;
   evidence?: string;
+  targetText?: string;
+  supportText?: string;
+  targetAudio?: LessonAudioReference | null;
+  supportAudio?: LessonAudioReference | null;
   expectedAnswers?: string[];
   media?: LessonActivityMedia[];
   choices?: LessonActivityChoice[];
+  dragItems?: LessonActivityDragItem[];
+  dragTargets?: LessonActivityDragTarget[];
   tags?: string[];
   facilitatorNotes?: string[];
 };
@@ -324,7 +353,18 @@ export type Lesson = {
   targetAgeRange?: string | null;
   voicePersona?: string | null;
   learningObjectives?: string[];
-  localization?: Record<string, unknown> | null;
+  localization?: {
+    locale?: string;
+    supportLanguage?: string;
+    supportLanguageLabel?: string;
+    targetLanguage?: string;
+    targetLanguageLabel?: string;
+    defaultStepSupportText?: string;
+    defaultStepSupportAudio?: LessonAudioReference | null;
+    lessonTargetAudio?: LessonAudioReference | null;
+    notes?: string[];
+    [key: string]: unknown;
+  } | null;
   lessonAssessment?: {
     title?: string;
     kind?: string;

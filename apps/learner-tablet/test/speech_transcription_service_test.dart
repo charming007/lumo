@@ -10,6 +10,8 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     this.failInitializeAttempts = 0,
     this.failInitializeError = 'not available',
     this.failListenAttempts = 0,
+    this.listenStarts = true,
+    this.deferListeningStateUntilStatus = false,
     this.emitTranscriptOnListen,
   });
 
@@ -17,11 +19,14 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   int failInitializeAttempts;
   String failInitializeError;
   int failListenAttempts;
+  bool listenStarts;
+  bool deferListeningStateUntilStatus;
   void Function(void Function(String transcript, bool isFinal) onResult)?
-      emitTranscriptOnListen;
+  emitTranscriptOnListen;
   int listenCalls = 0;
   bool _isListening = false;
   void Function(String errorMsg)? _onError;
+  void Function(String status)? _onStatus;
 
   @override
   bool get isListening => _isListening;
@@ -33,6 +38,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
     bool debugLogging = false,
   }) async {
     _onError = onError;
+    _onStatus = onStatus;
     onStatus('initialized');
     if (failInitializeAttempts > 0) {
       failInitializeAttempts -= 1;
@@ -43,7 +49,7 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
   }
 
   @override
-  Future<void> listen({
+  Future<bool> listen({
     required void Function(String transcript, bool isFinal) onResult,
     required SpeechListenOptions options,
     required Duration pauseFor,
@@ -54,8 +60,20 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
       failListenAttempts -= 1;
       throw Exception('not available');
     }
-    _isListening = true;
-    emitTranscriptOnListen?.call(onResult);
+    if (deferListeningStateUntilStatus && listenStarts) {
+      _isListening = false;
+      Future.microtask(() {
+        _isListening = true;
+        _onStatus?.call('listening');
+        emitTranscriptOnListen?.call(onResult);
+      });
+      return true;
+    }
+    _isListening = listenStarts;
+    if (_isListening) {
+      emitTranscriptOnListen?.call(onResult);
+    }
+    return _isListening;
   }
 
   @override
@@ -74,32 +92,25 @@ class FakeSpeechRecognitionEngine implements SpeechRecognitionEngine {
 }
 
 void main() {
-  test('blocks force-retry briefly after repeated transcript engine failures',
-      () async {
-    final engine = FakeSpeechRecognitionEngine(failListenAttempts: 6);
-    final service = SpeechTranscriptionService(engine: engine);
+  test(
+    'blocks force-retry briefly after repeated transcript engine failures',
+    () async {
+      final engine = FakeSpeechRecognitionEngine(failListenAttempts: 6);
+      final service = SpeechTranscriptionService(engine: engine);
 
-    expect(
-      await service.start(onResult: (_, __) {}),
-      isFalse,
-    );
-    expect(
-      await service.start(onResult: (_, __) {}),
-      isFalse,
-    );
-    expect(
-      await service.start(onResult: (_, __) {}),
-      isFalse,
-    );
+      expect(await service.start(onResult: (_, __) {}), isFalse);
+      expect(await service.start(onResult: (_, __) {}), isFalse);
+      expect(await service.start(onResult: (_, __) {}), isFalse);
 
-    final listenCallsBeforeCooldownRetry = engine.listenCalls;
-    final ready = await service.initialize(forceRetry: true);
+      final listenCallsBeforeCooldownRetry = engine.listenCalls;
+      final ready = await service.initialize(forceRetry: true);
 
-    expect(ready, isFalse);
-    expect(service.lastStatus, 'retry-blocked');
-    expect(service.lastError, contains('cooling down'));
-    expect(engine.listenCalls, listenCallsBeforeCooldownRetry);
-  });
+      expect(ready, isFalse);
+      expect(service.lastStatus, 'retry-blocked');
+      expect(service.lastError, contains('cooling down'));
+      expect(engine.listenCalls, listenCallsBeforeCooldownRetry);
+    },
+  );
 
   test('blocks force-retry after repeated initialize failures too', () async {
     final engine = FakeSpeechRecognitionEngine(failInitializeAttempts: 3);
@@ -128,76 +139,151 @@ void main() {
   });
 
   test(
-      'runtime-style transcript errors expose cooldown guidance with remaining time',
-      () async {
-    final engine = FakeSpeechRecognitionEngine(
-      failInitializeAttempts: 3,
-      failInitializeError: 'network timeout',
-    );
-    final service = SpeechTranscriptionService(engine: engine);
+    'accepts async web-style listen start before isListening flips true',
+    () async {
+      final engine = FakeSpeechRecognitionEngine(
+        listenStarts: true,
+        deferListeningStateUntilStatus: true,
+        emitTranscriptOnListen: (onResult) => onResult('na gode', true),
+      );
+      final service = SpeechTranscriptionService(engine: engine);
+      final seenResults = <String>[];
 
-    expect(await service.initialize(forceRetry: true), isFalse);
-    expect(await service.initialize(forceRetry: true), isFalse);
-    expect(await service.initialize(forceRetry: true), isFalse);
+      expect(
+        await service.start(
+          onResult: (transcript, _) => seenResults.add(transcript),
+        ),
+        isTrue,
+      );
 
-    expect(service.isInRetryCooldown, isTrue);
-    expect(service.availabilityLabel, contains('Retry cooldown'));
-    expect(service.availabilityLabel, contains('manual confirmation'));
-    expect(service.lastError, contains('cooling down'));
-  });
+      await Future<void>.microtask(() {});
 
-  test('surfaces runtime transcript errors through the live onError callback',
-      () async {
-    final engine = FakeSpeechRecognitionEngine();
-    final service = SpeechTranscriptionService(engine: engine);
-    final seenErrors = <String>[];
+      expect(service.isAvailable, isTrue);
+      expect(seenResults, contains('na gode'));
+      expect(service.activeModeLabel, isNot('Audio fallback review'));
+    },
+  );
 
-    expect(
-      await service.start(
-        onResult: (_, __) {},
-        onError: seenErrors.add,
-      ),
-      isTrue,
-    );
+  test(
+    'runtime-style transcript errors expose cooldown guidance with remaining time',
+    () async {
+      final engine = FakeSpeechRecognitionEngine(
+        failInitializeAttempts: 3,
+        failInitializeError: 'network timeout',
+      );
+      final service = SpeechTranscriptionService(engine: engine);
 
-    engine.emitRuntimeError('microphone unavailable');
+      expect(await service.initialize(forceRetry: true), isFalse);
+      expect(await service.initialize(forceRetry: true), isFalse);
+      expect(await service.initialize(forceRetry: true), isFalse);
 
-    expect(seenErrors, isNotEmpty);
-    expect(seenErrors.last, contains('microphone became unavailable'));
-    expect(service.lastError, contains('microphone became unavailable'));
-  });
+      expect(service.isInRetryCooldown, isTrue);
+      expect(service.availabilityLabel, contains('Retry cooldown'));
+      expect(service.availabilityLabel, contains('manual confirmation'));
+      expect(service.lastError, contains('cooling down'));
+    },
+  );
 
-  test('explains when the browser does not expose speech recognition', () async {
-    final engine = FakeSpeechRecognitionEngine();
-    final service = SpeechTranscriptionService(
-      engine: engine,
-      inspectWebRuntime: () => const WebSpeechRuntimeSupport(
-        isSpeechRecognitionExposed: false,
-        isSecureContext: true,
-        isOnline: true,
-        userAgent: 'Firefox',
-      ),
-    );
+  test(
+    'surfaces runtime transcript errors through the live onError callback',
+    () async {
+      final engine = FakeSpeechRecognitionEngine();
+      final service = SpeechTranscriptionService(engine: engine);
+      final seenErrors = <String>[];
 
-    expect(await service.initialize(forceRetry: true), isFalse);
-    expect(service.lastStatus, 'web-runtime-blocked');
-    expect(service.lastError, contains('does not expose live speech recognition'));
-  });
+      expect(
+        await service.start(onResult: (_, __) {}, onError: seenErrors.add),
+        isTrue,
+      );
 
-  test('explains when browser transcript is blocked by insecure context', () async {
-    final engine = FakeSpeechRecognitionEngine();
-    final service = SpeechTranscriptionService(
-      engine: engine,
-      inspectWebRuntime: () => const WebSpeechRuntimeSupport(
-        isSpeechRecognitionExposed: true,
-        isSecureContext: false,
-        isOnline: true,
-        userAgent: 'Chrome',
-      ),
-    );
+      engine.emitRuntimeError('microphone unavailable');
 
-    expect(await service.initialize(forceRetry: true), isFalse);
-    expect(service.lastStatus, 'web-runtime-blocked');
-    expect(service.lastError, contains('secure HTTPS context'));
-  });
+      expect(seenErrors, isNotEmpty);
+      expect(seenErrors.last, contains('microphone became unavailable'));
+      expect(service.lastError, contains('microphone became unavailable'));
+    },
+  );
+
+  test(
+    'treats a silent listen start failure as unavailable instead of active',
+    () async {
+      final engine = FakeSpeechRecognitionEngine(listenStarts: false);
+      final service = SpeechTranscriptionService(engine: engine);
+      final seenErrors = <String>[];
+
+      expect(
+        await service.start(onResult: (_, __) {}, onError: seenErrors.add),
+        isFalse,
+      );
+
+      expect(service.isAvailable, isFalse);
+      expect(service.activeModeLabel, 'Audio fallback review');
+      expect(service.lastError, contains('never actually started listening'));
+      expect(seenErrors.last, contains('never actually started listening'));
+    },
+  );
+
+  test(
+    'explains when the browser does not expose speech recognition',
+    () async {
+      final engine = FakeSpeechRecognitionEngine();
+      final service = SpeechTranscriptionService(
+        engine: engine,
+        inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+          isSpeechRecognitionExposed: false,
+          isSecureContext: true,
+          isOnline: true,
+          userAgent: 'Firefox',
+        ),
+      );
+
+      expect(await service.initialize(forceRetry: true), isFalse);
+      expect(service.lastStatus, 'web-runtime-blocked');
+      expect(
+        service.lastError,
+        contains('does not expose live speech recognition'),
+      );
+    },
+  );
+
+  test(
+    'allows web transcript when speech api is exposed even if mediaDevices probe is missing',
+    () async {
+      final engine = FakeSpeechRecognitionEngine();
+      final service = SpeechTranscriptionService(
+        engine: engine,
+        inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+          isSpeechRecognitionExposed: true,
+          isSecureContext: true,
+          isOnline: true,
+          userAgent: 'Chrome',
+          hasMediaDevices: false,
+          hasGetUserMedia: false,
+        ),
+      );
+
+      expect(await service.initialize(forceRetry: true), isTrue);
+      expect(service.isAvailable, isTrue);
+    },
+  );
+
+  test(
+    'explains when browser transcript is blocked by insecure context',
+    () async {
+      final engine = FakeSpeechRecognitionEngine();
+      final service = SpeechTranscriptionService(
+        engine: engine,
+        inspectWebRuntime: () => const WebSpeechRuntimeSupport(
+          isSpeechRecognitionExposed: true,
+          isSecureContext: false,
+          isOnline: true,
+          userAgent: 'Chrome',
+        ),
+      );
+
+      expect(await service.initialize(forceRetry: true), isFalse);
+      expect(service.lastStatus, 'web-runtime-blocked');
+      expect(service.lastError, contains('secure HTTPS context'));
+    },
+  );
 }

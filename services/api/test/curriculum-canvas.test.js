@@ -195,6 +195,44 @@ test('canvas mutation endpoints create, update, reorder, and move curriculum nod
   assert.equal(createModule.status, 201, JSON.stringify(createModule.body));
   const moduleId = createModule.body.created.id;
 
+  const secondModule = await request('/api/v1/curriculum/canvas/children', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      parentType: 'strand',
+      parentId: createdStrandId,
+      childType: 'module',
+      title: 'Story Lab',
+      level: 'beginner',
+    }),
+  });
+
+  assert.equal(secondModule.status, 201, JSON.stringify(secondModule.body));
+
+  const reorderModules = await request('/api/v1/curriculum/canvas/reorder', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      parentType: 'strand',
+      parentId: createdStrandId,
+      nodeType: 'module',
+      orderedIds: [secondModule.body.created.id, moduleId],
+    }),
+  });
+
+  assert.equal(reorderModules.status, 201, JSON.stringify(reorderModules.body));
+  assert.deepEqual(reorderModules.body.items.map((item) => item.id), [secondModule.body.created.id, moduleId]);
+
+  const strandFocus = await request(`/api/v1/curriculum/canvas/focus/strand/${createdStrandId}`);
+  assert.equal(strandFocus.status, 200);
+  assert.deepEqual(strandFocus.body.children.filter((item) => item.nodeType === 'module').map((item) => item.id), [secondModule.body.created.id, moduleId]);
+
   const createLesson = await request('/api/v1/curriculum/canvas/children', {
     method: 'POST',
     headers: {
@@ -320,5 +358,74 @@ test('canvas mutation endpoints create, update, reorder, and move curriculum nod
   assert.equal(moved.body.updated.subjectId, 'math');
   assert.equal(store.listModules().find((entry) => entry.id === sourceModule.id).lessonCount >= 0, true);
   assert.equal(store.listModules().find((entry) => entry.id === targetModule.id).lessonCount >= 1, true);
+});
+
+test('lesson endpoints accept drag-to-match activities and preserve them on round-trip fetch', async () => {
+  const subject = store.listSubjects()[0];
+  const module = store.listModules().find((entry) => entry.subjectId === subject.id) || store.listModules()[0];
+
+  const created = await request('/api/v1/lessons', {
+    method: 'POST',
+    headers: {
+      'x-lumo-role': 'admin',
+      'x-lumo-actor': 'Canvas Admin',
+    },
+    body: JSON.stringify({
+      subjectId: subject.id,
+      moduleId: module.id,
+      title: 'Drag-match draft',
+      durationMinutes: 9,
+      mode: 'guided',
+      status: 'draft',
+      lessonAssessment: {
+        title: 'Quick drag check',
+        kind: 'observational',
+        items: [{ id: 'assessment-1', prompt: 'Match each card to its target.', evidence: 'teacher-check' }],
+      },
+      activitySteps: [{
+        id: 'step-1',
+        type: 'drag_to_match',
+        prompt: 'Match each picture to the correct word.',
+        detail: 'Learners drag the image cards into the right buckets.',
+        order: 1,
+        expectedAnswers: ['sun → weather', 'soap → hygiene'],
+        tags: ['drag-match', 'vocabulary'],
+        facilitatorNotes: ['Model one drag before independent turns.'],
+        choices: [],
+        media: [],
+        dragItems: [
+          { id: 'item-1', label: 'Sun', targetId: 'target-1', media: { kind: 'image', value: 'asset://sun-card' } },
+          { id: 'item-2', label: 'Soap', targetId: 'target-2', media: { kind: 'image', value: 'asset://soap-card' } },
+        ],
+        dragTargets: [
+          { id: 'target-1', prompt: 'Weather', media: { kind: 'image', value: 'asset://weather-bucket' } },
+          { id: 'target-2', prompt: 'Hygiene', media: { kind: 'image', value: 'asset://hygiene-bucket' } },
+        ],
+      }],
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.ok(created.body.id);
+  assert.equal(created.body.activitySteps?.[0]?.type, 'drag_to_match');
+  assert.equal(created.body.activitySteps?.[0]?.dragItems?.length, 2);
+  assert.equal(created.body.activitySteps?.[0]?.dragTargets?.length, 2);
+
+  const fetched = await request(`/api/v1/lessons/${created.body.id}`);
+  assert.equal(fetched.status, 200, JSON.stringify(fetched.body));
+  assert.equal(fetched.body.id, created.body.id);
+  assert.equal(fetched.body.activitySteps?.[0]?.type, 'drag_to_match');
+  assert.deepEqual(
+    fetched.body.activitySteps?.[0]?.dragItems?.map((item) => ({ id: item.id, targetId: item.targetId })),
+    [
+      { id: 'item-1', targetId: 'target-1' },
+      { id: 'item-2', targetId: 'target-2' },
+    ],
+  );
+  assert.deepEqual(
+    fetched.body.activitySteps?.[0]?.dragTargets?.map((item) => item.prompt),
+    ['Weather', 'Hygiene'],
+  );
+  assert.deepEqual(fetched.body.activitySteps?.[0]?.facilitatorNotes, ['Model one drag before independent turns.']);
 });
 

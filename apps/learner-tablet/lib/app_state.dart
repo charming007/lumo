@@ -12,23 +12,38 @@ import 'bundled_content.dart';
 import 'dialogue.dart';
 import 'models.dart';
 import 'seed_data.dart';
+import 'support_language.dart';
 
-typedef VoiceReplay = Future<void> Function(String text, SpeakerMode mode);
+typedef VoiceReplay = Future<void> Function(
+  String text,
+  SpeakerMode mode, {
+  String? supportLanguage,
+});
 typedef VoiceReplayStop = Future<void> Function();
 
-const bool kEnableSeedDemoContent =
-    bool.fromEnvironment('LUMO_ENABLE_SEED_DEMO_CONTENT');
+const bool kEnableSeedDemoContent = bool.fromEnvironment(
+  'LUMO_ENABLE_SEED_DEMO_CONTENT',
+);
 const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
-const String kConfiguredDeviceIdentifier =
-    String.fromEnvironment('LUMO_DEVICE_IDENTIFIER');
+const bool kEnableQaLessonUnlockToggle = !kReleaseBuild &&
+    (bool.fromEnvironment('LUMO_ENABLE_QA_LESSON_UNLOCK_TOGGLE') ||
+        bool.fromEnvironment('FLUTTER_TEST'));
+const bool kEnableQaCompletionResetToggle = !kReleaseBuild &&
+    (bool.fromEnvironment('LUMO_ENABLE_QA_COMPLETION_RESET_TOGGLE') ||
+        bool.fromEnvironment('FLUTTER_TEST'));
+const String kConfiguredDeviceIdentifier = String.fromEnvironment(
+  'LUMO_DEVICE_IDENTIFIER',
+);
 const String _kPersistenceStorageKey = 'lumo_learner_tablet_state_v1';
 const String _kPersistenceSchemaVersion = '2026-04-13-runtime-persist';
 const Duration _kTrustedOfflineSnapshotMaxAge = Duration(hours: 24);
 const Duration _kOperatorSyncStaleThreshold = Duration(minutes: 30);
 const Duration _kOperatorRosterStaleThreshold = Duration(hours: 6);
 
-bool isLearnerVisibleLessonStatus(String status,
-    {required bool usingFallbackData}) {
+bool isLearnerVisibleLessonStatus(
+  String status, {
+  required bool usingFallbackData,
+}) {
   final normalizedStatus = status.trim().toLowerCase();
   if (normalizedStatus.isEmpty) return true;
   if (normalizedStatus == 'published' ||
@@ -99,8 +114,9 @@ class LumoAppState {
         _bundledContentLoader =
             bundledContentLoader ?? const BundledContentLoader(),
         _includeSeedDemoContent = includeSeedDemoContent,
-        _configuredDeviceIdentifier =
-            _normalizeDeviceIdentifier(configuredDeviceIdentifier) {
+        _configuredDeviceIdentifier = _normalizeDeviceIdentifier(
+          configuredDeviceIdentifier,
+        ) {
     _apiClient.deviceIdentifier = _configuredDeviceIdentifier;
     tabletDeviceIdentifier = _configuredDeviceIdentifier;
     _primeInitialContentOrigins();
@@ -114,6 +130,7 @@ class LumoAppState {
   VoiceReplayStop? voiceReplayStop;
   Timer? _syncRetryTimer;
   Timer? _persistenceDebounce;
+  int _syncEventNonce = 0;
   final Set<VoidCallback> _listeners = <VoidCallback>{};
 
   LearnerProfile? currentLearner;
@@ -124,6 +141,8 @@ class LumoAppState {
   RegistrationContext registrationContext = const RegistrationContext();
   String? tabletDeviceIdentifier;
   Map<String, dynamic>? pendingRecoveredSessionSnapshot;
+
+  MallamSupportLanguage mallamSupportLanguage = MallamSupportLanguage.hausa;
 
   final List<SyncEvent> pendingSyncEvents = [];
   late final List<LearnerProfile> learners = List.of(
@@ -142,6 +161,18 @@ class LumoAppState {
       rewardRedemptionHistoryByLearnerId = {};
   final Map<String, ContentOrigin> _moduleContentOrigins = {};
   final Map<String, ContentOrigin> _lessonContentOrigins = {};
+
+  bool qaLessonUnlockEnabled = false;
+  bool forceQaLessonUnlockAvailabilityForTesting = false;
+  bool forceQaCompletionResetAvailabilityForTesting = false;
+
+  bool get canUseQaLessonUnlock =>
+      kEnableQaLessonUnlockToggle || forceQaLessonUnlockAvailabilityForTesting;
+  bool get canUseQaCompletionReset =>
+      kEnableQaCompletionResetToggle ||
+      forceQaCompletionResetAvailabilityForTesting;
+  bool get isQaLessonUnlockActive =>
+      canUseQaLessonUnlock && qaLessonUnlockEnabled;
 
   bool isBootstrapping = false;
   bool isRegisteringLearner = false;
@@ -171,11 +202,26 @@ class LumoAppState {
 
   String get backendBaseUrl => _apiClient.baseUrl;
   String? get stableDeviceIdentifier => tabletDeviceIdentifier;
+  bool get usesHausaMallamSupport =>
+      mallamSupportLanguage == MallamSupportLanguage.hausa;
+
+  void setMallamSupportLanguage(MallamSupportLanguage language) {
+    if (mallamSupportLanguage == language) return;
+    mallamSupportLanguage = language;
+    persistStateSoon();
+    _notifyListeners();
+  }
 
   static String? _normalizeDeviceIdentifier(String? raw) {
     final trimmed = raw?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     return trimmed;
+  }
+
+  String _nextSyncEventId() {
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final nonce = _syncEventNonce++;
+    return 'sync-$timestamp-$nonce';
   }
 
   void attachVoiceReplay(VoiceReplay replay, {VoiceReplayStop? onStop}) {
@@ -204,10 +250,11 @@ class LumoAppState {
   Future<void> replayVisiblePrompt(
     String prompt, {
     SpeakerMode mode = SpeakerMode.guiding,
+    String? supportLanguage,
   }) async {
     final trimmed = prompt.trim();
     if (trimmed.isEmpty) return;
-    await voiceReplay?.call(trimmed, mode);
+    await voiceReplay?.call(trimmed, mode, supportLanguage: supportLanguage);
   }
 
   SyncEvent? get latestSyncEvent =>
@@ -258,13 +305,22 @@ class LumoAppState {
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
     if (_includeSeedDemoContent) return null;
 
-    final hasLearnerVisibleLessons = data.lessons.any(
-      (lesson) => isLearnerVisibleLessonStatus(
-        lesson.status,
-        usingFallbackData: false,
-      ),
+    final learnerVisibleLessons = data.lessons.where(
+      (lesson) =>
+          isLearnerVisibleLessonStatus(lesson.status, usingFallbackData: false),
     );
+    final hasLearnerVisibleLessons = learnerVisibleLessons.isNotEmpty;
+    final launchableLessonIds = learnerVisibleLessons
+        .where((lesson) => lesson.steps.isNotEmpty)
+        .map((lesson) => lesson.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final hasLaunchableLearnerLesson = launchableLessonIds.isNotEmpty;
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
+    final hasAssignmentWithLaunchableLesson = data.assignmentPacks.any((pack) {
+      final lessonId = pack.lessonId.trim();
+      return lessonId.isNotEmpty && launchableLessonIds.contains(lessonId);
+    });
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
 
@@ -274,6 +330,13 @@ class LumoAppState {
       return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
     }
 
+    if (!hasLaunchableLearnerLesson &&
+        hasLiveAssignments &&
+        hasVisibleCurriculumShell &&
+        !hasAssignmentWithLaunchableLesson) {
+      return 'Production bootstrap returned assignments, but none of them resolve to a real learner-launchable lesson payload on this tablet yet. Learners would only see sync-pending placeholder cards and hit a dead-end flow.';
+    }
+
     final scopedRegistration = data.registrationContext.tabletRegistration;
     if (scopedRegistration == null) {
       final hasRegistrationRouting = data.registrationContext.isReady ||
@@ -281,13 +344,6 @@ class LumoAppState {
       final explicitUnregisteredBootstrap = _apiClient.runtimeType
           .toString()
           .contains('UnregisteredTabletBootstrapApiClient');
-
-      if (hasRegistrationRouting &&
-          (hasLearnerVisibleLessons || hasLiveAssignments) &&
-          !explicitUnregisteredBootstrap) {
-        return null;
-      }
-
       if (!kReleaseBuild &&
           !hasRegistrationRouting &&
           !explicitUnregisteredBootstrap) {
@@ -304,11 +360,24 @@ class LumoAppState {
     return null;
   }
 
+  int get pendingLocalFallbackRegistrationCount => pendingSyncEvents
+      .where((event) => event.type == 'learner_registered_local_fallback')
+      .length;
+
+  bool get hasPendingLocalFallbackRegistration =>
+      pendingLocalFallbackRegistrationCount > 0;
+
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
     if (latest == null) return 'No pending sync events.';
     final learnerCode =
         latest.payload['learnerCode']?.toString() ?? 'Unknown learner';
+    if (hasPendingLocalFallbackRegistration) {
+      final count = pendingLocalFallbackRegistrationCount;
+      return count == 1
+          ? '1 learner registration still needs backend sync before the roster is trustworthy.'
+          : '$count learner registrations still need backend sync before the roster is trustworthy.';
+    }
     return '${latest.type.replaceAll('_', ' ')} pending for $learnerCode';
   }
 
@@ -363,18 +432,22 @@ class LumoAppState {
     return _lessonContentOrigins[lesson.id.trim()] ??
         (_isBundledFundamentalsLesson(lesson)
             ? ContentOrigin.bundledOfflinePack
-            : usingFallbackData && restoredFromPersistence
-                ? ContentOrigin.localCache
-                : ContentOrigin.seedDemoFallback);
+            : !usingFallbackData
+                ? ContentOrigin.liveBackend
+                : restoredFromPersistence
+                    ? ContentOrigin.localCache
+                    : ContentOrigin.seedDemoFallback);
   }
 
   ContentOrigin moduleOriginFor(LearningModule module) {
     return _moduleContentOrigins[module.id.trim()] ??
-        (restoredFromPersistence && usingFallbackData
-            ? ContentOrigin.localCache
-            : module.badge.toLowerCase().contains('bundled')
-                ? ContentOrigin.bundledOfflinePack
-                : ContentOrigin.seedDemoFallback);
+        (!usingFallbackData
+            ? ContentOrigin.liveBackend
+            : restoredFromPersistence
+                ? ContentOrigin.localCache
+                : module.badge.toLowerCase().contains('bundled')
+                    ? ContentOrigin.bundledOfflinePack
+                    : ContentOrigin.seedDemoFallback);
   }
 
   ContentSourceStatus sourceStatusForLesson(LessonCardModel lesson) {
@@ -400,14 +473,18 @@ class LumoAppState {
   bool get hasBundledOfflinePack {
     final hasBundledLessons = assignedLessons.any(_isBundledFundamentalsLesson);
     if (hasBundledLessons) return true;
-    if (_moduleContentOrigins.values.any((origin) =>
-        origin == ContentOrigin.bundledOfflinePack ||
-        origin == ContentOrigin.seedDemoFallback)) {
+    if (_moduleContentOrigins.values.any(
+      (origin) =>
+          origin == ContentOrigin.bundledOfflinePack ||
+          origin == ContentOrigin.seedDemoFallback,
+    )) {
       return true;
     }
-    if (_lessonContentOrigins.values.any((origin) =>
-        origin == ContentOrigin.bundledOfflinePack ||
-        origin == ContentOrigin.seedDemoFallback)) {
+    if (_lessonContentOrigins.values.any(
+      (origin) =>
+          origin == ContentOrigin.bundledOfflinePack ||
+          origin == ContentOrigin.seedDemoFallback,
+    )) {
       return true;
     }
     return modules.any((module) {
@@ -598,8 +675,9 @@ class LumoAppState {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return;
       final snapshot = Map<String, dynamic>.from(decoded);
-      final persistedDeviceIdentifier =
-          _readNullableString(snapshot['tabletDeviceIdentifier']);
+      final persistedDeviceIdentifier = _readNullableString(
+        snapshot['tabletDeviceIdentifier'],
+      );
       final effectiveDeviceIdentifier =
           _configuredDeviceIdentifier ?? persistedDeviceIdentifier;
       if (snapshot['schemaVersion']?.toString() != _kPersistenceSchemaVersion) {
@@ -617,8 +695,9 @@ class LumoAppState {
       tabletDeviceIdentifier = effectiveDeviceIdentifier;
       _apiClient.deviceIdentifier = effectiveDeviceIdentifier;
 
-      var restoredRegistrationContext =
-          _decodeRegistrationContext(snapshot['registrationContext']);
+      var restoredRegistrationContext = _decodeRegistrationContext(
+        snapshot['registrationContext'],
+      );
       final restoredLearners = (snapshot['learners'] as List?)
               ?.whereType<Map>()
               .map((item) => _decodeLearner(Map<String, dynamic>.from(item)))
@@ -636,10 +715,15 @@ class LumoAppState {
           const <LessonCardModel>[];
       final restoredAssignmentPacks = (snapshot['assignmentPacks'] as List?)
               ?.whereType<Map>()
-              .map((item) => LearnerAssignmentPack.fromJson(
-                  Map<String, dynamic>.from(item)))
+              .map(
+                (item) => LearnerAssignmentPack.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
               .toList() ??
           const <LearnerAssignmentPack>[];
+
+      final restoringFallbackData = snapshot['usingFallbackData'] != false;
 
       final restoredScopedLearners = _normalizeLearnersToRegistrationContext(
         _learnersWithinTabletPodScope(
@@ -671,20 +755,25 @@ class LumoAppState {
         );
       _moduleContentOrigins
         ..clear()
-        ..addAll(((snapshot['moduleContentOrigins'] as Map?) ?? const {})
-            .map((key, value) => MapEntry(
-                  key.toString(),
-                  ContentOrigin.values.firstWhere(
-                    (item) => item.name == value?.toString(),
-                    orElse: () => ContentOrigin.localCache,
-                  ),
-                )));
+        ..addAll(
+          ((snapshot['moduleContentOrigins'] as Map?) ?? const {}).map(
+            (key, value) => MapEntry(
+              key.toString(),
+              ContentOrigin.values.firstWhere(
+                (item) => item.name == value?.toString(),
+                orElse: () => ContentOrigin.localCache,
+              ),
+            ),
+          ),
+        );
       if (_moduleContentOrigins.isEmpty) {
         _setModuleOrigins(
           modules,
           restoredModules.isEmpty && _includeSeedDemoContent
               ? ContentOrigin.seedDemoFallback
-              : ContentOrigin.localCache,
+              : restoringFallbackData
+                  ? ContentOrigin.localCache
+                  : ContentOrigin.liveBackend,
         );
       }
       assignedLessons
@@ -698,20 +787,25 @@ class LumoAppState {
         );
       _lessonContentOrigins
         ..clear()
-        ..addAll(((snapshot['lessonContentOrigins'] as Map?) ?? const {})
-            .map((key, value) => MapEntry(
-                  key.toString(),
-                  ContentOrigin.values.firstWhere(
-                    (item) => item.name == value?.toString(),
-                    orElse: () => ContentOrigin.localCache,
-                  ),
-                )));
+        ..addAll(
+          ((snapshot['lessonContentOrigins'] as Map?) ?? const {}).map(
+            (key, value) => MapEntry(
+              key.toString(),
+              ContentOrigin.values.firstWhere(
+                (item) => item.name == value?.toString(),
+                orElse: () => ContentOrigin.localCache,
+              ),
+            ),
+          ),
+        );
       if (_lessonContentOrigins.isEmpty) {
         _setLessonOrigins(
           assignedLessons,
           restoredLessons.isEmpty && _includeSeedDemoContent
               ? ContentOrigin.seedDemoFallback
-              : ContentOrigin.localCache,
+              : restoringFallbackData
+                  ? ContentOrigin.localCache
+                  : ContentOrigin.liveBackend,
         );
       }
       assignmentPacks
@@ -719,19 +813,21 @@ class LumoAppState {
         ..addAll(restoredAssignmentPacks);
       pendingSyncEvents
         ..clear()
-        ..addAll((snapshot['pendingSyncEvents'] as List?)
-                ?.whereType<Map>()
-                .map((item) {
-              final map = Map<String, dynamic>.from(item);
-              return SyncEvent(
-                id: map['id']?.toString() ?? 'sync-event',
-                type: map['type']?.toString() ?? 'unknown',
-                payload: map['payload'] is Map
-                    ? Map<String, dynamic>.from(map['payload'])
-                    : const <String, dynamic>{},
-              );
-            }).toList() ??
-            const <SyncEvent>[]);
+        ..addAll(
+          (snapshot['pendingSyncEvents'] as List?)?.whereType<Map>().map((
+                item,
+              ) {
+                final map = Map<String, dynamic>.from(item);
+                return SyncEvent(
+                  id: map['id']?.toString() ?? 'sync-event',
+                  type: map['type']?.toString() ?? 'unknown',
+                  payload: map['payload'] is Map
+                      ? Map<String, dynamic>.from(map['payload'])
+                      : const <String, dynamic>{},
+                );
+              }).toList() ??
+              const <SyncEvent>[],
+        );
 
       final persistedRecentRuntimeSessions =
           (snapshot['recentRuntimeSessionsByLearnerId'] as Map?) ??
@@ -739,32 +835,45 @@ class LumoAppState {
               const {};
       recentRuntimeSessionsByLearnerId
         ..clear()
-        ..addAll(persistedRecentRuntimeSessions.map((key, value) {
-          final sessions = (value as List?)
-                  ?.whereType<Map>()
-                  .map((item) => BackendLessonSession.fromJson(
-                      Map<String, dynamic>.from(item)))
-                  .toList() ??
-              const <BackendLessonSession>[];
-          return MapEntry(key.toString(), sessions);
-        }));
+        ..addAll(
+          persistedRecentRuntimeSessions.map((key, value) {
+            final sessions = (value as List?)
+                    ?.whereType<Map>()
+                    .map(
+                      (item) => BackendLessonSession.fromJson(
+                        Map<String, dynamic>.from(item),
+                      ),
+                    )
+                    .toList() ??
+                const <BackendLessonSession>[];
+            return MapEntry(key.toString(), sessions);
+          }),
+        );
 
       final persistedRewardHistory =
           (snapshot['rewardRedemptionHistoryByLearnerId'] as Map?) ?? const {};
       rewardRedemptionHistoryByLearnerId
         ..clear()
-        ..addAll(persistedRewardHistory.map((key, value) {
-          final history = (value as List?)
-                  ?.whereType<Map>()
-                  .map((item) => RewardRedemptionRecord.fromJson(
-                      Map<String, dynamic>.from(item)))
-                  .toList() ??
-              const <RewardRedemptionRecord>[];
-          return MapEntry(key.toString(), history);
-        }));
+        ..addAll(
+          persistedRewardHistory.map((key, value) {
+            final history = (value as List?)
+                    ?.whereType<Map>()
+                    .map(
+                      (item) => RewardRedemptionRecord.fromJson(
+                        Map<String, dynamic>.from(item),
+                      ),
+                    )
+                    .toList() ??
+                const <RewardRedemptionRecord>[];
+            return MapEntry(key.toString(), history);
+          }),
+        );
 
-      registrationDraft =
-          _decodeRegistrationDraft(snapshot['registrationDraft']);
+      registrationDraft = _decodeRegistrationDraft(
+        snapshot['registrationDraft'],
+      );
+      qaLessonUnlockEnabled =
+          canUseQaLessonUnlock && snapshot['qaLessonUnlockEnabled'] == true;
       registrationContext = restoredRegistrationContext;
       learners.retainWhere(learnerMatchesTabletPod);
       usingFallbackData = snapshot['usingFallbackData'] != false;
@@ -776,12 +885,14 @@ class LumoAppState {
       lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
       snapshotSavedAt = _parseDate(snapshot['savedAt']);
       snapshotSourceBaseUrl = _readNullableString(snapshot['sourceBaseUrl']);
-      snapshotContractVersion =
-          _readNullableString(snapshot['snapshotContractVersion']);
+      snapshotContractVersion = _readNullableString(
+        snapshot['snapshotContractVersion'],
+      );
       snapshotTrustedFromLiveBootstrap =
           snapshot['snapshotTrustedFromLiveBootstrap'] == true;
-      backendContractVersion =
-          _readNullableString(snapshot['backendContractVersion']);
+      backendContractVersion = _readNullableString(
+        snapshot['backendContractVersion'],
+      );
       backendAssignmentCount = _asInt(snapshot['backendAssignmentCount']) ?? 0;
       lastSyncAcceptedCount = _asInt(snapshot['lastSyncAcceptedCount']) ?? 0;
       lastSyncIgnoredCount = _asInt(snapshot['lastSyncIgnoredCount']) ?? 0;
@@ -793,8 +904,13 @@ class LumoAppState {
               .toList() ??
           const <String>[];
       lastSyncError = _readNullableString(snapshot['lastSyncError']);
-      learnerRuntimeError =
-          _readNullableString(snapshot['learnerRuntimeError']);
+      learnerRuntimeError = _readNullableString(
+        snapshot['learnerRuntimeError'],
+      );
+      mallamSupportLanguage = MallamSupportLanguage.values.firstWhere(
+        (value) => value.code == snapshot['mallamSupportLanguage']?.toString(),
+        orElse: () => MallamSupportLanguage.hausa,
+      );
       snapshotSavedAt =
           _parseDate(snapshot['snapshotSavedAt']) ?? snapshotSavedAt;
 
@@ -803,15 +919,58 @@ class LumoAppState {
           (activeSessionRaw is Map
               ? _readNullableString(activeSessionRaw['currentLearnerId'])
               : null);
-      currentLearner =
-          learners.where((item) => item.id == learnerId).firstOrNull;
+      final learnerCode = _readNullableString(snapshot['currentLearnerCode']) ??
+          (activeSessionRaw is Map
+              ? _readNullableString(activeSessionRaw['currentLearnerCode'])
+              : null);
+      currentLearner = _resolvePersistedLearnerMatch(
+        persistedLearnerId: learnerId,
+        persistedLearnerCode: learnerCode,
+      );
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
-      activeSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSession = _decodeActiveSession(activeSessionRaw);
+      final recoveredSessionCanWaitForSync =
+          recoveredSession != null &&
+          _shouldKeepRecoveredSessionPendingUntilSync(recoveredSession);
+      final recoveredSessionUnsafe =
+          recoveredSession != null &&
+          currentLearner != null &&
+          !recoveredSessionCanWaitForSync &&
+          !_isRecoveredSessionSafeToResume(
+            learner: currentLearner,
+            session: recoveredSession,
+          );
+      activeSession = recoveredSessionUnsafe || recoveredSessionCanWaitForSync
+          ? null
+          : recoveredSession;
+      if (activeSession != null && currentLearner == null) {
+        activeSession = null;
+      }
+      final recoveredCompletionState = _readNullableString(
+        activeSessionRaw is Map ? activeSessionRaw['completionState'] : null,
+      )?.trim().toLowerCase();
+      final recoveredSessionMissingLessonPayload =
+          recoveredSession == null &&
+          recoveredCompletionState != 'complete' &&
+          recoveredCompletionState != 'completed';
+      final recoveredSessionShouldStayPending =
+          recoveredSessionCanWaitForSync ||
+          recoveredSessionMissingLessonPayload ||
+          (recoveredSession != null && currentLearner == null);
       pendingRecoveredSessionSnapshot =
-          activeSession == null && activeSessionRaw is Map
+          activeSessionRaw is Map &&
+                  activeSession == null &&
+                  recoveredSessionShouldStayPending
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
+      final recoveredLessonIsPlaceholder =
+          recoveredSession?.lesson.isAssignmentPlaceholder == true;
+      if ((recoveredCompletionState == 'complete' ||
+              recoveredCompletionState == 'completed') &&
+          recoveredLessonIsPlaceholder) {
+        pendingRecoveredSessionSnapshot = null;
+      }
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
       deploymentBlockerReason =
           hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
@@ -857,19 +1016,28 @@ class LumoAppState {
     try {
       final data = await _apiClient.fetchBootstrap();
       registrationContext = data.registrationContext;
+      final persistedLearners = List<LearnerProfile>.from(learners);
       final existingLearnersById = {
-        for (final learner in learners) learner.id: learner,
+        for (final learner in persistedLearners) learner.id: learner,
       };
       final existingLearnersByCode = {
-        for (final learner in learners)
+        for (final learner in persistedLearners)
           if (learner.learnerCode.trim().isNotEmpty)
             learner.learnerCode: learner,
       };
+      final existingLearnersByFingerprint = {
+        for (final learner in persistedLearners)
+          if (_learnerIdentityFingerprint(learner) case final fingerprint?)
+            fingerprint: learner,
+      };
+      final bootstrapLearnerSource = data.learners.isEmpty &&
+              _includeSeedDemoContent &&
+              !_hasTabletPodScope(registrationContext: registrationContext)
+          ? learnerProfilesSeed
+          : data.learners;
       final bootstrapLearners = _normalizeLearnersToRegistrationContext(
         _learnersWithinTabletPodScope(
-          data.learners.isEmpty && _includeSeedDemoContent
-              ? learnerProfilesSeed
-              : data.learners,
+          bootstrapLearnerSource,
           registrationContext: registrationContext,
         ),
         registrationContext: registrationContext,
@@ -885,7 +1053,9 @@ class LumoAppState {
               .map(
                 (learner) => _mergeLearnerProfile(
                   existingLearner: existingLearnersById[learner.id] ??
-                      existingLearnersByCode[learner.learnerCode],
+                      existingLearnersByCode[learner.learnerCode] ??
+                      existingLearnersByFingerprint[
+                          _learnerIdentityFingerprint(learner)],
                   incomingLearner: learner,
                 ),
               )
@@ -935,18 +1105,12 @@ class LumoAppState {
       assignmentPacks
         ..clear()
         ..addAll(data.assignmentPacks);
-      final liveBootstrapRuntimeBlocker =
-          _liveBootstrapRuntimeBlockerReason(data);
-      usingFallbackData = liveBootstrapRuntimeBlocker != null;
+      usingFallbackData = false;
       acknowledgedOfflineFallbackRisk = false;
-      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
-      backendError = liveBootstrapRuntimeBlocker;
-      lastSyncedAt = DateTime.now();
-      lastSyncAttemptAt = lastSyncedAt;
-      snapshotSavedAt = lastSyncedAt;
-      snapshotSourceBaseUrl = backendBaseUrl;
-      snapshotContractVersion = data.contractVersion;
-      snapshotTrustedFromLiveBootstrap = true;
+      deploymentBlockerReason = null;
+      backendError = null;
+      final bootstrapRecordedAt = DateTime.now();
+      lastSyncAttemptAt = bootstrapRecordedAt;
       backendGeneratedAt = data.generatedAt == null
           ? null
           : DateTime.tryParse(data.generatedAt!);
@@ -955,15 +1119,39 @@ class LumoAppState {
       lastSyncError = null;
 
       await _hydrateModuleBundles(mergedModules);
+      final liveBootstrapRuntimeBlocker = _liveBootstrapRuntimeBlockerReason(
+        LumoBootstrap(
+          learners: List<LearnerProfile>.from(learners),
+          modules: List<LearningModule>.from(modules),
+          lessons: List<LessonCardModel>.from(assignedLessons),
+          assignmentPacks: List<LearnerAssignmentPack>.from(assignmentPacks),
+          registrationContext: registrationContext,
+          generatedAt: data.generatedAt,
+          contractVersion: data.contractVersion,
+          assignmentCount: data.assignmentCount,
+        ),
+      );
+      usingFallbackData = liveBootstrapRuntimeBlocker != null;
+      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
+      backendError = liveBootstrapRuntimeBlocker;
+      if (liveBootstrapRuntimeBlocker == null) {
+        lastSyncedAt = bootstrapRecordedAt;
+        snapshotSavedAt = bootstrapRecordedAt;
+        snapshotSourceBaseUrl = backendBaseUrl;
+        snapshotContractVersion = data.contractVersion;
+        snapshotTrustedFromLiveBootstrap = true;
+      }
+      await _mergeBundledOfflineContent();
 
+      _rekeyLearnerScopedCaches(persistedLearners, learners);
       if (learners.isNotEmpty) {
-        final existingLearnerId = currentLearner?.id;
-        currentLearner = existingLearnerId == null
-            ? null
-            : learners.cast<LearnerProfile?>().firstWhere(
-                  (item) => item?.id == existingLearnerId,
-                  orElse: () => null,
-                );
+        currentLearner = _resolvePersistedLearnerMatch(
+          persistedLearnerId: currentLearner?.id,
+          persistedLearnerCode: currentLearner?.learnerCode,
+          persistedLearnerFingerprint: currentLearner == null
+              ? null
+              : _learnerIdentityFingerprint(currentLearner!),
+        );
         if (currentLearner != null) {
           unawaited(refreshLearnerRuntimeSessions(currentLearner!));
         }
@@ -996,6 +1184,7 @@ class LumoAppState {
     } finally {
       isBootstrapping = false;
       persistStateSoon();
+      _attemptSyncSoon();
     }
   }
 
@@ -1038,10 +1227,7 @@ class LumoAppState {
         ..clear()
         ..addAll(
           _dedupeModules(
-            _sanitizeModules([
-              ...existingModules,
-              ...bundled.modules,
-            ]),
+            _sanitizeModules([...existingModules, ...bundled.modules]),
           ),
         );
       for (final module in bundled.modules) {
@@ -1068,9 +1254,7 @@ class LumoAppState {
 
       assignedLessons
         ..clear()
-        ..addAll(
-          _sanitizeLessons(mergedLessonMap.values.toList()),
-        );
+        ..addAll(_sanitizeLessons(mergedLessonMap.values.toList()));
     } catch (_) {
       // Bundled starter content is optional. If it fails, the tablet should keep going.
     }
@@ -1080,8 +1264,9 @@ class LumoAppState {
     if (usingFallbackData || sourceModules.isEmpty) return;
 
     final hydratedModules = <LearningModule>[];
-    final baselineLessons =
-        _sanitizeLessons(List<LessonCardModel>.from(assignedLessons));
+    final baselineLessons = _sanitizeLessons(
+      List<LessonCardModel>.from(assignedLessons),
+    );
     final lessonsByModule = <String, List<LessonCardModel>>{};
 
     for (final lesson in baselineLessons) {
@@ -1180,10 +1365,7 @@ class LumoAppState {
         .where((lesson) => !hydratedIds.contains(lesson.id.trim()))
         .toList();
 
-    return [
-      ...preservedBaseline.reversed,
-      ...mergedHydrated,
-    ];
+    return [...preservedBaseline.reversed, ...mergedHydrated];
   }
 
   List<LessonCardModel> _sanitizeLessons(List<LessonCardModel> source) {
@@ -1341,8 +1523,9 @@ class LumoAppState {
   String? get tabletPodId => _tabletPodIdFor(registrationContext);
 
   bool _hasTabletPodScope({RegistrationContext? registrationContext}) {
-    final podId =
-        _tabletPodIdFor(registrationContext ?? this.registrationContext);
+    final podId = _tabletPodIdFor(
+      registrationContext ?? this.registrationContext,
+    );
     return podId != null && podId.isNotEmpty;
   }
 
@@ -1356,10 +1539,12 @@ class LumoAppState {
         .map((cohort) => normalize(cohort.podId))
         .whereType<String>()
         .toSet();
-    final tabletRegistrationPodId =
-        normalize(registrationContext.tabletRegistration?.podId);
-    final defaultTargetPodId =
-        normalize(registrationContext.defaultTarget?.cohort.podId);
+    final tabletRegistrationPodId = normalize(
+      registrationContext.tabletRegistration?.podId,
+    );
+    final defaultTargetPodId = normalize(
+      registrationContext.defaultTarget?.cohort.podId,
+    );
 
     if (tabletRegistrationPodId != null &&
         (scopedCohortPodIds.isEmpty ||
@@ -1390,13 +1575,28 @@ class LumoAppState {
     if (podId == null || podId.isEmpty) {
       return source.toList(growable: false);
     }
+
+    final sourceList = source.toList(growable: false);
     final canonicalPodLabel = _tabletPodLabelFor(
       scopedRegistrationContext,
-      source: source,
+      source: sourceList,
     );
-    return source
+    final learnersWithScopedPod = sourceList
         .where((learner) => learner.podId?.trim() == podId)
-        .map((learner) {
+        .toList(growable: false);
+
+    final hasExplicitPodScope = sourceList.any(
+      (learner) => learner.podId?.trim().isNotEmpty == true,
+    );
+    final scopedLearners = learnersWithScopedPod.isNotEmpty
+        ? learnersWithScopedPod
+        : sourceList.isEmpty
+            ? const <LearnerProfile>[]
+            : !hasExplicitPodScope
+                ? sourceList
+                : const <LearnerProfile>[];
+
+    return scopedLearners.map((learner) {
       final resolvedPodLabel = canonicalPodLabel ?? learner.podLabel;
       final villageLooksPodScoped = learner.village.trim().isEmpty ||
           learner.village.trim() == learner.podLabel?.trim();
@@ -1435,23 +1635,12 @@ class LumoAppState {
     final tabletRegistration = registrationContext.tabletRegistration;
     if (tabletRegistration == null) return registrationContext;
 
-    final canonicalPodLabel =
-        _canonicalTabletPodLabelFromLearners(source, registrationContext);
+    final canonicalPodLabel = _canonicalTabletPodLabelFromLearners(
+      source,
+      registrationContext,
+    );
     final currentPodLabel = tabletRegistration.podLabel?.trim();
     if (canonicalPodLabel == null || canonicalPodLabel == currentPodLabel) {
-      return registrationContext;
-    }
-
-    final canonicalPodId = _tabletPodIdFor(registrationContext)?.trim();
-    final registrationPodId = tabletRegistration.podId?.trim();
-    final registrationPodDisagreesWithScope = canonicalPodId != null &&
-        canonicalPodId.isNotEmpty &&
-        registrationPodId != null &&
-        registrationPodId.isNotEmpty &&
-        registrationPodId != canonicalPodId;
-    if (registrationPodDisagreesWithScope &&
-        currentPodLabel != null &&
-        currentPodLabel.isNotEmpty) {
       return registrationContext;
     }
 
@@ -1470,21 +1659,6 @@ class LumoAppState {
     );
   }
 
-  bool _looksGenericPodOrdinalLabel(String? value) {
-    final normalized = value?.trim().toLowerCase();
-    if (normalized == null || normalized.isEmpty) return false;
-    return RegExp(r'^pod(?:\s+|[-_/])?\d+[a-z]?$').hasMatch(normalized);
-  }
-
-  bool _podOrdinalLabelMatchesPodId(String label, String? podId) {
-    final normalizedPodId = podId?.trim().toLowerCase();
-    if (normalizedPodId == null || normalizedPodId.isEmpty) return false;
-    final labelMatch = RegExp(r'(\d+[a-z]?)').firstMatch(label.toLowerCase());
-    final podIdMatch = RegExp(r'(\d+[a-z]?)').firstMatch(normalizedPodId);
-    if (labelMatch == null || podIdMatch == null) return false;
-    return labelMatch.group(1) == podIdMatch.group(1);
-  }
-
   String? _tabletPodLabelFor(
     RegistrationContext registrationContext, {
     Iterable<LearnerProfile>? source,
@@ -1499,29 +1673,27 @@ class LumoAppState {
     );
 
     if (registrationLabel != null && registrationLabel.isNotEmpty) {
-      if (canonicalPodId == null ||
+      String normalizeToken(String value) =>
+          value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+      final scopedPodId = canonicalPodId ?? registrationPodId;
+      final registrationPodMatchesScope = canonicalPodId == null ||
           canonicalPodId.isEmpty ||
           registrationPodId == null ||
           registrationPodId.isEmpty ||
-          registrationPodId != canonicalPodId) {
+          registrationPodId == canonicalPodId;
+      final registrationLooksCanonical = scopedPodId != null &&
+          scopedPodId.isNotEmpty &&
+          normalizeToken(registrationLabel) == normalizeToken(scopedPodId);
+
+      if (!registrationPodMatchesScope || registrationLooksCanonical) {
         return registrationLabel;
       }
       if (canonicalLearnerPodLabel != null &&
           canonicalLearnerPodLabel.isNotEmpty) {
-        final registrationLooksCanonical =
-            _looksGenericPodOrdinalLabel(registrationLabel) &&
-                _podOrdinalLabelMatchesPodId(registrationLabel, canonicalPodId);
-        final learnerLooksMismatchedGeneric =
-            _looksGenericPodOrdinalLabel(canonicalLearnerPodLabel) &&
-                !_podOrdinalLabelMatchesPodId(
-                  canonicalLearnerPodLabel,
-                  canonicalPodId,
-                );
-        if (registrationLooksCanonical && learnerLooksMismatchedGeneric) {
-          return registrationLabel;
-        }
+        return canonicalLearnerPodLabel;
       }
-      return canonicalLearnerPodLabel ?? registrationLabel;
+      return registrationLabel;
     }
 
     if (canonicalLearnerPodLabel != null &&
@@ -1564,34 +1736,58 @@ class LumoAppState {
   bool learnerMatchesTabletPod(LearnerProfile learner) {
     final podId = tabletPodId?.trim();
     if (podId == null || podId.isEmpty) return true;
+
     final learnerPodId = learner.podId?.trim();
-    if (learnerPodId == null || learnerPodId.isEmpty) return false;
-    return learnerPodId == podId;
+    if (learnerPodId != null && learnerPodId.isNotEmpty) {
+      return learnerPodId == podId;
+    }
+
+    String normalizeToken(String value) =>
+        value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+    final tabletLabel = tabletPodLabel?.trim();
+    final learnerLabel = learner.podLabel?.trim();
+    if (tabletLabel != null &&
+        tabletLabel.isNotEmpty &&
+        learnerLabel != null &&
+        learnerLabel.isNotEmpty) {
+      return normalizeToken(tabletLabel) == normalizeToken(learnerLabel);
+    }
+
+    return false;
+  }
+
+  bool _lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
+    return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
-    if (lessonCompletedTodayForLearner(learner, lesson)) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }
-    if (lesson.isAssignmentPlaceholder) {
-      return learnerMatchesTabletPod(learner);
+    if (isQaLessonUnlockActive) {
+      return _canQaUnlockLessonForLearner(learner, lesson);
+    }
+    if (lessonCompletedForLearner(learner, lesson)) {
+      return false;
     }
     if (!_isPublishedLearnerLesson(lesson)) return false;
     if (!learnerMatchesTabletPod(learner)) return false;
 
     final resumable = resumableLessonForLearner(learner);
     if (resumable?.id == lesson.id) return true;
+    if (lessonLockedForLearner(learner, lesson)) return false;
 
-    final backendAssigned = backendAssignedLessonsForLearner(learner)
-        .where((item) => !item.isAssignmentPlaceholder)
-        .toList(growable: false);
+    final backendAssigned = backendAssignedLessonsForLearner(
+      learner,
+    ).where((item) => !item.isAssignmentPlaceholder).toList(growable: false);
     if (backendAssigned.any((item) => item.id == lesson.id)) {
       return true;
     }
 
-    final learnerLessons = lessonsForLearner(learner)
-        .where((item) => !item.isAssignmentPlaceholder)
-        .toList(growable: false);
+    final learnerLessons = lessonsForLearner(
+      learner,
+    ).where((item) => !item.isAssignmentPlaceholder).toList(growable: false);
     return learnerLessons.any((item) => item.id == lesson.id);
   }
 
@@ -1606,10 +1802,12 @@ class LumoAppState {
         return leftResumable ? -1 : 1;
       }
 
-      final leftAssigned = backendAssignedLessonsForLearner(left)
-          .any((item) => item.id == lesson.id);
-      final rightAssigned = backendAssignedLessonsForLearner(right)
-          .any((item) => item.id == lesson.id);
+      final leftAssigned = backendAssignedLessonsForLearner(
+        left,
+      ).any((item) => item.id == lesson.id);
+      final rightAssigned = backendAssignedLessonsForLearner(
+        right,
+      ).any((item) => item.id == lesson.id);
       if (leftAssigned != rightAssigned) {
         return leftAssigned ? -1 : 1;
       }
@@ -1634,13 +1832,33 @@ class LumoAppState {
     return session.lessonId == lesson.id ? session : null;
   }
 
+  bool _sessionMatchesLesson(
+    BackendLessonSession session,
+    LessonCardModel lesson,
+  ) {
+    if (session.lessonId == lesson.id) return true;
+
+    final resolvedLesson = lessonForBackendSession(session);
+    if (resolvedLesson?.id == lesson.id) return true;
+
+    final normalizedSessionTitle =
+        (session.lessonTitle ?? '').trim().toLowerCase();
+    final normalizedLessonTitle = lesson.title.trim().toLowerCase();
+    if (normalizedSessionTitle.isNotEmpty &&
+        normalizedSessionTitle == normalizedLessonTitle) {
+      return true;
+    }
+
+    return false;
+  }
+
   BackendLessonSession? completedSessionForLearnerAndLesson(
     LearnerProfile learner,
     LessonCardModel lesson,
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.lessonId != lesson.id) continue;
+      if (!_sessionMatchesLesson(session, lesson)) continue;
       final normalizedStatus = session.status.trim().toLowerCase();
       final normalizedCompletion = session.completionState.trim().toLowerCase();
       final completed = normalizedStatus == 'completed' ||
@@ -1657,18 +1875,8 @@ class LumoAppState {
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.lessonId != lesson.id) continue;
-      final normalizedStatus = session.status.trim().toLowerCase();
-      final normalizedCompletion = session.completionState.trim().toLowerCase();
-      final isTerminal = normalizedStatus == 'completed' ||
-          normalizedStatus == 'absent' ||
-          normalizedStatus == 'skipped' ||
-          normalizedCompletion == 'completed' ||
-          normalizedCompletion == 'complete' ||
-          normalizedCompletion == 'absent' ||
-          normalizedCompletion == 'skipped' ||
-          normalizedCompletion == 'skip';
-      if (isTerminal) return session;
+      if (!_sessionMatchesLesson(session, lesson)) continue;
+      if (_isTerminalRuntimeSession(session)) return session;
     }
     return null;
   }
@@ -1688,10 +1896,130 @@ class LumoAppState {
         activityAt.day == now.day;
   }
 
+  bool lessonCompletedForLearner(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) =>
+      completedSessionForLearnerAndLesson(learner, lesson) != null;
+
+  List<LessonCardModel> lessonProgressionPathForLearnerAndModule(
+    LearnerProfile learner,
+    String moduleId,
+  ) {
+    return lessonsForLearnerAndModule(learner, moduleId)
+        .where((lesson) => !_lessonRequiresSyncBeforeStarting(lesson))
+        .toList(growable: false);
+  }
+
+  LessonCardModel? nextProgressionLessonForLearnerInModule(
+    LearnerProfile learner,
+    String moduleId, {
+    String? excludingLessonId,
+  }) {
+    for (final lesson in lessonProgressionPathForLearnerAndModule(
+      learner,
+      moduleId,
+    )) {
+      if (lesson.id == excludingLessonId) continue;
+      if (lessonCompletedForLearner(learner, lesson)) continue;
+      return lesson;
+    }
+    return null;
+  }
+
+  bool lessonLockedForLearner(LearnerProfile learner, LessonCardModel lesson) {
+    if (isQaLessonUnlockActive) return false;
+    if (lesson.isAssignmentPlaceholder) return false;
+    if (!_isPublishedLearnerLesson(lesson)) return false;
+
+    final resumable = resumableLessonForLearner(learner);
+    if (resumable?.id == lesson.id) return false;
+    if (lessonCompletedForLearner(learner, lesson)) return false;
+
+    final nextLesson = nextProgressionLessonForLearnerInModule(
+      learner,
+      lesson.moduleId,
+    );
+    if (nextLesson == null) return false;
+    return nextLesson.id != lesson.id;
+  }
+
+  bool _canQaUnlockLessonForLearner(
+    LearnerProfile learner,
+    LessonCardModel lesson,
+  ) {
+    if (_lessonRequiresSyncBeforeStarting(lesson)) {
+      return false;
+    }
+    return _isPublishedLearnerLesson(lesson) &&
+        learnerMatchesTabletPod(learner);
+  }
+
+  void setQaLessonUnlockEnabled(bool enabled) {
+    if (!canUseQaLessonUnlock) return;
+    if (qaLessonUnlockEnabled == enabled) return;
+    qaLessonUnlockEnabled = enabled;
+    persistStateSoon();
+    _notifyListeners();
+  }
+
+  int clearCompletedTodayForLearner(LearnerProfile learner) {
+    if (!canUseQaCompletionReset) return 0;
+
+    final existingSessions = recentRuntimeSessionsByLearnerId[learner.id];
+    if (existingSessions == null || existingSessions.isEmpty) return 0;
+
+    final now = DateTime.now();
+    var removedCount = 0;
+    final retainedSessions = <BackendLessonSession>[];
+    for (final session in existingSessions) {
+      final normalizedStatus = session.status.trim().toLowerCase();
+      final normalizedCompletion = session.completionState.trim().toLowerCase();
+      final isCompleted = normalizedStatus == 'completed' ||
+          normalizedCompletion == 'completed' ||
+          normalizedCompletion == 'complete';
+      final activityAt =
+          session.completedAt ?? session.lastActivityAt ?? session.startedAt;
+      final completedToday = activityAt != null &&
+          activityAt.year == now.year &&
+          activityAt.month == now.month &&
+          activityAt.day == now.day;
+      if (isCompleted && completedToday) {
+        removedCount += 1;
+        continue;
+      }
+      retainedSessions.add(session);
+    }
+
+    if (removedCount == 0) return 0;
+
+    if (retainedSessions.isEmpty) {
+      recentRuntimeSessionsByLearnerId.remove(learner.id);
+    } else {
+      recentRuntimeSessionsByLearnerId[learner.id] = retainedSessions;
+    }
+
+    if (currentLearner?.id == learner.id &&
+        activeSession?.completionState == LessonCompletionState.complete) {
+      activeSession = null;
+      pendingRecoveredSessionSnapshot = null;
+    }
+
+    persistStateSoon();
+    _notifyListeners();
+    return removedCount;
+  }
+
   Future<void> markLearnerAbsentForLesson(
     LearnerProfile learner,
     LessonCardModel lesson,
   ) async {
+    if (lesson.isAssignmentPlaceholder) {
+      throw StateError(
+        'Cannot mark ${learner.name} absent for ${lesson.id} because the live lesson payload has not synced to this tablet yet.',
+      );
+    }
+
     _projectTerminalRuntimeSession(
       learner: learner,
       lesson: lesson,
@@ -1709,7 +2037,7 @@ class LumoAppState {
     _replaceLearner(updatedLearner);
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_marked_absent',
         payload: {
           'studentId': updatedLearner.id,
@@ -1726,9 +2054,35 @@ class LumoAppState {
   }
 
   void selectLearner(LearnerProfile learner) {
-    currentLearner = learner;
+    var resolvedLearner = learner;
+    if (learnerMatchesTabletPod(learner)) {
+      final scopedPodId = tabletPodId?.trim();
+      final scopedPodLabel = tabletPodLabel?.trim();
+      final needsPodId = (resolvedLearner.podId?.trim().isEmpty ?? true) &&
+          scopedPodId != null &&
+          scopedPodId.isNotEmpty;
+      final needsPodLabel =
+          (resolvedLearner.podLabel?.trim().isEmpty ?? true) &&
+              scopedPodLabel != null &&
+              scopedPodLabel.isNotEmpty;
+      if (needsPodId || needsPodLabel) {
+        resolvedLearner = resolvedLearner.copyWith(
+          podId: needsPodId ? scopedPodId : resolvedLearner.podId,
+          podLabel: needsPodLabel ? scopedPodLabel : resolvedLearner.podLabel,
+          village: (resolvedLearner.village.trim().isEmpty &&
+                  scopedPodLabel != null &&
+                  scopedPodLabel.isNotEmpty)
+              ? scopedPodLabel
+              : resolvedLearner.village,
+        );
+        _replaceLearner(resolvedLearner);
+      }
+    }
+
+    currentLearner = resolvedLearner;
     persistStateSoon();
-    unawaited(refreshLearnerRuntimeSessions(learner));
+    _notifyListeners();
+    unawaited(refreshLearnerRuntimeSessions(resolvedLearner));
   }
 
   void selectModule(LearningModule module) {
@@ -1738,10 +2092,16 @@ class LumoAppState {
 
   bool _isPublishedLearnerLesson(LessonCardModel lesson) {
     if (lesson.isAssignmentPlaceholder) return false;
-    return isLearnerVisibleLessonStatus(
+    if (!isLearnerVisibleLessonStatus(
       lesson.status,
       usingFallbackData: usingFallbackData,
-    );
+    )) {
+      return false;
+    }
+    if (usingFallbackData) {
+      return true;
+    }
+    return lessonOriginFor(lesson) == ContentOrigin.liveBackend;
   }
 
   String _normalizeSubjectKey(String value) {
@@ -1750,7 +2110,46 @@ class LumoAppState {
     return normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
   }
 
+  bool _normalizedSubjectKeysOverlap(String left, String right) {
+    if (left.isEmpty || right.isEmpty) return false;
+    if (left == right) return true;
+    return left.startsWith('$right-') ||
+        left.endsWith('-$right') ||
+        left.contains('-$right-') ||
+        right.startsWith('$left-') ||
+        right.endsWith('-$left') ||
+        right.contains('-$left-');
+  }
+
+  LearningModule? _tapToActCanonicalSubjectModuleForLesson(
+    LessonCardModel lesson,
+  ) {
+    final normalizedSubject = _normalizeSubjectKey(lesson.subject);
+    if (!normalizedSubject.contains('tap-to-act')) return null;
+
+    final matches = modules.where((module) {
+      final normalizedTitle = _normalizeSubjectKey(module.title);
+      final normalizedId = _normalizeSubjectKey(module.id);
+      return _normalizedSubjectKeysOverlap(
+              normalizedSubject, normalizedTitle) ||
+          _normalizedSubjectKeysOverlap(normalizedSubject, normalizedId);
+    }).toList(growable: false);
+
+    if (matches.isEmpty) return null;
+    matches
+        .sort((left, right) => left.title.length.compareTo(right.title.length));
+    return matches.first;
+  }
+
   String _subjectTitleForLesson(LessonCardModel lesson) {
+    final canonicalTapToActModule = _tapToActCanonicalSubjectModuleForLesson(
+      lesson,
+    );
+    final canonicalTitle = canonicalTapToActModule?.title.trim();
+    if (canonicalTitle != null && canonicalTitle.isNotEmpty) {
+      return canonicalTitle;
+    }
+
     final directSubject = lesson.subject.trim();
     if (directSubject.isNotEmpty) return directSubject;
 
@@ -1778,15 +2177,12 @@ class LumoAppState {
         .map((lesson) => lesson.moduleId.trim())
         .where((moduleId) => moduleId.isNotEmpty)
         .toSet();
-    final matchingModule = modules.cast<LearningModule?>().firstWhere(
-      (module) {
-        if (module == null) return false;
-        return lessonModuleIds.contains(module.id) ||
-            _normalizeSubjectKey(module.title) == key ||
-            _normalizeSubjectKey(module.id) == key;
-      },
-      orElse: () => null,
-    );
+    final matchingModule = modules.cast<LearningModule?>().firstWhere((module) {
+      if (module == null) return false;
+      return lessonModuleIds.contains(module.id) ||
+          _normalizeSubjectKey(module.title) == key ||
+          _normalizeSubjectKey(module.id) == key;
+    }, orElse: () => null);
     final lessonCount = lessons.length;
     return LearningModule(
       id: key,
@@ -1806,9 +2202,8 @@ class LumoAppState {
       return assignedLessons;
     }
 
-    final scopedLearners = learners.where(learnerMatchesTabletPod).toList(
-          growable: false,
-        );
+    final scopedLearners =
+        learners.where(learnerMatchesTabletPod).toList(growable: false);
     if (scopedLearners.isEmpty) {
       return const <LessonCardModel>[];
     }
@@ -1829,6 +2224,11 @@ class LumoAppState {
         addLesson(lesson);
       }
       addLesson(resumableLessonForLearner(learner));
+      for (final lesson in assignedLessons) {
+        if (!_isPublishedLearnerLesson(lesson)) continue;
+        if (!lessonCompletedForLearner(learner, lesson)) continue;
+        addLesson(lesson);
+      }
     }
     if (orderedLessons.isNotEmpty) {
       return orderedLessons;
@@ -1847,21 +2247,56 @@ class LumoAppState {
       return orderedLessons;
     }
 
-    if (usingFallbackData) {
-      for (final learner in scopedLearners) {
-        for (final lesson in lessonsForLearner(learner)) {
-          addLesson(lesson);
-        }
+    for (final learner in scopedLearners) {
+      for (final lesson in lessonsForLearner(learner)) {
+        addLesson(lesson);
+      }
+    }
+    if (orderedLessons.isNotEmpty) {
+      return orderedLessons;
+    }
+
+    for (final lesson in assignedLessons) {
+      if (!_isPublishedLearnerLesson(lesson)) continue;
+      if (scopedLearners.any(
+        (learner) => learnerCanOpenLesson(learner, lesson),
+      )) {
+        addLesson(lesson);
       }
     }
 
     return orderedLessons;
   }
 
+  List<LessonCardModel> _learnerVisibilityLessons(LearnerProfile learner) {
+    final visibleLessons = <LessonCardModel>[];
+    final seenLessonIds = <String>{};
+
+    void addLesson(LessonCardModel lesson) {
+      final lessonId = lesson.id.trim();
+      if (lessonId.isEmpty || seenLessonIds.contains(lessonId)) return;
+      visibleLessons.add(lesson);
+      seenLessonIds.add(lessonId);
+    }
+
+    for (final lesson in lessonsForLearner(learner)) {
+      addLesson(lesson);
+    }
+
+    for (final lesson in assignedLessons) {
+      if (!_isPublishedLearnerLesson(lesson)) continue;
+      if (!learnerMatchesTabletPod(learner)) continue;
+      if (!lessonCompletedForLearner(learner, lesson)) continue;
+      addLesson(lesson);
+    }
+
+    return visibleLessons;
+  }
+
   List<LearningModule> learnerFacingSubjects({LearnerProfile? learner}) {
     final lessonPool = learner == null
         ? _registeredContextLessonPool()
-        : lessonsForLearner(learner);
+        : _learnerVisibilityLessons(learner);
     final groupedLessons = <String, List<LessonCardModel>>{};
     final subjectTitles = <String, String>{};
 
@@ -1894,11 +2329,13 @@ class LumoAppState {
     final normalizedSubjectId = _normalizeSubjectKey(subjectId);
     final lessonPool = learner == null
         ? _registeredContextLessonPool()
-        : lessonsForLearner(learner);
+        : _learnerVisibilityLessons(learner);
     return lessonPool.where((lesson) {
       if (!_isPublishedLearnerLesson(lesson)) return false;
-      return _normalizeSubjectKey(_subjectTitleForLesson(lesson)) ==
-          normalizedSubjectId;
+      final lessonSubjectId =
+          _normalizeSubjectKey(_subjectTitleForLesson(lesson));
+      return lessonSubjectId == normalizedSubjectId ||
+          _normalizedSubjectKeysOverlap(lessonSubjectId, normalizedSubjectId);
     }).toList(growable: false);
   }
 
@@ -1944,10 +2381,7 @@ class LumoAppState {
   Set<String> _moduleKeyVariants(LearningModule module) {
     String normalize(String value) => value.trim().toLowerCase();
 
-    final variants = <String>{
-      normalize(module.id),
-      normalize(module.title),
-    };
+    final variants = <String>{normalize(module.id), normalize(module.title)};
 
     for (final lesson in assignedLessons) {
       if (normalize(lesson.moduleId) == normalize(module.id)) {
@@ -2003,8 +2437,9 @@ class LumoAppState {
 
     return [
       ...backendAssigned,
-      ...rankedFallback
-          .where((lesson) => !backendLessonIds.contains(lesson.id)),
+      ...rankedFallback.where(
+        (lesson) => !backendLessonIds.contains(lesson.id),
+      ),
     ];
   }
 
@@ -2018,7 +2453,7 @@ class LumoAppState {
     );
 
     final lessonsById = {
-      for (final lesson in assignedLessons) lesson.id: lesson
+      for (final lesson in assignedLessons) lesson.id: lesson,
     };
     final ordered = <LessonCardModel>[];
     final seen = <String>{};
@@ -2145,7 +2580,11 @@ class LumoAppState {
           orElse: () => null,
         );
 
-    return lessonsForLearner(learner).where((lesson) {
+    final lessonPool = learner == null
+        ? lessonsForLearner(learner)
+        : _learnerVisibilityLessons(learner);
+
+    return lessonPool.where((lesson) {
       final lessonSubject = lesson.subject.trim().toLowerCase();
       final lessonModuleId = lesson.moduleId.trim().toLowerCase();
       if (matchedModule != null) {
@@ -2212,7 +2651,10 @@ class LumoAppState {
         assignmentPack.lessonId != completedLessonId) {
       final assignmentLesson =
           assignedLessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) => lesson?.id == assignmentPack.lessonId,
+                (lesson) =>
+                    lesson?.id == assignmentPack.lessonId &&
+                    lesson != null &&
+                    !_lessonRequiresSyncBeforeStarting(lesson),
                 orElse: () => null,
               );
       if (assignmentLesson != null) return assignmentLesson;
@@ -2223,6 +2665,7 @@ class LumoAppState {
         assignedLessons.cast<LessonCardModel?>().firstWhere(
               (lesson) =>
                   lesson != null &&
+                  !_lessonRequiresSyncBeforeStarting(lesson) &&
                   lesson.moduleId == recommendedModuleId &&
                   lesson.id != completedLessonId,
               orElse: () => null,
@@ -2340,8 +2783,21 @@ class LumoAppState {
 
   String get registrationTargetSummary {
     final target = registrationTargetForDraft;
-    if (target == null) return registrationContext.summary;
-    return '${target.cohort.name} • ${target.mallam.name}';
+    if (target != null) {
+      return '${target.cohort.name} • ${target.mallam.name}';
+    }
+
+    final canonicalPodLabel = tabletPodLabel?.trim();
+    final tabletRegistration = registrationContext.tabletRegistration;
+    final mallamName = tabletRegistration?.mallamName?.trim();
+    if (canonicalPodLabel != null && canonicalPodLabel.isNotEmpty) {
+      if (mallamName != null && mallamName.isNotEmpty) {
+        return '$canonicalPodLabel • $mallamName';
+      }
+      return canonicalPodLabel;
+    }
+
+    return registrationContext.summary;
   }
 
   String? get registrationBlockerReason {
@@ -2452,7 +2908,7 @@ class LumoAppState {
     currentLearner = learner;
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_registered_local_fallback',
         payload: {
           ...registrationDraft.backendPayloadPreview,
@@ -2466,10 +2922,7 @@ class LumoAppState {
     return learner;
   }
 
-  void startLesson(
-    LessonCardModel lesson, {
-    BackendLessonSession? resumeFrom,
-  }) {
+  void startLesson(LessonCardModel lesson, {BackendLessonSession? resumeFrom}) {
     if (lesson.isAssignmentPlaceholder) {
       throw StateError(
         'Cannot open lesson ${lesson.id} because the real lesson payload has not synced to this tablet yet.',
@@ -2494,6 +2947,28 @@ class LumoAppState {
         }
         currentLearner = learners[resumeLearnerIndex];
       }
+    } else if (currentLearner == null) {
+      if (learners.length == 1) {
+        currentLearner = learners.first;
+      } else {
+        final availableLearners = availableLearnersForLesson(lesson);
+        if (availableLearners.length == 1) {
+          currentLearner = availableLearners.first;
+        }
+      }
+    }
+
+    final learner = currentLearner;
+    if (learner == null) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} because no learner is selected on this tablet.',
+      );
+    }
+
+    if (resumeFrom == null && lessonCompletedForLearner(learner, lesson)) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} for ${learner.name} because it is no longer learner-safe to launch on this tablet.',
+      );
     }
 
     final now = DateTime.now();
@@ -2540,7 +3015,7 @@ class LumoAppState {
       transcript: [
         SessionTurn(
           speaker: 'Mallam',
-          text: personalizePrompt(openingStep.coachPrompt),
+          text: personalizePrompt(openingStep.learnerCoachPrompt),
           timestamp: now,
         ),
       ],
@@ -2659,9 +3134,19 @@ class LumoAppState {
     final activity = step.activity;
     if (activity != null &&
         (activity.type == LessonActivityType.imageChoice ||
-            activity.type == LessonActivityType.tapChoice) &&
-        activity.choiceItems.isNotEmpty) {
-      final matchedChoice = activity.choiceItems.where((choice) {
+            activity.type == LessonActivityType.tapChoice)) {
+      final choiceItems = activity.choiceItems.isNotEmpty
+          ? activity.choiceItems
+          : List.generate(activity.choices.length, (index) {
+              final choice = activity.choices[index];
+              return LessonActivityChoice(
+                id: 'choice-$index',
+                label: choice,
+                isCorrect: _normalizeForComparison(choice) ==
+                    _normalizeForComparison(activity.targetResponse ?? ''),
+              );
+            });
+      final matchedChoice = choiceItems.where((choice) {
         final normalizedLabel = _normalizeForComparison(choice.label);
         return normalizedLabel.isNotEmpty &&
             normalizedLabel == normalizedResponse;
@@ -2677,6 +3162,43 @@ class LumoAppState {
       }
     }
 
+    if (activity != null && activity.type == LessonActivityType.dragToMatch) {
+      final placements = _parseDragMatchResponse(response.trim());
+      if (placements != null && placements.isNotEmpty) {
+        final normalizedPlacements = <String, String>{
+          for (final entry in placements.entries)
+            _normalizeForComparison(entry.key):
+                _normalizeForComparison(entry.value),
+        };
+        final authoredItems = activity.dragItems
+            .where((item) => item.targetId.trim().isNotEmpty)
+            .toList();
+        if (authoredItems.isNotEmpty) {
+          final allMatched = authoredItems.every((item) =>
+              normalizedPlacements[_normalizeForComparison(item.id)] ==
+              _normalizeForComparison(item.targetId));
+          final hasExtraPlacements = normalizedPlacements.keys.any(
+            (itemId) => !authoredItems.any(
+              (item) => _normalizeForComparison(item.id) == itemId,
+            ),
+          );
+          return ResponseEvaluation(
+            review: allMatched &&
+                    !hasExtraPlacements &&
+                    normalizedPlacements.length == authoredItems.length
+                ? ResponseReview.onTrack
+                : ResponseReview.needsSupport,
+            similarityScore: allMatched ? 1 : 0,
+            usedAlias: false,
+          );
+        }
+      }
+      return const ResponseEvaluation(
+        review: ResponseReview.needsSupport,
+        similarityScore: 0,
+      );
+    }
+
     final expected = personalizeExpectedResponse(step.expectedResponse);
     final normalizedExpected = _normalizeForComparison(expected);
     final aliases = step.acceptableResponses
@@ -2685,18 +3207,13 @@ class LumoAppState {
         .where((item) => item.isNotEmpty)
         .toList();
 
-    final allTargets = <String>{normalizedExpected, ...aliases}
-        .where((item) => item.isNotEmpty)
-        .toList();
+    final allTargets = <String>{
+      normalizedExpected,
+      ...aliases,
+    }.where((item) => item.isNotEmpty).toList();
 
-    final exactOrContains = allTargets.any(
-      (target) =>
-          target == normalizedResponse ||
-          (practiceMode != PracticeMode.repeatAfterMe &&
-              (target.contains(normalizedResponse) ||
-                  normalizedResponse.contains(target))),
-    );
-    if (exactOrContains) {
+    final exactMatch = allTargets.any((target) => target == normalizedResponse);
+    if (exactMatch) {
       return ResponseEvaluation(
         review: ResponseReview.onTrack,
         similarityScore: 1,
@@ -2720,8 +3237,10 @@ class LumoAppState {
       final targetTokens = _comparisonTokens(target);
       final similarity = _tokenSimilarity(normalizedResponse, target);
       final coverage = _tokenCoverage(responseTokens, targetTokens);
-      final orderedCoverage =
-          _orderedTokenCoverage(responseTokens, targetTokens);
+      final orderedCoverage = _orderedTokenCoverage(
+        responseTokens,
+        targetTokens,
+      );
 
       if (coverage > bestCoverage ||
           (coverage == bestCoverage && orderedCoverage > bestOrderedCoverage) ||
@@ -2773,13 +3292,15 @@ class LumoAppState {
   }) {
     final learnerName = currentLearner?.name ?? 'my friend';
     final expected = personalizeExpectedResponse(step.expectedResponse);
-    final prompt = personalizePrompt(step.coachPrompt);
+    final prompt = personalizePrompt(step.learnerCoachPrompt);
 
     return LearnerDialogue.supportPrompt(
       supportType: supportType,
       learnerName: learnerName,
       prompt: prompt,
       expected: expected,
+      supportLanguage: step.supportLanguage,
+      targetLanguage: step.targetLanguage,
     );
   }
 
@@ -2815,8 +3336,35 @@ class LumoAppState {
     return meaningful.isNotEmpty ? meaningful : tokens;
   }
 
+  bool _containsContiguousTokenPhrase(String container, String candidate) {
+    final containerTokens = _comparisonTokens(container);
+    final candidateTokens = _comparisonTokens(candidate);
+    if (containerTokens.isEmpty || candidateTokens.isEmpty) return false;
+    if (candidateTokens.length > containerTokens.length) return false;
+    if (candidateTokens.length < 2 &&
+        candidateTokens.length != containerTokens.length) {
+      return false;
+    }
+
+    for (var start = 0;
+        start <= containerTokens.length - candidateTokens.length;
+        start += 1) {
+      var matches = true;
+      for (var offset = 0; offset < candidateTokens.length; offset += 1) {
+        if (containerTokens[start + offset] != candidateTokens[offset]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) return true;
+    }
+    return false;
+  }
+
   double _tokenCoverage(
-      List<String> responseTokens, List<String> targetTokens) {
+    List<String> responseTokens,
+    List<String> targetTokens,
+  ) {
     if (responseTokens.isEmpty || targetTokens.isEmpty) return 0;
     final responseSet = responseTokens.toSet();
     final targetSet = targetTokens.toSet();
@@ -2905,7 +3453,7 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'slow',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
         );
         nextMode = SpeakerMode.guiding;
@@ -2915,7 +3463,7 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'wait',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
         );
         nextMode = SpeakerMode.waiting;
@@ -2925,14 +3473,16 @@ class LumoAppState {
         text = LearnerDialogue.supportPrompt(
           supportType: 'translate',
           learnerName: learnerName,
-          prompt: personalizePrompt(step.coachPrompt),
+          prompt: personalizePrompt(step.learnerCoachPrompt),
           expected: personalizeExpectedResponse(step.expectedResponse),
+          supportLanguage: step.supportLanguage,
+          targetLanguage: step.targetLanguage,
         );
         nextMode = SpeakerMode.guiding;
         label = 'Translation support';
         break;
       default:
-        text = personalizePrompt(step.coachPrompt);
+        text = personalizePrompt(step.learnerCoachPrompt);
         nextMode = SpeakerMode.guiding;
         label = 'Prompt replay';
         break;
@@ -2994,10 +3544,7 @@ class LumoAppState {
     persistStateSoon();
   }
 
-  void acceptLatestLearnerAudioManually({
-    String? note,
-    bool asOnTrack = true,
-  }) {
+  void acceptLatestLearnerAudioManually({String? note, bool asOnTrack = true}) {
     final session = activeSession;
     if (session == null) return;
 
@@ -3165,7 +3712,7 @@ class LumoAppState {
   Future<void> repeatCurrentStep({bool slow = false}) async {
     final session = activeSession;
     if (session == null) return;
-    final prompt = personalizePrompt(session.currentStep.coachPrompt);
+    final prompt = personalizePrompt(session.currentStep.learnerCoachPrompt);
     final spoken = slow ? 'Slow repeat: $prompt' : prompt;
     activeSession = session.copyWith(
       speakerMode: SpeakerMode.guiding,
@@ -3214,27 +3761,33 @@ class LumoAppState {
     final actions = <String>[];
     if (usingFallbackData) {
       actions.add(
-          'Keep teaching from cached lessons while learner events queue locally.');
+        'Keep teaching from cached lessons while learner events queue locally.',
+      );
     }
     if (pendingSyncEvents.isNotEmpty) {
       actions.add(
-          'Protect the offline queue, avoid duplicate taps, and retry sync when the signal returns.');
+        'Protect the offline queue, avoid duplicate taps, and retry sync when the signal returns.',
+      );
     }
     if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
       actions.add(
-          'Stay in audio-first mode until backend sync recovers so no learner evidence gets lost.');
+        'Stay in audio-first mode until backend sync recovers so no learner evidence gets lost.',
+      );
     }
     if (!speechAvailable) {
       actions.add(
-          'Capture audio even without transcript help, then review or type the answer before advancing.');
+        'Capture audio even without transcript help, then review or type the answer before advancing.',
+      );
     }
     if (transcriptMisses >= 2) {
       actions.add(
-          'Use Repeat mode and model answers so the learner can keep moving hands-free even when STT is flaky.');
+        'Use Repeat mode and model answers so the learner can keep moving hands-free even when STT is flaky.',
+      );
     }
     if (transcriptMisses >= 3) {
       actions.add(
-          'Pause full auto-advance, confirm the last answer manually, and reopen the mic for the next safe turn.');
+        'Pause full auto-advance, confirm the last answer manually, and reopen the mic for the next safe turn.',
+      );
     }
     if (actions.isEmpty) {
       actions.add('No degraded-mode action needed right now.');
@@ -3403,9 +3956,9 @@ class LumoAppState {
   List<RewardRedemptionOption> nearlyUnlockedRewardsForLearner(
     LearnerProfile learner,
   ) {
-    final options = rewardRedemptionOptionsForLearner(learner)
-        .where((item) => !item.unlocked)
-        .toList();
+    final options = rewardRedemptionOptionsForLearner(
+      learner,
+    ).where((item) => !item.unlocked).toList();
     options.sort((left, right) => left.shortfall.compareTo(right.shortfall));
     return options.take(2).toList();
   }
@@ -3485,7 +4038,7 @@ class LumoAppState {
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'learner_reward_redeemed',
         payload: {
           'learnerId': learner.id,
@@ -3570,7 +4123,7 @@ class LumoAppState {
         ...session.transcript,
         SessionTurn(
           speaker: 'Mallam',
-          text: personalizePrompt(nextStep.coachPrompt),
+          text: personalizePrompt(nextStep.learnerCoachPrompt),
           timestamp: DateTime.now(),
         ),
       ],
@@ -3623,15 +4176,11 @@ class LumoAppState {
       return;
     }
 
-    final prompt = personalizePrompt(session.currentStep.coachPrompt);
+    final prompt = personalizePrompt(session.currentStep.learnerCoachPrompt);
     activeSession = session.copyWith(
       transcript: [
         ...session.transcript,
-        SessionTurn(
-          speaker: 'Mallam',
-          text: prompt,
-          timestamp: DateTime.now(),
-        ),
+        SessionTurn(speaker: 'Mallam', text: prompt, timestamp: DateTime.now()),
       ],
       lastSupportType: 'Prompt replay',
       automationStatus:
@@ -3669,10 +4218,11 @@ class LumoAppState {
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: 'lesson_completed',
         payload: completedSession.syncPayloadPreview(
           learnerCode: updatedLearner.learnerCode,
+          studentId: updatedLearner.id,
         ),
       ),
     );
@@ -3682,6 +4232,19 @@ class LumoAppState {
     await syncPendingEvents();
     await refreshLearnerRewards(updatedLearner);
     await refreshLearnerRuntimeSessions(updatedLearner);
+  }
+
+  Future<void> finalizeCompletedLessonHandoff() async {
+    final session = activeSession;
+    if (session == null ||
+        session.completionState != LessonCompletionState.complete) {
+      return;
+    }
+
+    activeSession = null;
+    pendingRecoveredSessionSnapshot = null;
+    persistStateSoon();
+    await flushPersistence();
   }
 
   void _replaceLearner(LearnerProfile learner) {
@@ -3766,8 +4329,10 @@ class LumoAppState {
       lastActivityAt: activityAt,
       completedAt: terminalAt,
     );
-    recentRuntimeSessionsByLearnerId[learner.id] =
-        _mergeRuntimeSessions(existing, [projected]);
+    recentRuntimeSessionsByLearnerId[learner.id] = _mergeRuntimeSessions(
+      existing,
+      [projected],
+    );
   }
 
   LearnerProfile _mergeLearnerProfile({
@@ -3779,7 +4344,9 @@ class LumoAppState {
       rewards: incomingLearner.rewards == null
           ? existingLearner.rewards
           : _mergeRewardSnapshot(
-              existingLearner.rewards, incomingLearner.rewards!),
+              existingLearner.rewards,
+              incomingLearner.rewards!,
+            ),
     );
   }
 
@@ -3788,31 +4355,99 @@ class LumoAppState {
     RewardSnapshot incoming,
   ) {
     if (local == null) return incoming;
-    final canTrustBackendSnapshot = lastSyncAttemptAt != null &&
-        lastSyncError == null &&
-        pendingSyncEvents.isEmpty;
-    if (canTrustBackendSnapshot || incoming.totalXp >= local.totalXp) {
-      return incoming;
-    }
+
+    final primary =
+        _shouldPreferIncomingRewardSnapshot(local, incoming) ? incoming : local;
+    final secondary = identical(primary, incoming) ? local : incoming;
+    final mergedBadges = _mergeRewardBadges(primary.badges, secondary.badges);
+    final mergedBadgesUnlocked =
+        mergedBadges.where((badge) => badge.earned).length;
+    final mergedPoints = max(primary.points, secondary.points);
+    final mergedLevel = max(primary.level, secondary.level);
+    final prefersPrimaryLevel = primary.level >= secondary.level;
+    final rewardsForProgress =
+        primary.totalXp >= secondary.totalXp ? primary : secondary;
 
     return RewardSnapshot(
-      learnerId:
-          incoming.learnerId.isNotEmpty ? incoming.learnerId : local.learnerId,
-      totalXp: local.totalXp,
-      points: max(local.points, incoming.points),
-      level: max(local.level, incoming.level),
-      levelLabel: local.level >= incoming.level
-          ? local.levelLabel
-          : incoming.levelLabel,
-      nextLevel: local.nextLevel ?? incoming.nextLevel,
-      nextLevelLabel: local.nextLevelLabel ?? incoming.nextLevelLabel,
-      xpIntoLevel: local.xpIntoLevel,
-      xpForNextLevel: local.xpForNextLevel,
-      progressToNextLevel:
-          max(local.progressToNextLevel, incoming.progressToNextLevel),
-      badgesUnlocked: max(local.badgesUnlocked, incoming.badgesUnlocked),
-      badges: local.badges.isNotEmpty ? local.badges : incoming.badges,
+      learnerId: primary.learnerId.isNotEmpty
+          ? primary.learnerId
+          : secondary.learnerId,
+      totalXp: max(primary.totalXp, secondary.totalXp),
+      points: mergedPoints,
+      level: mergedLevel,
+      levelLabel:
+          prefersPrimaryLevel ? primary.levelLabel : secondary.levelLabel,
+      nextLevel: rewardsForProgress.nextLevel ?? secondary.nextLevel,
+      nextLevelLabel:
+          rewardsForProgress.nextLevelLabel ?? secondary.nextLevelLabel,
+      xpIntoLevel: max(primary.xpIntoLevel, secondary.xpIntoLevel),
+      xpForNextLevel: rewardsForProgress.xpForNextLevel > 0 &&
+              (secondary.xpForNextLevel <= 0 ||
+                  rewardsForProgress.xpForNextLevel <= secondary.xpForNextLevel)
+          ? rewardsForProgress.xpForNextLevel
+          : secondary.xpForNextLevel,
+      progressToNextLevel: max(
+        primary.progressToNextLevel,
+        secondary.progressToNextLevel,
+      ),
+      badgesUnlocked: max(
+        max(primary.badgesUnlocked, secondary.badgesUnlocked),
+        mergedBadgesUnlocked,
+      ),
+      badges: mergedBadges,
     );
+  }
+
+  bool _shouldPreferIncomingRewardSnapshot(
+    RewardSnapshot local,
+    RewardSnapshot incoming,
+  ) {
+    if (incoming.totalXp > local.totalXp) return true;
+    if (incoming.totalXp < local.totalXp) return false;
+    if (incoming.points > local.points) return true;
+    if (incoming.points < local.points) return false;
+    if (incoming.level > local.level) return true;
+    if (incoming.level < local.level) return false;
+    if (incoming.badgesUnlocked > local.badgesUnlocked) return true;
+    if (incoming.badgesUnlocked < local.badgesUnlocked) return false;
+    if (incoming.progressToNextLevel > local.progressToNextLevel) return true;
+    if (incoming.progressToNextLevel < local.progressToNextLevel) return false;
+    return incoming.badges.length >= local.badges.length;
+  }
+
+  List<RewardBadge> _mergeRewardBadges(
+    List<RewardBadge> primary,
+    List<RewardBadge> secondary,
+  ) {
+    final merged = <String, RewardBadge>{};
+    for (final badge in [...secondary, ...primary]) {
+      final key = badge.id.trim().isEmpty
+          ? '${badge.title}:${badge.category}'
+          : badge.id.trim();
+      final existing = merged[key];
+      if (existing == null) {
+        merged[key] = badge;
+        continue;
+      }
+      merged[key] = _preferRewardBadge(existing, badge);
+    }
+    return merged.values.toList(growable: false);
+  }
+
+  RewardBadge _preferRewardBadge(RewardBadge current, RewardBadge candidate) {
+    if (candidate.earned != current.earned) {
+      return candidate.earned ? candidate : current;
+    }
+    if (candidate.progress != current.progress) {
+      return candidate.progress > current.progress ? candidate : current;
+    }
+    if (candidate.target != current.target) {
+      return candidate.target > current.target ? candidate : current;
+    }
+    return candidate.description.trim().length >=
+            current.description.trim().length
+        ? candidate
+        : current;
   }
 
   List<BackendLessonSession> _mergeRuntimeSessions(
@@ -3886,8 +4521,8 @@ class LumoAppState {
     LessonSessionState session,
   ) {
     final existingRewards = learner.rewards;
-    final baseTotalXp = existingRewards?.totalXp ?? learner.totalXp;
-    final basePoints = existingRewards?.points ?? learner.totalXp;
+    final baseTotalXp = existingRewards?.totalXp ?? 0;
+    final basePoints = existingRewards?.points ?? 0;
     final earnedXp = (12 +
             min(session.totalResponses, 4) +
             (session.supportActionsUsed == 0 ? 3 : 0) +
@@ -3962,7 +4597,7 @@ class LumoAppState {
         'First lesson completed with Mallam.',
         'record_voice_over',
         'lesson',
-        1
+        1,
       ),
       (
         'story-scout',
@@ -3970,7 +4605,7 @@ class LumoAppState {
         'Complete 3 lessons and unlock a longer celebration path.',
         'menu_book',
         'lesson',
-        3
+        3,
       ),
       (
         'streak-spark',
@@ -3978,7 +4613,7 @@ class LumoAppState {
         'Keep a 3-day learning streak alive.',
         'local_fire_department',
         'streak',
-        3
+        3,
       ),
       (
         'xp-climber',
@@ -3986,7 +4621,7 @@ class LumoAppState {
         'Reach 160 XP to unlock the next celebration band.',
         'rocket_launch',
         'xp',
-        160
+        160,
       ),
       (
         'independent-echo',
@@ -3994,7 +4629,7 @@ class LumoAppState {
         'Finish a lesson without support actions.',
         'emoji_events',
         'independence',
-        1
+        1,
       ),
       (
         'hands-free-hero',
@@ -4002,7 +4637,7 @@ class LumoAppState {
         'Complete a response loop with learner audio captured and no extra support.',
         'smart_toy',
         'automation',
-        1
+        1,
       ),
       (
         'signal-keeper',
@@ -4010,7 +4645,7 @@ class LumoAppState {
         'Finish a lesson safely while offline or waiting for sync recovery.',
         'cloud_off',
         'resilience',
-        1
+        1,
       ),
     ];
     final existingById = {for (final badge in existingBadges) badge.id: badge};
@@ -4129,19 +4764,6 @@ class LumoAppState {
     }
   }
 
-  Future<void> finalizeCompletedLessonHandoff() async {
-    final session = activeSession;
-    if (session == null ||
-        session.completionState != LessonCompletionState.complete) {
-      return;
-    }
-
-    activeSession = null;
-    pendingRecoveredSessionSnapshot = null;
-    persistStateSoon();
-    await flushPersistence();
-  }
-
   String get syncQueueLabel {
     if (pendingSyncEvents.isEmpty) return 'Queue empty';
     if (isSyncingEvents) return 'Syncing ${pendingSyncEvents.length} event(s)';
@@ -4234,9 +4856,79 @@ class LumoAppState {
   ) {
     final sessions = recentRuntimeSessionsForLearner(learner);
     for (final session in sessions) {
-      if (session.status == 'in_progress') return session;
+      final normalizedStatus = session.status.trim().toLowerCase();
+      if (normalizedStatus != 'in_progress') continue;
+      if (_terminalSessionSupersedesResumableCandidate(session, sessions)) {
+        continue;
+      }
+      return session;
     }
     return null;
+  }
+
+  bool _terminalSessionSupersedesResumableCandidate(
+    BackendLessonSession candidate,
+    List<BackendLessonSession> sessions,
+  ) {
+    final candidateTime = candidate.lastActivityAt ??
+        candidate.completedAt ??
+        candidate.startedAt;
+    for (final session in sessions) {
+      if (identical(session, candidate)) continue;
+      if (!_sessionMatchesSession(candidate, session)) continue;
+      if (!_isTerminalRuntimeSession(session)) continue;
+      final terminalTime =
+          session.completedAt ?? session.lastActivityAt ?? session.startedAt;
+      if (candidateTime == null || terminalTime == null) {
+        return true;
+      }
+      if (!terminalTime.isBefore(candidateTime)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _sessionMatchesSession(
+    BackendLessonSession left,
+    BackendLessonSession right,
+  ) {
+    final leftLessonId = left.lessonId?.trim() ?? '';
+    final rightLessonId = right.lessonId?.trim() ?? '';
+    if (leftLessonId.isNotEmpty && leftLessonId == rightLessonId) {
+      return true;
+    }
+
+    final leftTitle = (left.lessonTitle ?? '').trim().toLowerCase();
+    final rightTitle = (right.lessonTitle ?? '').trim().toLowerCase();
+    if (leftTitle.isNotEmpty && leftTitle == rightTitle) {
+      return true;
+    }
+
+    final leftModuleId = left.moduleId?.trim() ?? '';
+    final rightModuleId = right.moduleId?.trim() ?? '';
+    if (leftModuleId.isNotEmpty && leftModuleId == rightModuleId) {
+      final resolvedLeft = lessonForBackendSession(left);
+      final resolvedRight = lessonForBackendSession(right);
+      if (resolvedLeft != null && resolvedRight != null) {
+        return resolvedLeft.id == resolvedRight.id;
+      }
+    }
+
+    return false;
+  }
+
+  bool _isTerminalRuntimeSession(BackendLessonSession session) {
+    final normalizedStatus = session.status.trim().toLowerCase();
+    final normalizedCompletion = session.completionState.trim().toLowerCase();
+    return normalizedStatus == 'completed' ||
+        normalizedStatus == 'absent' ||
+        normalizedStatus == 'skipped' ||
+        normalizedCompletion == 'completed' ||
+        normalizedCompletion == 'complete' ||
+        normalizedCompletion == 'absent' ||
+        normalizedCompletion == 'skipped' ||
+        normalizedCompletion == 'skip';
   }
 
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
@@ -4329,8 +5021,10 @@ class LumoAppState {
         limit: limit,
       );
       final existing = recentRuntimeSessionsByLearnerId[learner.id] ?? const [];
-      recentRuntimeSessionsByLearnerId[learner.id] =
-          _mergeRuntimeSessions(existing, sessions);
+      recentRuntimeSessionsByLearnerId[learner.id] = _mergeRuntimeSessions(
+        existing,
+        sessions,
+      );
       learnerRuntimeError = null;
       _notifyListeners();
       persistStateSoon();
@@ -4398,7 +5092,7 @@ class LumoAppState {
     for (final warning in lastSyncWarnings) {
       final normalized = warning.toLowerCase();
       if (normalized.contains('unsupported_event_type')) {
-        return 'Runtime sync receipts show unsupported learner events. That means the tablet captured activity the backend does not currently honor, so pilot trust is broken until the contract is fixed.';
+        return 'Runtime sync receipts show unsupported learner events. That means the tablet captured activity the backend does not currently honor, so deployment trust is broken until the contract is fixed.';
       }
       if (normalized.contains('backend could not apply')) {
         return 'Runtime sync receipts show learner events the backend could not apply. Keep teaching if needed, but do not treat backend progress as trustworthy until ops clears the bad receipt.';
@@ -4572,7 +5266,7 @@ class LumoAppState {
     final learner = currentLearner;
     final firstName =
         learner == null ? 'my friend' : _learnerFirstName(learner);
-    final stepPrompt = personalizePrompt(step.coachPrompt);
+    final stepPrompt = personalizePrompt(step.learnerCoachPrompt);
     if (isResuming) {
       final base = resumeFrom?.automationStatus.trim().isNotEmpty == true
           ? resumeFrom!.automationStatus
@@ -4604,8 +5298,10 @@ class LumoAppState {
       final existing = List<BackendLessonSession>.from(
         recentRuntimeSessionsByLearnerId[learnerId] ?? const [],
       );
-      recentRuntimeSessionsByLearnerId[learnerId] =
-          _mergeRuntimeSessions(existing, [session]);
+      recentRuntimeSessionsByLearnerId[learnerId] = _mergeRuntimeSessions(
+        existing,
+        [session],
+      );
     }
   }
 
@@ -4618,11 +5314,13 @@ class LumoAppState {
     final ignoredCount = _asInt(raw['ignored']) ?? 0;
     if (duplicateCount > 0) {
       warnings.add(
-          '$duplicateCount event(s) were already synced earlier, so the backend ignored the duplicates safely.');
+        '$duplicateCount event(s) were already synced earlier, so the backend ignored the duplicates safely.',
+      );
     }
     if (ignoredCount > 0) {
       warnings.add(
-          '$ignoredCount event(s) were ignored because the backend could not apply them.');
+        '$ignoredCount event(s) were ignored because the backend could not apply them.',
+      );
     }
 
     for (final item in results.whereType<Map>()) {
@@ -4633,7 +5331,8 @@ class LumoAppState {
         warnings.add('$type was ignored ($reason).');
       } else if (status == 'duplicate' && duplicateCount == 0) {
         warnings.add(
-            '$type matched an earlier receipt, so it was not replayed twice.');
+          '$type matched an earlier receipt, so it was not replayed twice.',
+        );
       }
     }
 
@@ -4654,8 +5353,9 @@ class LumoAppState {
       );
       if (learnerId == null) continue;
 
-      final learnerIndex =
-          learners.indexWhere((entry) => entry.id == learnerId);
+      final learnerIndex = learners.indexWhere(
+        (entry) => entry.id == learnerId,
+      );
       if (learnerIndex == -1) continue;
 
       final existingLearner = learners[learnerIndex];
@@ -4708,6 +5408,108 @@ class LumoAppState {
           orElse: () => null,
         );
     return learner?.id;
+  }
+
+  String? _learnerIdentityFingerprint(LearnerProfile? learner) {
+    if (learner == null) return null;
+    String normalize(String? value) => (value ?? '')
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '');
+
+    final name = normalize(learner.name);
+    if (name.isEmpty) return null;
+    final guardian = normalize(learner.guardianName);
+    final podId = normalize(learner.podId);
+    final cohortId = normalize(learner.cohortId);
+    return [name, learner.age, guardian, podId, cohortId].join('|');
+  }
+
+  LearnerProfile? _resolvePersistedLearnerMatch({
+    String? persistedLearnerId,
+    String? persistedLearnerCode,
+    String? persistedLearnerFingerprint,
+  }) {
+    final normalizedId = persistedLearnerId?.trim();
+    if (normalizedId != null && normalizedId.isNotEmpty) {
+      final byId =
+          learners.where((item) => item.id == normalizedId).firstOrNull;
+      if (byId != null) return byId;
+    }
+
+    final normalizedCode = persistedLearnerCode?.trim();
+    if (normalizedCode != null && normalizedCode.isNotEmpty) {
+      final byCode = learners
+          .where((item) => item.learnerCode.trim() == normalizedCode)
+          .firstOrNull;
+      if (byCode != null) return byCode;
+    }
+
+    final fingerprint = persistedLearnerFingerprint?.trim();
+    if (fingerprint != null && fingerprint.isNotEmpty) {
+      final byFingerprint = learners
+          .where((item) => _learnerIdentityFingerprint(item) == fingerprint)
+          .firstOrNull;
+      if (byFingerprint != null) return byFingerprint;
+    }
+
+    return null;
+  }
+
+  void _rekeyLearnerScopedCaches(
+    List<LearnerProfile> previousLearners,
+    List<LearnerProfile> nextLearners,
+  ) {
+    if (previousLearners.isEmpty || nextLearners.isEmpty) return;
+
+    final nextByCode = {
+      for (final learner in nextLearners)
+        if (learner.learnerCode.trim().isNotEmpty)
+          learner.learnerCode.trim(): learner,
+    };
+    final nextByFingerprint = {
+      for (final learner in nextLearners)
+        if (_learnerIdentityFingerprint(learner) case final fingerprint?)
+          fingerprint: learner,
+    };
+
+    LearnerProfile? resolveNext(LearnerProfile previous) {
+      final direct =
+          nextLearners.where((item) => item.id == previous.id).firstOrNull;
+      if (direct != null) return direct;
+      final code = previous.learnerCode.trim();
+      if (code.isNotEmpty) {
+        final byCode = nextByCode[code];
+        if (byCode != null) return byCode;
+      }
+      final fingerprint = _learnerIdentityFingerprint(previous);
+      if (fingerprint != null && fingerprint.isNotEmpty) {
+        return nextByFingerprint[fingerprint];
+      }
+      return null;
+    }
+
+    void rekeyMap<T>(Map<String, List<T>> source) {
+      final rebound = <String, List<T>>{};
+      for (final entry in source.entries) {
+        final previous =
+            previousLearners.where((item) => item.id == entry.key).firstOrNull;
+        final resolvedKey = previous == null
+            ? entry.key
+            : (resolveNext(previous)?.id ?? entry.key);
+        rebound.update(
+          resolvedKey,
+          (existing) => [...existing, ...entry.value],
+          ifAbsent: () => List<T>.from(entry.value),
+        );
+      }
+      source
+        ..clear()
+        ..addAll(rebound);
+    }
+
+    rekeyMap(recentRuntimeSessionsByLearnerId);
+    rekeyMap(rewardRedemptionHistoryByLearnerId);
   }
 
   String? _readRecommendedModuleIdFromProgress(Object? progressJson) {
@@ -4786,15 +5588,20 @@ class LumoAppState {
     required LessonSessionState session,
     Map<String, dynamic> extra = const {},
   }) {
-    final learnerCode = currentLearner?.learnerCode;
+    final learner = currentLearner;
+    final learnerCode = learner?.learnerCode;
     if (learnerCode == null || learnerCode.trim().isEmpty) return;
 
     pendingSyncEvents.add(
       SyncEvent(
-        id: 'sync-${pendingSyncEvents.length + 1}',
+        id: _nextSyncEventId(),
         type: type,
         payload: {
           'sessionId': session.sessionId,
+          if (learner != null && learner.id.trim().isNotEmpty)
+            'studentId': learner.id,
+          'currentLearnerId': learner?.id,
+          'currentLearnerCode': learnerCode,
           'learnerCode': learnerCode,
           'lessonId': session.lesson.id,
           'moduleId': session.lesson.moduleId,
@@ -4816,12 +5623,15 @@ class LumoAppState {
       'modules': modules.map(_encodeModule).toList(),
       'assignedLessons': assignedLessons.map(_encodeLesson).toList(),
       'assignmentPacks': assignmentPacks.map(_encodeAssignmentPack).toList(),
-      'moduleContentOrigins':
-          _moduleContentOrigins.map((key, value) => MapEntry(key, value.name)),
-      'lessonContentOrigins':
-          _lessonContentOrigins.map((key, value) => MapEntry(key, value.name)),
+      'moduleContentOrigins': _moduleContentOrigins.map(
+        (key, value) => MapEntry(key, value.name),
+      ),
+      'lessonContentOrigins': _lessonContentOrigins.map(
+        (key, value) => MapEntry(key, value.name),
+      ),
       'tabletDeviceIdentifier': tabletDeviceIdentifier,
       'registrationDraft': _encodeRegistrationDraft(registrationDraft),
+      'qaLessonUnlockEnabled': qaLessonUnlockEnabled,
       'registrationContext': _encodeRegistrationContext(registrationContext),
       'pendingSyncEvents': pendingSyncEvents.map(_encodeSyncEvent).toList(),
       'recentRuntimeSessionsByLearnerId': recentRuntimeSessionsByLearnerId.map(
@@ -4830,10 +5640,13 @@ class LumoAppState {
       ),
       'rewardRedemptionHistoryByLearnerId':
           rewardRedemptionHistoryByLearnerId.map(
-        (key, value) =>
-            MapEntry(key, value.map(_encodeRewardRedemptionRecord).toList()),
+        (key, value) => MapEntry(
+          key,
+          value.map(_encodeRewardRedemptionRecord).toList(),
+        ),
       ),
       'currentLearnerId': currentLearner?.id,
+      'currentLearnerCode': currentLearner?.learnerCode,
       'selectedModuleId': selectedModule?.id,
       'activeSession':
           activeSession == null ? null : _encodeLessonSession(activeSession!),
@@ -4857,6 +5670,7 @@ class LumoAppState {
       'lastSyncWarnings': lastSyncWarnings,
       'lastSyncError': lastSyncError,
       'learnerRuntimeError': learnerRuntimeError,
+      'mallamSupportLanguage': mallamSupportLanguage.code,
     };
   }
 
@@ -4887,8 +5701,11 @@ class LumoAppState {
   List<LearnerAssignmentPack> _decodeAssignmentPacks(Object? raw) {
     return (raw as List?)
             ?.whereType<Map>()
-            .map((item) =>
-                LearnerAssignmentPack.fromJson(Map<String, dynamic>.from(item)))
+            .map(
+              (item) => LearnerAssignmentPack.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
             .toList() ??
         const <LearnerAssignmentPack>[];
   }
@@ -4896,26 +5713,32 @@ class LumoAppState {
   List<SyncEvent> _decodeSyncEvents(Object? raw) {
     return (raw as List?)
             ?.whereType<Map>()
-            .map((item) => SyncEvent(
-                  id: item['id']?.toString() ?? 'sync-event',
-                  type: item['type']?.toString() ?? 'unknown',
-                  payload: item['payload'] is Map
-                      ? Map<String, dynamic>.from(item['payload'])
-                      : const {},
-                ))
+            .map(
+              (item) => SyncEvent(
+                id: item['id']?.toString() ?? 'sync-event',
+                type: item['type']?.toString() ?? 'unknown',
+                payload: item['payload'] is Map
+                    ? Map<String, dynamic>.from(item['payload'])
+                    : const {},
+              ),
+            )
             .toList() ??
         const <SyncEvent>[];
   }
 
   Map<String, List<BackendLessonSession>> _decodeRecentRuntimeSessions(
-      Object? raw) {
+    Object? raw,
+  ) {
     final output = <String, List<BackendLessonSession>>{};
     if (raw is! Map) return output;
     for (final entry in raw.entries) {
       output[entry.key.toString()] = (entry.value as List?)
               ?.whereType<Map>()
-              .map((item) => BackendLessonSession.fromJson(
-                  Map<String, dynamic>.from(item)))
+              .map(
+                (item) => BackendLessonSession.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
               .toList() ??
           const <BackendLessonSession>[];
     }
@@ -4923,14 +5746,18 @@ class LumoAppState {
   }
 
   Map<String, List<RewardRedemptionRecord>> _decodeRewardRedemptionHistory(
-      Object? raw) {
+    Object? raw,
+  ) {
     final output = <String, List<RewardRedemptionRecord>>{};
     if (raw is! Map) return output;
     for (final entry in raw.entries) {
       output[entry.key.toString()] = (entry.value as List?)
               ?.whereType<Map>()
-              .map((item) => RewardRedemptionRecord.fromJson(
-                  Map<String, dynamic>.from(item)))
+              .map(
+                (item) => RewardRedemptionRecord.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
               .toList() ??
           const <RewardRedemptionRecord>[];
     }
@@ -4953,13 +5780,37 @@ class LumoAppState {
     return 'Recovered $lessonLabel is waiting for lesson sync before $progress can resume.';
   }
 
+  bool _shouldKeepRecoveredSessionPendingUntilSync(LessonSessionState session) {
+    final lesson = session.lesson;
+    return session.completionState != LessonCompletionState.complete &&
+        (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty);
+  }
+
+  bool _isRecoveredSessionSafeToResume({
+    required LearnerProfile? learner,
+    required LessonSessionState? session,
+  }) {
+    if (learner == null || session == null) return false;
+
+    final lesson = session.lesson;
+    if (lesson.isAssignmentPlaceholder || lesson.steps.isEmpty) {
+      return false;
+    }
+    if (!learnerMatchesTabletPod(learner)) {
+      return false;
+    }
+    if (session.completionState == LessonCompletionState.complete) {
+      return true;
+    }
+    if (lessonCompletedForLearner(learner, lesson)) {
+      return false;
+    }
+    return true;
+  }
+
   void _recoverPendingSessionAfterRefresh() {
     final snapshot = pendingRecoveredSessionSnapshot;
     if (snapshot == null || activeSession != null) return;
-    final recovered = _decodeActiveSession(snapshot);
-    if (recovered == null) return;
-    activeSession = recovered;
-    pendingRecoveredSessionSnapshot = null;
     final learnerId = snapshot['currentLearnerId']?.toString();
     if (learnerId != null && learnerId.trim().isNotEmpty) {
       currentLearner = learners.cast<LearnerProfile?>().firstWhere(
@@ -4967,6 +5818,20 @@ class LumoAppState {
             orElse: () => currentLearner,
           );
     }
+    if (currentLearner == null) {
+      return;
+    }
+    final recovered = _decodeActiveSession(snapshot);
+    if (!_isRecoveredSessionSafeToResume(
+      learner: currentLearner,
+      session: recovered,
+    )) {
+      pendingRecoveredSessionSnapshot = null;
+      persistStateSoon();
+      return;
+    }
+    activeSession = recovered;
+    pendingRecoveredSessionSnapshot = null;
   }
 
   LessonCardModel? _resolvePersistedSessionLesson(Map<String, dynamic> raw) {
@@ -5008,8 +5873,10 @@ class LumoAppState {
 
     if (normalizedModuleId.isNotEmpty) {
       final moduleMatches = assigned
-          .where((lesson) =>
-              lesson.moduleId.trim().toLowerCase() == normalizedModuleId)
+          .where(
+            (lesson) =>
+                lesson.moduleId.trim().toLowerCase() == normalizedModuleId,
+          )
           .toList(growable: false);
       if (moduleMatches.length == 1) return moduleMatches.first;
     }
@@ -5019,8 +5886,9 @@ class LumoAppState {
 
   LessonSessionState? _decodeActiveSession(Object? raw) {
     if (raw is! Map) return null;
-    final lesson =
-        _resolvePersistedSessionLesson(Map<String, dynamic>.from(raw));
+    final lesson = _resolvePersistedSessionLesson(
+      Map<String, dynamic>.from(raw),
+    );
     if (lesson == null) return null;
 
     final boundedStepIndex = lesson.steps.isEmpty
@@ -5044,7 +5912,7 @@ class LumoAppState {
         <SessionTurn>[];
     final openingPrompt = lesson.steps.isEmpty
         ? null
-        : personalizePrompt(lesson.steps[boundedStepIndex].coachPrompt);
+        : personalizePrompt(lesson.steps[boundedStepIndex].learnerCoachPrompt);
     if (transcript.isEmpty &&
         openingPrompt != null &&
         openingPrompt.isNotEmpty) {
@@ -5087,13 +5955,15 @@ class LumoAppState {
           raw['speakerOutputMode']?.toString() ?? 'Tablet speaker',
       totalResponses: _asInt(raw['totalResponses']) ?? 0,
       totalAudioCaptures: _asInt(raw['totalAudioCaptures']) ?? 0,
-      latestLearnerAudioPath:
-          _readNullableString(raw['latestLearnerAudioPath']),
+      latestLearnerAudioPath: _readNullableString(
+        raw['latestLearnerAudioPath'],
+      ),
       latestLearnerAudioDuration:
           _asInt(raw['latestLearnerAudioDurationSeconds']) == null
               ? null
               : Duration(
-                  seconds: _asInt(raw['latestLearnerAudioDurationSeconds'])!),
+                  seconds: _asInt(raw['latestLearnerAudioDurationSeconds'])!,
+                ),
       lastSupportType: raw['lastSupportType']?.toString() ?? 'Prompt replay',
       automationStatus:
           raw['automationStatus']?.toString() ?? 'Mallam is ready to begin.',
@@ -5170,15 +6040,17 @@ class LumoAppState {
         lastLessonSummary:
             raw['lastLessonSummary']?.toString() ?? 'No lesson captured yet.',
         lastAttendance: raw['lastAttendance']?.toString() ?? 'Checked in today',
-        backendRecommendedModuleId:
-            _readNullableString(raw['backendRecommendedModuleId']),
+        backendRecommendedModuleId: _readNullableString(
+          raw['backendRecommendedModuleId'],
+        ),
         rewards: raw['rewards'] is Map
             ? _decodeRewardSnapshot(Map<String, dynamic>.from(raw['rewards']))
             : null,
       );
 
   Map<String, dynamic> _encodeRewardRedemptionRecord(
-          RewardRedemptionRecord record) =>
+    RewardRedemptionRecord record,
+  ) =>
       {
         'id': record.id,
         'learnerId': record.learnerId,
@@ -5207,16 +6079,18 @@ class LumoAppState {
         'progressToNextLevel': reward.progressToNextLevel,
         'badgesUnlocked': reward.badgesUnlocked,
         'badges': reward.badges
-            .map((badge) => {
-                  'id': badge.id,
-                  'title': badge.title,
-                  'description': badge.description,
-                  'icon': badge.icon,
-                  'category': badge.category,
-                  'earned': badge.earned,
-                  'progress': badge.progress,
-                  'target': badge.target,
-                })
+            .map(
+              (badge) => {
+                'id': badge.id,
+                'title': badge.title,
+                'description': badge.description,
+                'icon': badge.icon,
+                'category': badge.category,
+                'earned': badge.earned,
+                'progress': badge.progress,
+                'target': badge.target,
+              },
+            )
             .toList(),
       };
 
@@ -5274,60 +6148,67 @@ class LumoAppState {
         'readinessFocus': lesson.readinessFocus,
         'scenario': lesson.scenario,
         'activitySteps': lesson.steps
-            .map((step) => {
-                  'id': step.id,
-                  'type': step.type.name,
-                  'title': step.title,
-                  'instruction': step.instruction,
-                  'expectedResponse': step.expectedResponse,
-                  'acceptableResponses': step.acceptableResponses,
-                  'coachPrompt': step.coachPrompt,
-                  'facilitatorTip': step.facilitatorTip,
-                  'realWorldCheck': step.realWorldCheck,
-                  'speakerMode': step.speakerMode.name,
-                  if (step.activity != null)
-                    'activity': {
-                      'type': step.activity!.type.name,
-                      'prompt': step.activity!.prompt,
-                      'focusText': step.activity!.focusText,
-                      'supportText': step.activity!.supportText,
-                      'choices': step.activity!.choiceItems.isEmpty
-                          ? step.activity!.choices
-                          : step.activity!.choiceItems
-                              .map((choice) => {
-                                    'id': choice.id,
-                                    'label': choice.label,
-                                    'isCorrect': choice.isCorrect,
-                                    'media': choice.mediaItems.isEmpty
-                                        ? null
-                                        : choice.mediaItems
-                                            .map((media) => {
-                                                  'kind': media.kind,
-                                                  'value':
-                                                      media.values.length <= 1
-                                                          ? media.firstValue
-                                                          : media.values,
-                                                })
-                                            .toList(),
-                                  })
-                              .toList(),
-                      'choiceEmoji': step.activity!.choiceEmoji,
-                      'targetResponse': step.activity!.targetResponse,
-                      'expectedAnswers': step.activity!.expectedAnswers,
-                      'successFeedback': step.activity!.successFeedback,
-                      'retryFeedback': step.activity!.retryFeedback,
-                      'media': step.activity!.mediaItems.isEmpty
-                          ? null
-                          : step.activity!.mediaItems
-                              .map((media) => {
-                                    'kind': media.kind,
-                                    'value': media.values.length <= 1
-                                        ? media.firstValue
-                                        : media.values,
-                                  })
-                              .toList(),
-                    },
-                })
+            .map(
+              (step) => {
+                'id': step.id,
+                'type': step.type.name,
+                'title': step.title,
+                'instruction': step.instruction,
+                'expectedResponse': step.expectedResponse,
+                'acceptableResponses': step.acceptableResponses,
+                'coachPrompt': step.coachPrompt,
+                'facilitatorTip': step.facilitatorTip,
+                'realWorldCheck': step.realWorldCheck,
+                'speakerMode': step.speakerMode.name,
+                if (step.activity != null)
+                  'activity': {
+                    'type': step.activity!.type.name,
+                    'prompt': step.activity!.prompt,
+                    'focusText': step.activity!.focusText,
+                    'supportText': step.activity!.supportText,
+                    'choices': step.activity!.choiceItems.isEmpty
+                        ? step.activity!.choices
+                        : step.activity!.choiceItems
+                            .map(
+                              (choice) => {
+                                'id': choice.id,
+                                'label': choice.label,
+                                'isCorrect': choice.isCorrect,
+                                'media': choice.mediaItems.isEmpty
+                                    ? null
+                                    : choice.mediaItems
+                                        .map(
+                                          (media) => {
+                                            'kind': media.kind,
+                                            'value': media.values.length <= 1
+                                                ? media.firstValue
+                                                : media.values,
+                                          },
+                                        )
+                                        .toList(),
+                              },
+                            )
+                            .toList(),
+                    'choiceEmoji': step.activity!.choiceEmoji,
+                    'targetResponse': step.activity!.targetResponse,
+                    'expectedAnswers': step.activity!.expectedAnswers,
+                    'successFeedback': step.activity!.successFeedback,
+                    'retryFeedback': step.activity!.retryFeedback,
+                    'media': step.activity!.mediaItems.isEmpty
+                        ? null
+                        : step.activity!.mediaItems
+                            .map(
+                              (media) => {
+                                'kind': media.kind,
+                                'value': media.values.length <= 1
+                                    ? media.firstValue
+                                    : media.values,
+                              },
+                            )
+                            .toList(),
+                  },
+              },
+            )
             .toList(),
       };
 
@@ -5395,21 +6276,26 @@ class LumoAppState {
   }
 
   Map<String, dynamic> _encodeRegistrationContext(
-          RegistrationContext context) =>
+    RegistrationContext context,
+  ) =>
       {
         'cohorts': context.cohorts
-            .map((cohort) => {
-                  'id': cohort.id,
-                  'name': cohort.name,
-                  'podId': cohort.podId,
-                })
+            .map(
+              (cohort) => {
+                'id': cohort.id,
+                'name': cohort.name,
+                'podId': cohort.podId,
+              },
+            )
             .toList(),
         'mallams': context.mallams
-            .map((mallam) => {
-                  'id': mallam.id,
-                  'displayName': mallam.name,
-                  'podIds': mallam.podIds,
-                })
+            .map(
+              (mallam) => {
+                'id': mallam.id,
+                'displayName': mallam.name,
+                'podIds': mallam.podIds,
+              },
+            )
             .toList(),
         'defaultTarget': context.defaultTarget == null
             ? null
@@ -5442,7 +6328,8 @@ class LumoAppState {
       };
 
   Map<String, dynamic> _encodeBackendLessonSession(
-          BackendLessonSession session) =>
+    BackendLessonSession session,
+  ) =>
       {
         'id': session.id,
         'sessionId': session.sessionId,
@@ -5473,6 +6360,7 @@ class LumoAppState {
         'lessonTitle': session.lesson.title,
         'moduleId': session.lesson.moduleId,
         'currentLearnerId': currentLearner?.id,
+        'currentLearnerCode': currentLearner?.learnerCode,
         'stepIndex': session.stepIndex,
         'completionState': session.completionState.name,
         'speakerMode': session.speakerMode.name,
@@ -5482,12 +6370,14 @@ class LumoAppState {
         'attemptsThisStep': session.attemptsThisStep,
         'facilitatorObservations': session.facilitatorObservations,
         'transcript': session.transcript
-            .map((turn) => {
-                  'speaker': turn.speaker,
-                  'text': turn.text,
-                  'review': turn.review.name,
-                  'timestamp': turn.timestamp.toIso8601String(),
-                })
+            .map(
+              (turn) => {
+                'speaker': turn.speaker,
+                'text': turn.text,
+                'review': turn.review.name,
+                'timestamp': turn.timestamp.toIso8601String(),
+              },
+            )
             .toList(),
         'startedAt': session.startedAt.toIso8601String(),
         'audioInputMode': session.audioInputMode,
@@ -5569,9 +6459,10 @@ class LumoAppState {
 
   String _generateStableDeviceIdentifier() {
     final random = Random.secure();
-    final entropy = List<int>.generate(8, (_) => random.nextInt(256))
-        .map((value) => value.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final entropy = List<int>.generate(
+      8,
+      (_) => random.nextInt(256),
+    ).map((value) => value.toRadixString(16).padLeft(2, '0')).join();
     final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
     return 'lumo-tablet-$timestamp-$entropy';
   }
@@ -5716,10 +6607,7 @@ class RewardRedemptionOption {
     this.shortfall = 0,
   });
 
-  RewardRedemptionOption copyWith({
-    bool? unlocked,
-    int? shortfall,
-  }) {
+  RewardRedemptionOption copyWith({bool? unlocked, int? shortfall}) {
     return RewardRedemptionOption(
       id: id,
       title: title,
@@ -5773,4 +6661,27 @@ class ResponseOutcome {
         similarityScore = 0,
         supportType = 'Ignored',
         automationStatus = 'No learner response was captured.';
+}
+
+Map<String, String>? _parseDragMatchResponse(String response) {
+  const prefix = '__dragmatch__:';
+  final trimmed = response.trim();
+  if (!trimmed.startsWith(prefix)) return null;
+  final payload = trimmed.substring(prefix.length).trim();
+  if (payload.isEmpty) return <String, String>{};
+
+  final placements = <String, String>{};
+  for (final pair in payload.split('|')) {
+    final trimmedPair = pair.trim();
+    if (trimmedPair.isEmpty) continue;
+    final separatorIndex = trimmedPair.indexOf(':');
+    if (separatorIndex <= 0 || separatorIndex >= trimmedPair.length - 1) {
+      continue;
+    }
+    final itemId = trimmedPair.substring(0, separatorIndex).trim();
+    final targetId = trimmedPair.substring(separatorIndex + 1).trim();
+    if (itemId.isEmpty || targetId.isEmpty) continue;
+    placements[itemId] = targetId;
+  }
+  return placements;
 }

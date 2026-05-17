@@ -5,6 +5,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
+import { getModuleReleaseState } from '../lib/module-release';
 import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
 function getAdminApiKey() {
@@ -28,7 +29,7 @@ function assertProtectedApiKeyConfigured(role = 'admin') {
 function buildApiHeaders(role = 'admin', includeJson = false) {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
-    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
+    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Lumo Admin',
   };
   assertProtectedApiKeyConfigured(role);
   const adminApiKey = getAdminApiKey();
@@ -957,16 +958,73 @@ export async function quickUpdateCanvasModuleAction(formData: FormData) {
   const level = String(formData.get('level') || '').trim();
   const lessonCount = Math.max(Number(formData.get('lessonCount') || 0), 0);
 
-  await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
-    title,
-    status,
-    level,
-    lessonCount,
-  });
+  try {
+    if (!['draft', 'review', 'published'].includes(status)) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Module update blocked: unsupported module status “${status}”.`,
+      }));
+    }
+
+    if (status === 'review' || status === 'published') {
+      const [modules, lessons, assessments, subjects] = await Promise.all([
+        apiRead<Array<Record<string, unknown>>>('/api/v1/curriculum/modules'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/lessons'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/assessments'),
+        apiRead<Array<Record<string, unknown>>>('/api/v1/subjects'),
+      ]);
+
+      const module = modules.find((item) => item.id === moduleId) as any;
+      if (!module) {
+        redirect(appendSearchParams(returnPath, {
+          message: 'Module update blocked: the selected module no longer exists.',
+        }));
+      }
+
+      const releaseState = getModuleReleaseState({
+        module: {
+          ...module,
+          title: title || String(module.title || ''),
+          level: level || String(module.level || ''),
+          lessonCount,
+          status,
+        } as any,
+        lessons: lessons as any,
+        assessments: assessments as any,
+        subjects: subjects as any,
+      });
+
+      const blockers = status === 'published'
+        ? releaseState.publishBlockers
+        : releaseState.reviewBlockers;
+
+      if (blockers.length) {
+        redirect(appendSearchParams(returnPath, {
+          message: `Module update blocked: ${blockers.join(' ')}`,
+        }));
+      }
+    }
+
+    await apiWrite(`/api/v1/curriculum/modules/${moduleId}`, 'PATCH', {
+      title,
+      status,
+      level,
+      lessonCount,
+    });
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Module update failed: ${describeActionError(error, 'module quick edit could not be completed')}`,
+    }));
+  }
+
   revalidatePath('/canvas');
   revalidatePath('/content');
   redirect(appendSearchParams(returnPath, {
-    message: 'Module quick edit saved',
+    message: status === 'published'
+      ? 'Module published'
+      : status === 'review'
+        ? 'Module moved to review'
+        : 'Module quick edit saved',
   }));
 }
 
@@ -1054,6 +1112,118 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   redirect(appendSearchParams(returnPath, {
     message: 'Lesson quick edit saved',
   }));
+}
+
+export async function reorderSubjectStrandsAction(input: {
+  subjectId: string;
+  orderedStrandIds: string[];
+}) {
+  const subjectId = String(input?.subjectId || '').trim();
+  const orderedStrandIds = Array.isArray(input?.orderedStrandIds)
+    ? input.orderedStrandIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!subjectId) {
+    return { ok: false, message: 'Missing subject id' } as const;
+  }
+
+  if (orderedStrandIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'subject',
+      parentId: subjectId,
+      nodeType: 'strand',
+      orderedIds: orderedStrandIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Strand order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+
+  return { ok: true, message: 'Strand order updated' } as const;
+}
+
+export async function reorderStrandModulesAction(input: {
+  strandId: string;
+  orderedModuleIds: string[];
+}) {
+  const strandId = String(input?.strandId || '').trim();
+  const orderedModuleIds = Array.isArray(input?.orderedModuleIds)
+    ? input.orderedModuleIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!strandId) {
+    return { ok: false, message: 'Missing strand id' } as const;
+  }
+
+  if (orderedModuleIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'strand',
+      parentId: strandId,
+      nodeType: 'module',
+      orderedIds: orderedModuleIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Module order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+
+  return { ok: true, message: 'Module order updated' } as const;
+}
+
+export async function reorderModuleLessonsAction(input: {
+  moduleId: string;
+  orderedLessonIds: string[];
+}) {
+  const moduleId = String(input?.moduleId || '').trim();
+  const orderedLessonIds = Array.isArray(input?.orderedLessonIds)
+    ? input.orderedLessonIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  if (!moduleId) {
+    return { ok: false, message: 'Missing module id' } as const;
+  }
+
+  if (orderedLessonIds.length < 2) {
+    return { ok: true, message: 'Nothing to reorder' } as const;
+  }
+
+  try {
+    await apiWrite('/api/v1/curriculum/canvas/reorder', 'POST', {
+      parentType: 'module',
+      parentId: moduleId,
+      nodeType: 'lesson',
+      orderedIds: orderedLessonIds,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: describeActionError(error, 'Lesson order could not be updated'),
+    } as const;
+  }
+
+  revalidatePath('/canvas');
+  revalidatePath('/content');
+  orderedLessonIds.forEach((lessonId) => revalidatePath(`/content/lessons/${lessonId}`));
+
+  return { ok: true, message: 'Lesson order updated' } as const;
 }
 
 export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) {
@@ -1252,7 +1422,7 @@ export async function updateProgressAction(formData: FormData) {
       ? {
           status: progressionStatus,
           reason: overrideReason,
-          actorName: 'Pilot Admin',
+          actorName: 'Lumo Admin',
           actorRole: 'admin',
         }
       : null,
@@ -1275,7 +1445,7 @@ export async function awardStudentRewardAction(formData: FormData) {
     label: label || null,
     metadata: {
       source: 'lms-web-admin',
-      awardedBy: 'Pilot Admin',
+      awardedBy: 'Lumo Admin',
     },
   };
 
@@ -1304,7 +1474,7 @@ export async function correctRewardTransactionAction(formData: FormData) {
       note,
       metadata: {
         source: 'lms-web-admin',
-        adjustedBy: 'Pilot Admin',
+        adjustedBy: 'Lumo Admin',
       },
     }, 'admin');
   } catch (error) {
@@ -1333,7 +1503,7 @@ export async function revokeRewardTransactionAction(formData: FormData) {
       note,
       metadata: {
         source: 'lms-web-admin',
-        revokedBy: 'Pilot Admin',
+        revokedBy: 'Lumo Admin',
       },
     }, 'admin');
   } catch (error) {
@@ -1404,7 +1574,7 @@ export async function fulfillRewardRequestAction(formData: FormData) {
       adminNote: adminNote || null,
       metadata: {
         source: 'lms-web-admin',
-        fulfilledBy: 'Pilot Admin',
+        fulfilledBy: 'Lumo Admin',
       },
     },
   });
@@ -1439,7 +1609,7 @@ export async function expireRewardRequestAction(formData: FormData) {
       reason,
       metadata: {
         source: 'lms-web-admin',
-        expiredBy: 'Pilot Admin',
+        expiredBy: 'Lumo Admin',
       },
     },
   });

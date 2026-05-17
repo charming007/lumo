@@ -1,14 +1,57 @@
 import Link from 'next/link';
 import { CreateStudentForm, DeleteStudentForm, UpdateStudentForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
 import { averageAttendancePercent, formatAttendancePercent } from '../../lib/attendance';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterStudentsByGeography, studentGeographyLabel } from '../../lib/geography';
 import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Students"
+        subtitle="Learner roster control is blocked until production wiring is real, because fake-empty admin pages are worse than an honest blocker."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: students API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the learner roster cannot be trusted for enrollment, routing, attendance follow-up, or pod ownership changes. Fix the env var, redeploy, then verify live learner data.
+          </>
+        )}
+        whyBlocked={[
+          'Students is not a read-only vanity page. It drives learner creation, routing, deletion, and mallam assignment against live records.',
+          'If production is pointed at localhost, a placeholder host, or no backend at all, showing an empty roster would be a lie with operational consequences.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster',
+            expected: 'Live learners, attendance, pod, and mallam rows load from the backend',
+            failure: 'Table looks clean only because the dashboard never connected to the real API',
+          },
+          {
+            surface: 'Add / edit learner flows',
+            expected: 'Cohort, pod, mallam, center, and geography selectors load and submit against the live backend',
+            failure: 'Forms open with empty selectors, stale references, or writes that go nowhere',
+          },
+          {
+            surface: 'Pod routing actions',
+            expected: 'Learner routing reflects the actual pod and mallam graph after save',
+            failure: 'Operators think they reassigned a learner when the deployment was disconnected the whole time',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Attendance board', href: '/attendance', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const stateId = typeof query?.stateId === 'string' ? query.stateId : '';
   const localGovernmentId = typeof query?.localGovernmentId === 'string' ? query.localGovernmentId : '';
@@ -43,9 +86,66 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
+  const criticalRosterFailures = [
+    studentsResult.status === 'rejected' ? 'students' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    podsResult.status === 'rejected' ? 'pods' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+  ].filter(Boolean) as string[];
 
-  const hasCoreRosterGap = studentsResult.status === 'rejected';
-  const geographyFilterDegraded = podsResult.status === 'rejected' || centersResult.status === 'rejected' || statesResult.status === 'rejected' || localGovernmentsResult.status === 'rejected';
+  const hasCoreRosterGap = criticalRosterFailures.length > 0;
+  const geographyFilterDegraded = false;
+
+  if (criticalRosterFailures.length) {
+    const blockerDetail = criticalRosterFailures.length === 1
+      ? `The ${criticalRosterFailures[0]} feed failed to load from the live API. Leaving learner create, edit, delete, or routing controls up would let operators change roster ownership while the core reference graph is blind.`
+      : `The ${criticalRosterFailures.join(', ')} feeds failed to load from the live API. Leaving learner create, edit, delete, or routing controls up would let operators change roster ownership while the core reference graph is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Students"
+        subtitle="Learner admin is a live roster control surface, not a decorative directory. If the core feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: learner roster feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalRosterFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalRosterFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalRosterFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to enroll learners, reassign pod ownership, change cohort placement, and manage live roster records. If students, cohorts, pods, mallams, centers, states, or local governments disappear, a polished UI becomes dangerous fiction fast.',
+          'The create/edit forms on this page depend on the same geography feeds they summarize. If states or local governments disappear, learner routing and enrollment writes become polished guesswork, not a tolerable warning state.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Learner roster + ownership graph',
+            expected: 'Live learner rows, cohorts, pods, mallams, and centers all load before operators trust learner admin',
+            failure: 'Add, edit, delete, or routing controls remain reachable while the core learner-reference graph is missing or stale',
+          },
+          {
+            surface: 'Enrollment and routing forms',
+            expected: 'Cohort, pod, mallam, and center references load from the live backend before a learner write is allowed',
+            failure: 'Forms stay interactive while the core reference feeds are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the core learner roster feeds recover',
+            failure: 'The route implies learner operations are safe when the roster control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Attendance board', href: '/attendance', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+        ]}
+      />
+    );
+  }
+
   const filteredStudents = filterStudentsByGeography(students, pods, centers, { stateId, localGovernmentId, podId, cohortId, mallamId });
   const activeStudents = filteredStudents.filter((student) => (student.stage || '').toLowerCase() !== 'inactive');
   const avgAttendance = averageAttendancePercent(filteredStudents.map((student) => student.attendanceRate));

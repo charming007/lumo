@@ -20,6 +20,9 @@ import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
+import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
+import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
+import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -48,11 +51,6 @@ function blockerRiskMeta(missingLessons: number, hasAssessment: boolean, isDraft
   return { label: 'Gate missing', tone: '#E0E7FF', text: '#3730A3' };
 }
 
-function normalizeFilterValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? '';
-  return value ?? '';
-}
-
 function matchesQuery(values: Array<string | null | undefined>, query: string) {
   if (!query) return true;
   const haystack = values.filter(Boolean).join(' ').toLowerCase();
@@ -63,22 +61,7 @@ function emptyTableRows(message: string, columns: number) {
   return [[<span key={message} style={{ color: '#64748b', lineHeight: 1.6 }}>{message}</span>, ...Array.from({ length: columns - 1 }, () => '')]];
 }
 
-function buildContentReturnPath(query?: { q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }) {
-  const params = new URLSearchParams();
-  const q = normalizeFilterValue(query?.q).trim();
-  const subject = normalizeFilterValue(query?.subject).trim();
-  const status = normalizeFilterValue(query?.status).trim();
-  const view = normalizeFilterValue(query?.view).trim();
-
-  if (q) params.set('q', q);
-  if (subject) params.set('subject', subject);
-  if (status) params.set('status', status);
-  if (view) params.set('view', view);
-
-  return params.size ? `/content?${params.toString()}` : '/content';
-}
-
-export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[] }> }) {
+export default async function ContentPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; subject?: string | string[]; status?: string | string[]; view?: string | string[]; moduleId?: string | string[] }> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -133,6 +116,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
   const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
   const subjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
+  const subjectFeedAvailable = subjectsResult.status === 'fulfilled';
   const strands = strandsResult.status === 'fulfilled' ? strandsResult.value : [];
   const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const assignments = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
@@ -204,34 +188,51 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
   const statusFilter = normalizeFilterValue(query?.status).trim();
   const viewFilter = normalizeFilterValue(query?.view).trim();
+  const moduleIdFilter = normalizeFilterValue(query?.moduleId).trim();
+  const normalizedModuleIdFilter = moduleIdFilter.toLowerCase();
   const returnPath = buildContentReturnPath(query);
-  const subjectFilterName = subjects.find((subject) => subject.id === subjectFilter)?.name;
-
+  const normalizedSubjectFilter = subjectFilter.toLowerCase();
+  const subjectFilterName = subjects.find((subject) => subject.id.trim().toLowerCase() === normalizedSubjectFilter)
+    ?.name ?? subjects.find((subject) => subject.name.trim().toLowerCase() === normalizedSubjectFilter)?.name;
+  const moduleIdMatches = (value?: string | null) => !normalizedModuleIdFilter || value?.trim().toLowerCase() === normalizedModuleIdFilter;
+  const focusedModule = normalizedModuleIdFilter
+    ? modules.find((module) => module.id.trim().toLowerCase() === normalizedModuleIdFilter) ?? null
+    : null;
   const filteredModules = modules.filter((module) => {
-    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [module.subjectId],
+      subjectNames: [module.subjectName],
+    });
+    const moduleMatches = moduleIdMatches(module.id);
     const statusMatches = !statusFilter || module.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const filteredLessons = lessons.filter((lesson) => {
-    const lessonSubjectId = lesson.subjectId ?? subjects.find((subject) => subject.name === lesson.subjectName)?.id;
     const moduleForLesson = findModuleForLesson(modules, lesson);
-    const subjectMatches = !subjectFilter || lessonSubjectId === subjectFilter || lesson.subjectName === subjectFilterName || moduleForLesson?.subjectId === subjectFilter;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [lesson.subjectId, moduleForLesson?.subjectId],
+      subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
+    });
+    const moduleMatches = moduleIdMatches(lesson.moduleId) || moduleIdMatches(moduleForLesson?.id);
     const statusMatches = !statusFilter || lesson.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
     const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const filteredAssessments = assessments.filter((assessment) => {
-    const assessmentSubjectId = assessment.subjectId ?? subjects.find((subject) => subject.name === assessment.subjectName)?.id;
-    const subjectMatches = !subjectFilter || assessmentSubjectId === subjectFilter || assessment.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [assessment.subjectId],
+      subjectNames: [assessment.subjectName],
+    });
+    const moduleMatches = moduleIdMatches(assessment.moduleId);
     const statusMatches = !statusFilter || assessment.status === statusFilter;
     const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
-    return subjectMatches && statusMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const moduleHasAssessmentGate = (module: (typeof modules)[number]) => assessments.some(
@@ -245,17 +246,69 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
-    const subjectMatches = !subjectFilter || module.subjectId === subjectFilter || module.subjectName === subjectFilterName;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [module.subjectId],
+      subjectNames: [module.subjectName],
+    });
+    const moduleMatches = moduleIdMatches(module.id);
     const viewMatches = !viewFilter || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
-    return subjectMatches && viewMatches && queryMatches;
+    return subjectMatches && moduleMatches && viewMatches && queryMatches;
   });
 
   const showingBlockedView = viewFilter === 'blocked';
   const activeResultCount = showingBlockedView
     ? filteredBlockedModules.length
     : filteredModules.length + filteredLessons.length + filteredAssessments.length;
-  const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter);
+  const filtersActive = Boolean(searchText || subjectFilter || statusFilter || viewFilter || moduleIdFilter);
+
+  if (moduleIdFilter && !focusedModule) {
+    return (
+      <DeploymentBlockerCard
+        title="Content library"
+        subtitle="This scoped blocker handoff is blocked because the exact module from the dashboard no longer matches the live curriculum feed."
+        blockerHeadline="Deployment blocker: scoped module handoff no longer matches live curriculum."
+        blockerDetail={(
+          <>
+            The dashboard passed moduleId <code style={{ color: 'white', fontWeight: 900 }}>{moduleIdFilter}</code>, but this board cannot find that module in the live curriculum feed. Treat that as stale or mismatched deployment evidence, not as a clean blocker board. Until the module reappears or the dashboard target is corrected, do not treat this route as proof the release lane is clear.
+          </>
+        )}
+        whyBlocked={[
+          'A scoped blocker handoff is supposed to prove one exact release lane, not vaguely wave at the whole curriculum board.',
+          'If the targeted module vanished because the LMS is pointed at the wrong backend, a stale deploy, or drifted curriculum data, showing a normal board would invite a fake green light.',
+          'Blocking here forces operators to resolve whether the module actually moved, was deleted, or never existed on this deployment target.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Dashboard → Content blocker handoff',
+            expected: 'The exact blocked module opens in the content board with matching module id, title, and subject context',
+            failure: 'Dashboard deep-link lands on a generic board while the targeted module is missing',
+          },
+          {
+            surface: 'Live curriculum feed',
+            expected: 'Module id is present in modules feed and still carries the expected subject + release context',
+            failure: 'Module id is absent, renamed, or only exists on a different backend target',
+          },
+          {
+            surface: 'Cross-check routes',
+            expected: 'Dashboard, content board, and canvas all agree on the same module once the handoff is repaired',
+            failure: 'One route shows the module while another route acts like it never existed',
+          },
+        ]}
+        fixItems={[
+          { label: 'Focused module id', value: moduleIdFilter },
+          { label: 'Focused subject', value: subjectFilterName ?? subjectFilter ?? 'Not provided' },
+          { label: 'Operator action', value: 'Verify the module still exists on the live API target, then re-open the dashboard blocker or fix the backend/env mismatch before trusting this board' },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Open canvas', href: '/canvas', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
 
   return (
     <PageShell
@@ -297,6 +350,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ marginBottom: 20, padding: 18, borderRadius: 24, background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
         <form style={{ display: 'grid', gap: 14 }}>
+          {moduleIdFilter ? <input type="hidden" name="moduleId" value={moduleIdFilter} /> : null}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Library filters</div>
@@ -350,6 +404,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             {subjectFilterName ? <Pill label={`Subject: ${subjectFilterName}`} tone="#ECFDF5" text="#166534" /> : null}
             {statusFilter ? <Pill label={`Status: ${statusFilter}`} tone="#FEF3C7" text="#92400E" /> : null}
             {viewFilter ? <Pill label={`View: ${viewFilter}`} tone="#F3E8FF" text="#7E22CE" /> : null}
+            {focusedModule ? <Pill label={`Focused module: ${focusedModule.title}`} tone="#FEE2E2" text="#991B1B" /> : null}
+            {moduleIdFilter && !focusedModule ? <Pill label={`Focused module id: ${moduleIdFilter}`} tone="#FFF7ED" text="#9A3412" /> : null}
             {searchText ? <Pill label={`Query: ${searchText}`} tone="#F8FAFC" text="#334155" /> : null}
           </div>
         </form>
@@ -409,7 +465,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               </div>
             ))}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/content/lessons/new?from=%2Fcontent" style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={`/content/lessons/new?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 800, textDecoration: 'none' }}>
                 Open lesson studio →
               </Link>
               <Link href="/assignments" style={{ color: '#166534', fontWeight: 800, textDecoration: 'none' }}>
@@ -447,6 +503,24 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const isDraftModule = module.status === 'draft';
                   const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
 
+                  const moduleSubjectId = resolveModuleSubjectId(module, subjects);
+                  const hasAuthoringContext = Boolean(
+                    moduleSubjectId
+                    && (subjects.length === 0 || subjectsIncludeId(subjects, moduleSubjectId))
+                  );
+                  const blockerCta = resolveTopReleaseBlockerCta({
+                    missingLessons,
+                    hasAuthoringContext,
+                    subjectMetadataDegraded: Boolean(missingLessons > 0 && !hasAuthoringContext && !subjectFeedAvailable),
+                  });
+                  const createLessonHref = blockerCta.canLaunchLessonStudio && moduleSubjectId
+                    ? buildScopedLessonCreateHref({
+                        subjectId: moduleSubjectId,
+                        moduleId: module.id,
+                        returnPath,
+                      })
+                    : null;
+
                   return [
                     <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
                       <strong>{module.title}</strong>
@@ -477,15 +551,21 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
-                      <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent&focus=blockers`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                        Add lesson pack
-                      </Link>
+                      {createLessonHref ? (
+                        <Link href={createLessonHref} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
+                          {blockerCta.label}
+                        </Link>
+                      ) : (
+                        <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
+                          {blockerCta.label}
+                        </div>
+                      )}
                       {!hasAssessment ? (
                         <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
                           <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                         </ModalLauncher>
                       ) : (
-                        <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                        <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                           Review gate
                         </Link>
                       )}
@@ -581,10 +661,22 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const hasAssessment = moduleHasAssessmentGate(module);
                 const isDraftModule = module.status === 'draft';
                 const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
-                const moduleSubjectId = module.subjectId?.trim() ?? '';
-                const canLaunchLessonCreate = Boolean(moduleSubjectId && subjects.some((subject) => subject.id === moduleSubjectId));
-                const createLessonHref = canLaunchLessonCreate
-                  ? `/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=%2Fcontent%3Fview%3Dblocked&focus=blockers`
+                const moduleSubjectId = resolveModuleSubjectId(module, subjects);
+                const hasAuthoringContext = Boolean(
+                  moduleSubjectId
+                  && (subjects.length === 0 || subjectsIncludeId(subjects, moduleSubjectId))
+                );
+                const blockerCta = resolveTopReleaseBlockerCta({
+                  missingLessons,
+                  hasAuthoringContext,
+                  subjectMetadataDegraded: Boolean(missingLessons > 0 && !hasAuthoringContext && !subjectFeedAvailable),
+                });
+                const createLessonHref = blockerCta.canLaunchLessonStudio && moduleSubjectId
+                  ? buildScopedLessonCreateHref({
+                      subjectId: moduleSubjectId,
+                      moduleId: module.id,
+                      returnPath,
+                    })
                   : null;
 
                 return [
@@ -619,19 +711,19 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
                     {createLessonHref ? (
                       <Link href={createLessonHref} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none', textAlign: 'center' }}>
-                        Add lesson pack
+                        {blockerCta.label}
                       </Link>
                     ) : (
                       <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
-                        Recover subject context first
+                        {blockerCta.label}
                       </div>
                     )}
                     {!hasAssessment ? (
                       <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate directly from the blockers-only view." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath="/content?view=blocked" />
+                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
                       </ModalLauncher>
                     ) : (
-                      <Link href={`/content?view=assessments&q=${encodeURIComponent(module.title)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                      <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                         Review gate
                       </Link>
                     )}

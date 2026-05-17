@@ -1,7 +1,9 @@
 import type { Assessment, CurriculumModule } from './types';
 
+const liveAssessmentStatuses = new Set(['active', 'approved', 'published']);
+
 export function isLiveAssessmentGate(assessment: Assessment) {
-  return normalize(assessment.status) === 'active';
+  return liveAssessmentStatuses.has(normalize(assessment.status));
 }
 
 function normalize(value?: string | null) {

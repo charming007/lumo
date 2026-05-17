@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   CreateAssessmentForm,
   DeleteAssessmentForm,
@@ -18,9 +18,11 @@ import {
   UpdateSubjectForm,
 } from './admin-forms';
 import { ModalLauncher } from './modal-launcher';
-import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, updateStrandAction } from '../app/actions';
+import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, reorderStrandModulesAction, reorderSubjectStrandsAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
+import { getModuleReleaseState } from '../lib/module-release';
+import { resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from '../lib/module-subject-match';
 import { Card, Pill } from '../lib/ui';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
 
@@ -53,6 +55,183 @@ const lifecycleOptions = [
   { value: 'review', label: 'Review', activeBackground: '#FDE68A', idleBackground: '#FFFBEB', color: '#92400E', border: '#FCD34D' },
   { value: 'published', label: 'Publish', activeBackground: '#BBF7D0', idleBackground: '#ECFDF5', color: '#166534', border: '#86EFAC' },
 ] as const;
+
+function sortByOrderThenName<T extends { order?: number | null; name?: string | null }>(items: T[]) {
+  return [...items].sort((left, right) => (left.order ?? 999) - (right.order ?? 999) || (left.name ?? '').localeCompare(right.name ?? ''));
+}
+
+function LessonReorderLane({
+  module,
+  lessons,
+  assignments,
+  returnPath,
+}: {
+  module: CurriculumModule;
+  lessons: Lesson[];
+  assignments: Assignment[];
+  returnPath: string;
+}) {
+  const [orderedLessons, setOrderedLessons] = useState(lessons);
+  const [draggedLessonId, setDraggedLessonId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setOrderedLessons(lessons);
+  }, [lessons]);
+
+  function moveLesson(targetLessonId: string) {
+    if (!draggedLessonId || draggedLessonId === targetLessonId) return;
+
+    const sourceIndex = orderedLessons.findIndex((lesson) => lesson.id === draggedLessonId);
+    const targetIndex = orderedLessons.findIndex((lesson) => lesson.id === targetLessonId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+
+    const next = [...orderedLessons];
+    const [movedLesson] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, movedLesson);
+    setOrderedLessons(next);
+    setDraggedLessonId(null);
+    setFeedback('Saving lesson order…');
+
+    startTransition(async () => {
+      const result = await reorderModuleLessonsAction({
+        moduleId: module.id,
+        orderedLessonIds: next.map((lesson) => lesson.id),
+      });
+
+      if (!result.ok) {
+        setOrderedLessons(lessons);
+      }
+
+      setFeedback(result.message);
+    });
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {orderedLessons.length > 1 ? (
+        <div style={{ color: '#64748b', fontSize: 12, fontWeight: 700 }}>
+          Drag lessons to change their module order. Lesson studio keeps the same saved sequence.
+        </div>
+      ) : null}
+      {feedback ? (
+        <div style={{ color: feedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+          {feedback}
+        </div>
+      ) : null}
+      {orderedLessons.length > 0 ? orderedLessons.map((lesson, lessonIndex) => {
+        const lessonPill = statusPill(lesson.status);
+        const usageCount = assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length;
+        const isDragging = draggedLessonId === lesson.id;
+
+        return (
+          <div
+            key={lesson.id}
+            draggable={orderedLessons.length > 1 && !isPending}
+            onDragStart={() => setDraggedLessonId(lesson.id)}
+            onDragEnd={() => setDraggedLessonId(null)}
+            onDragOver={(event) => {
+              if (!draggedLessonId || draggedLessonId === lesson.id) return;
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              moveLesson(lesson.id);
+            }}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: 12,
+              borderRadius: 16,
+              background: isDragging ? '#eef2ff' : '#f8fafc',
+              border: `1px solid ${isDragging ? '#c7d2fe' : '#eef2f7'}`,
+              opacity: isPending && isDragging ? 0.7 : 1,
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ cursor: orderedLessons.length > 1 && !isPending ? 'grab' : 'default', color: '#64748b', fontSize: 16 }}>⋮⋮</span>
+                <div style={{ fontWeight: 700 }}>{lessonIndex + 1}. {lesson.title}</div>
+              </div>
+              <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min • {lesson.activityTypes?.length ?? lesson.activityCount ?? 0} typed step{(lesson.activityTypes?.length ?? lesson.activityCount ?? 0) === 1 ? '' : 's'}</div>
+              {lesson.activityTypes && lesson.activityTypes.length > 0 ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  {lesson.activityTypes.slice(0, 4).map((type) => {
+                    const accentMap: Record<string, { tint: string; border: string; text: string }> = {
+                      image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
+                      tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
+                      listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
+                      speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
+                      word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
+                      letter_intro: { tint: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
+                      oral_quiz: { tint: '#F8FAFC', border: '#CBD5E1', text: '#334155' },
+                      listen_answer: { tint: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8' },
+                    };
+                    const labelMap: Record<string, string> = {
+                      listen_repeat: 'Listen & repeat',
+                      speak_answer: 'Speak answer',
+                      word_build: 'Word build',
+                      image_choice: 'Image choice',
+                      oral_quiz: 'Oral quiz',
+                      listen_answer: 'Listen answer',
+                      tap_choice: 'Tap choice',
+                      letter_intro: 'Letter intro',
+                    };
+                    const accent = accentMap[type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+                    return (
+                      <span key={type} style={{ padding: '4px 8px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontSize: 11, fontWeight: 800 }}>
+                        {labelMap[type] ?? type}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: '#B45309', fontSize: 12, fontWeight: 700, marginTop: 8 }}>Type mix still hidden until authored steps are added.</div>
+              )}
+              <div style={{ color: '#9A3412', fontSize: 12, fontWeight: 700, marginTop: 6 }}>
+                {usageCount} live assignment{usageCount === 1 ? '' : 's'} using this learner-facing lesson
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+                <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open typed lesson studio →</Link>
+                <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
+                <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
+              <form action={quickUpdateLessonStatusAction}>
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <input type="hidden" name="status" value="draft" />
+                <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
+                  Draft
+                </button>
+              </form>
+              <form action={quickUpdateLessonStatusAction}>
+                <input type="hidden" name="lessonId" value={lesson.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <input type="hidden" name="status" value="published" />
+                <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
+                  Publish
+                </button>
+              </form>
+              <ModalLauncher buttonLabel="✏️" title={`Edit lesson lifecycle · ${lesson.title}`} description="Update the lesson lifecycle, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
+                <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
+              </ModalLauncher>
+              <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
+                <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
+              </ModalLauncher>
+            </div>
+          </div>
+        );
+      }) : (
+        <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No lessons linked yet.</div>
+      )}
+    </div>
+  );
+}
 
 function LifecycleRail({
   entityLabel,
@@ -128,10 +307,19 @@ export function ContentSubjectLanes({
   const subjectSummaries = useMemo(() => subjects
     .map((subject) => {
       const palette = subjectPalette[subject.id] || subjectPalette.english;
-      const subjectStrands = strands.filter((strand) => strand.subjectId === subject.id);
-      const subjectModules = modules.filter((module) => module.subjectId === subject.id || module.subjectName === subject.name);
-      const subjectLessons = lessons.filter((lesson) => lesson.subjectId === subject.id || lesson.subjectName === subject.name);
-      const subjectAssessments = assessments.filter((assessment) => assessment.subjectId === subject.id || assessment.subjectName === subject.name);
+      const subjectStrands = sortByOrderThenName(strands.filter((strand) => subjectsIncludeId([subject], strand.subjectId)));
+      const subjectModules = modules.filter((module) => subjectMatchesContext(subject, {
+        subjectIds: [module.subjectId],
+        subjectNames: [module.subjectName],
+      }));
+      const subjectLessons = lessons.filter((lesson) => subjectMatchesContext(subject, {
+        subjectIds: [lesson.subjectId],
+        subjectNames: [lesson.subjectName],
+      }));
+      const subjectAssessments = assessments.filter((assessment) => subjectMatchesContext(subject, {
+        subjectIds: [assessment.subjectId],
+        subjectNames: [assessment.subjectName],
+      }));
       const subjectAssignments = assignments.filter((assignment) => subjectLessons.some((lesson) => lesson.title === assignment.lessonTitle));
       const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
       const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
@@ -142,11 +330,27 @@ export function ContentSubjectLanes({
 
   const [collapsedSubjects, setCollapsedSubjects] = useState<Record<string, boolean>>({});
   const [collapsedStrands, setCollapsedStrands] = useState<Record<string, boolean>>({});
+  const [orderedStrandsBySubject, setOrderedStrandsBySubject] = useState<Record<string, Strand[]>>({});
+  const [draggedStrandBySubject, setDraggedStrandBySubject] = useState<Record<string, string | null>>({});
+  const [strandFeedbackBySubject, setStrandFeedbackBySubject] = useState<Record<string, string | null>>({});
+  const [orderedModulesByStrand, setOrderedModulesByStrand] = useState<Record<string, CurriculumModule[]>>({});
+  const [draggedModuleByStrand, setDraggedModuleByStrand] = useState<Record<string, string | null>>({});
+  const [moduleFeedbackByStrand, setModuleFeedbackByStrand] = useState<Record<string, string | null>>({});
+  const [isReorderPending, startStrandTransition] = useTransition();
+  const [, startModuleTransition] = [isReorderPending, startStrandTransition];
   const collapsedCount = subjectSummaries.filter(({ subject }) => collapsedSubjects[subject.id]).length;
   const strandIds = subjectSummaries.flatMap(({ subjectStrands }) => subjectStrands.map((strand) => strand.id));
   const collapsedStrandCount = strandIds.filter((strandId) => collapsedStrands[strandId]).length;
   const allCollapsed = subjectSummaries.length > 0 && collapsedCount === subjectSummaries.length && collapsedStrandCount === strandIds.length;
   const allExpanded = collapsedCount === 0 && collapsedStrandCount === 0;
+
+  useEffect(() => {
+    setOrderedStrandsBySubject(Object.fromEntries(subjectSummaries.map(({ subject, subjectStrands }) => [subject.id, subjectStrands])));
+  }, [subjectSummaries]);
+
+  useEffect(() => {
+    setOrderedModulesByStrand(Object.fromEntries(subjectSummaries.flatMap(({ subjectModules, subjectStrands }) => subjectStrands.map((strand) => [strand.id, subjectModules.filter((module) => module.strandName === strand.name)]))));
+  }, [subjectSummaries]);
 
   return (
     <section style={{ display: 'grid', gap: 14, marginBottom: 20 }}>
@@ -196,6 +400,37 @@ export function ContentSubjectLanes({
       <div style={{ display: 'grid', gap: 16 }}>
         {subjectSummaries.map(({ subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons }) => {
           const collapsed = Boolean(collapsedSubjects[subject.id]);
+          const orderedStrands = orderedStrandsBySubject[subject.id] ?? subjectStrands;
+          const draggedStrandId = draggedStrandBySubject[subject.id] ?? null;
+          const strandFeedback = strandFeedbackBySubject[subject.id] ?? null;
+
+          function moveStrand(targetStrandId: string) {
+            if (!draggedStrandId || draggedStrandId === targetStrandId) return;
+
+            const sourceIndex = orderedStrands.findIndex((strand) => strand.id === draggedStrandId);
+            const targetIndex = orderedStrands.findIndex((strand) => strand.id === targetStrandId);
+            if (sourceIndex === -1 || targetIndex === -1) return;
+
+            const next = [...orderedStrands];
+            const [movedStrand] = next.splice(sourceIndex, 1);
+            next.splice(targetIndex, 0, movedStrand);
+            setOrderedStrandsBySubject((current) => ({ ...current, [subject.id]: next }));
+            setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: null }));
+            setStrandFeedbackBySubject((current) => ({ ...current, [subject.id]: 'Saving strand order…' }));
+
+            startStrandTransition(async () => {
+              const result = await reorderSubjectStrandsAction({
+                subjectId: subject.id,
+                orderedStrandIds: next.map((strand) => strand.id),
+              });
+
+              if (!result.ok) {
+                setOrderedStrandsBySubject((current) => ({ ...current, [subject.id]: subjectStrands }));
+              }
+
+              setStrandFeedbackBySubject((current) => ({ ...current, [subject.id]: result.message }));
+            });
+          }
 
           return (
             <Card key={subject.id} title={subject.name} eyebrow="Subject lane">
@@ -265,25 +500,77 @@ export function ContentSubjectLanes({
                 </div>
 
                 <div id={`subject-panel-${subject.id}`} hidden={collapsed} style={{ display: collapsed ? 'none' : 'grid', gap: 12 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
-                      <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} returnPath={returnPath} />
-                    </ModalLauncher>
-                    <Link href={`/content/lessons/new?subjectId=${subject.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
-                      Open lesson studio for {subject.name} →
-                    </Link>
-                    {subjectAssignments.length ? (
-                      <Link href={`/assignments?q=${encodeURIComponent(subject.name)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
-                        See learner delivery impact →
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a real strand directly from the curriculum canvas instead of bouncing to a separate admin surface." eyebrow="Create strand" triggerStyle={iconButtonStyle('#EEF2FF', '#3730A3')}>
+                        <CreateStrandForm subjects={subjects} initialSubjectId={subject.id} initialOrder={subjectStrands.length + 1} returnPath={returnPath} />
+                      </ModalLauncher>
+                      <Link href={`/content/lessons/new?subjectId=${subject.id}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#ede9fe', color: '#5b21b6', textDecoration: 'none' }}>
+                        Open lesson studio for {subject.name} →
                       </Link>
+                      {subjectAssignments.length ? (
+                        <Link href={`/assignments?q=${encodeURIComponent(subject.name)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', textDecoration: 'none' }}>
+                          See learner delivery impact →
+                        </Link>
+                      ) : null}
+                    </div>
+                    {strandFeedback ? (
+                      <div style={{ color: strandFeedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+                        {strandFeedback}
+                      </div>
                     ) : null}
                   </div>
-                  {subjectStrands.length > 0 ? subjectStrands.map((strand) => {
+                  {orderedStrands.length > 0 ? orderedStrands.map((strand) => {
                     const strandModules = subjectModules.filter((module) => module.strandName === strand.name);
                     const strandCollapsed = Boolean(collapsedStrands[strand.id]);
+                    const orderedModules = orderedModulesByStrand[strand.id] ?? strandModules;
+                    const draggedModuleId = draggedModuleByStrand[strand.id] ?? null;
+                    const moduleFeedback = moduleFeedbackByStrand[strand.id] ?? null;
+
+                    function moveModule(targetModuleId: string) {
+                      if (!draggedModuleId || draggedModuleId === targetModuleId) return;
+
+                      const sourceIndex = orderedModules.findIndex((module) => module.id === draggedModuleId);
+                      const targetIndex = orderedModules.findIndex((module) => module.id === targetModuleId);
+                      if (sourceIndex === -1 || targetIndex === -1) return;
+
+                      const next = [...orderedModules];
+                      const [movedModule] = next.splice(sourceIndex, 1);
+                      next.splice(targetIndex, 0, movedModule);
+                      setOrderedModulesByStrand((current) => ({ ...current, [strand.id]: next }));
+                      setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: null }));
+                      setModuleFeedbackByStrand((current) => ({ ...current, [strand.id]: 'Saving module order…' }));
+
+                      startModuleTransition(async () => {
+                        const result = await reorderStrandModulesAction({
+                          strandId: strand.id,
+                          orderedModuleIds: next.map((module) => module.id),
+                        });
+
+                        if (!result.ok) {
+                          setOrderedModulesByStrand((current) => ({ ...current, [strand.id]: strandModules }));
+                        }
+
+                        setModuleFeedbackByStrand((current) => ({ ...current, [strand.id]: result.message }));
+                      });
+                    }
 
                     return (
-                      <div key={strand.id} style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', display: 'grid', gap: 12 }}>
+                      <div
+                        key={strand.id}
+                        draggable={orderedStrands.length > 1 && !isReorderPending}
+                        onDragStart={() => setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: strand.id }))}
+                        onDragEnd={() => setDraggedStrandBySubject((current) => ({ ...current, [subject.id]: null }))}
+                        onDragOver={(event) => {
+                          if (!draggedStrandId || draggedStrandId === strand.id) return;
+                          event.preventDefault();
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          moveStrand(strand.id);
+                        }}
+                        style={{ padding: 14, borderRadius: 18, background: draggedStrandId === strand.id ? '#eef2ff' : '#f8fafc', border: `1px solid ${draggedStrandId === strand.id ? '#c7d2fe' : '#eef2f7'}`, display: 'grid', gap: 12, opacity: isReorderPending && draggedStrandId === strand.id ? 0.7 : 1 }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                             <button
@@ -307,6 +594,7 @@ export function ContentSubjectLanes({
                             >
                               {strandCollapsed ? '▸' : '▾'}
                             </button>
+                            {orderedStrands.length > 1 ? <span style={{ cursor: !isReorderPending ? 'grab' : 'default', color: '#64748b', fontSize: 16, lineHeight: 1 }}>⋮⋮</span> : null}
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 700 }}>{strand.name}</div>
                               <div style={{ color: '#64748b', fontSize: 13 }}>{strandModules.length} module{strandModules.length === 1 ? '' : 's'} in this planning lane</div>
@@ -327,55 +615,108 @@ export function ContentSubjectLanes({
                         </div>
 
                         <div id={`strand-panel-${strand.id}`} hidden={strandCollapsed} style={{ display: strandCollapsed ? 'none' : 'grid', gap: 12 }}>
-                          {strandModules.length > 0 ? strandModules.map((module) => {
+                          {moduleFeedback ? (
+                            <div style={{ color: moduleFeedback.toLowerCase().includes('updated') ? '#166534' : '#475569', fontSize: 12, fontWeight: 700 }}>
+                              {moduleFeedback}
+                            </div>
+                          ) : null}
+                          {orderedModules.length > 0 ? orderedModules.map((module) => {
                             const moduleLessons = filterLessonsForModule(subjectLessons, module);
                             const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
                             const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
                             const pill = statusPill(module.status);
+                            const releaseState = getModuleReleaseState({
+                              module,
+                              lessons: subjectLessons,
+                              assessments: subjectAssessments,
+                              subjects,
+                            });
+                            const moduleSubjectId = resolveModuleSubjectId(module, subjects);
+                            const canLaunchLessonStudio = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
 
                             return (
-                              <div key={module.id} style={{ padding: 18, borderRadius: 20, border: '1px solid #e5e7eb', background: 'white', display: 'grid', gap: 12 }}>
+                              <div
+                                key={module.id}
+                                draggable={orderedModules.length > 1 && !isReorderPending}
+                                onDragStart={() => setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: module.id }))}
+                                onDragEnd={() => setDraggedModuleByStrand((current) => ({ ...current, [strand.id]: null }))}
+                                onDragOver={(event) => {
+                                  if (!draggedModuleId || draggedModuleId === module.id) return;
+                                  event.preventDefault();
+                                }}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  moveModule(module.id);
+                                }}
+                                style={{ padding: 18, borderRadius: 20, border: `1px solid ${draggedModuleId === module.id ? '#c7d2fe' : '#e5e7eb'}`, background: draggedModuleId === module.id ? '#eef2ff' : 'white', display: 'grid', gap: 12, opacity: isReorderPending && draggedModuleId === module.id ? 0.7 : 1 }}
+                              >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                  <div>
+                                  <div style={{ display: 'grid', gap: 4 }}>
+                                    {orderedModules.length > 1 ? <span style={{ cursor: !isReorderPending ? 'grab' : 'default', color: '#64748b', fontSize: 16, lineHeight: 1 }}>⋮⋮</span> : null}
                                     <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{module.title}</div>
                                     <div style={{ color: '#64748b' }}>{module.level} • {module.lessonCount} planned lessons • {readyLessonCount} ready now • {moduleAssignments.length} live assignment{moduleAssignments.length === 1 ? '' : 's'}</div>
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                     <Pill label={module.status} tone={pill.tone} text={pill.text} />
-                                    <form action={quickUpdateCanvasModuleAction}>
-                                      <input type="hidden" name="moduleId" value={module.id} />
-                                      <input type="hidden" name="returnPath" value={returnPath} />
-                                      <input type="hidden" name="title" value={module.title} />
-                                      <input type="hidden" name="level" value={module.level} />
-                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
-                                      <input type="hidden" name="status" value="draft" />
-                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
-                                        Draft
-                                      </button>
-                                    </form>
-                                    <form action={quickUpdateCanvasModuleAction}>
-                                      <input type="hidden" name="moduleId" value={module.id} />
-                                      <input type="hidden" name="returnPath" value={returnPath} />
-                                      <input type="hidden" name="title" value={module.title} />
-                                      <input type="hidden" name="level" value={module.level} />
-                                      <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
-                                      <input type="hidden" name="status" value="published" />
-                                      <button type="submit" style={{ ...actionButtonStyle, background: module.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
-                                        Publish
-                                      </button>
-                                    </form>
-                                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
-                                      Open lesson studio →
-                                    </Link>
-                                    <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
-                                      <div style={{ display: 'grid', gap: 12 }}>
-                                        <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
-                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
-                                          Open full lesson studio
+                                    {lifecycleOptions.map((option) => {
+                                      const blockers = option.value === 'published'
+                                        ? releaseState.publishBlockers
+                                        : option.value === 'review'
+                                          ? releaseState.reviewBlockers
+                                          : [];
+                                      const isDisabled = option.value === 'published'
+                                        ? !releaseState.canPublish
+                                        : option.value === 'review'
+                                          ? !releaseState.canReview
+                                          : false;
+                                      const isActive = module.status === option.value;
+
+                                      return (
+                                        <form key={`${module.id}-${option.value}`} action={quickUpdateCanvasModuleAction}>
+                                          <input type="hidden" name="moduleId" value={module.id} />
+                                          <input type="hidden" name="returnPath" value={returnPath} />
+                                          <input type="hidden" name="title" value={module.title} />
+                                          <input type="hidden" name="level" value={module.level} />
+                                          <input type="hidden" name="lessonCount" value={String(module.lessonCount)} />
+                                          <input type="hidden" name="status" value={option.value} />
+                                          <button
+                                            type="submit"
+                                            disabled={isDisabled}
+                                            title={isDisabled ? blockers.join(' ') : undefined}
+                                            style={{
+                                              ...actionButtonStyle,
+                                              background: isActive ? option.activeBackground : option.idleBackground,
+                                              color: option.color,
+                                              border: `1px solid ${option.border}`,
+                                              opacity: isDisabled ? 0.55 : 1,
+                                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                            }}
+                                          >
+                                            {option.label}
+                                          </button>
+                                        </form>
+                                      );
+                                    })}
+                                    {canLaunchLessonStudio ? (
+                                      <>
+                                        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#EEF2FF', color: '#3730A3', textDecoration: 'none' }}>
+                                          Open lesson studio →
                                         </Link>
+                                        <ModalLauncher buttonLabel="＋ Lesson" title={`Create lesson in ${module.title}`} description="Create a lesson shell from the module card, then hand off immediately into the full lesson studio flow." eyebrow="Create lesson" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
+                                          <div style={{ display: 'grid', gap: 12 }}>
+                                            <div style={{ color: '#64748b', lineHeight: 1.6 }}>For the real payload, use the full lesson studio. This shortcut only creates the lesson record in the correct curriculum lane.</div>
+                                            <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(moduleSubjectId)}&moduleId=${encodeURIComponent(module.id)}&from=${encodeURIComponent(returnPath)}`} style={{ borderRadius: 12, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+                                              Open full lesson studio
+                                            </Link>
+                                          </div>
+                                        </ModalLauncher>
+                                      </>
+                                    ) : (
+                                      <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>
+                                        Recover subject context first
                                       </div>
-                                    </ModalLauncher>
+                                    )}
                                     <ModalLauncher buttonLabel="✏️ Edit module" title={`Edit module lifecycle · ${module.title}`} description="Update module metadata and lifecycle state from the same content lane." eyebrow="Edit module" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
                                       <UpdateModuleForm modules={[module]} returnPath={returnPath} />
                                     </ModalLauncher>
@@ -386,88 +727,12 @@ export function ContentSubjectLanes({
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-                                  <div style={{ display: 'grid', gap: 10 }}>
-                                    {moduleLessons.length > 0 ? moduleLessons.map((lesson) => {
-                                      const lessonPill = statusPill(lesson.status);
-                                      return (
-                                        <div key={lesson.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 16, background: '#f8fafc', border: '1px solid #eef2f7' }}>
-                                          <div>
-                                            <div style={{ fontWeight: 700 }}>{lesson.title}</div>
-                                            <div style={{ color: '#64748b' }}>{lesson.mode} • {lesson.durationMinutes} min • {lesson.activityTypes?.length ?? lesson.activityCount ?? 0} typed step{(lesson.activityTypes?.length ?? lesson.activityCount ?? 0) === 1 ? '' : 's'}</div>
-                                            {lesson.activityTypes && lesson.activityTypes.length > 0 ? (
-                                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                                                {lesson.activityTypes.slice(0, 4).map((type) => {
-                                                  const accentMap: Record<string, { tint: string; border: string; text: string }> = {
-                                                    image_choice: { tint: '#EEF2FF', border: '#C7D2FE', text: '#3730A3' },
-                                                    tap_choice: { tint: '#ECFDF5', border: '#BBF7D0', text: '#166534' },
-                                                    listen_repeat: { tint: '#FFF7ED', border: '#FED7AA', text: '#9A3412' },
-                                                    speak_answer: { tint: '#FDF2F8', border: '#FBCFE8', text: '#9D174D' },
-                                                    word_build: { tint: '#FEFCE8', border: '#FDE68A', text: '#854D0E' },
-                                                    letter_intro: { tint: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9' },
-                                                    oral_quiz: { tint: '#F8FAFC', border: '#CBD5E1', text: '#334155' },
-                                                    listen_answer: { tint: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8' },
-                                                  };
-                                                  const labelMap: Record<string, string> = {
-                                                    listen_repeat: 'Listen & repeat',
-                                                    speak_answer: 'Speak answer',
-                                                    word_build: 'Word build',
-                                                    image_choice: 'Image choice',
-                                                    oral_quiz: 'Oral quiz',
-                                                    listen_answer: 'Listen answer',
-                                                    tap_choice: 'Tap choice',
-                                                    letter_intro: 'Letter intro',
-                                                  };
-                                                  const accent = accentMap[type] ?? { tint: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
-                                                  return (
-                                                    <span key={type} style={{ padding: '4px 8px', borderRadius: 999, background: accent.tint, border: `1px solid ${accent.border}`, color: accent.text, fontSize: 11, fontWeight: 800 }}>
-                                                      {labelMap[type] ?? type}
-                                                    </span>
-                                                  );
-                                                })}
-                                              </div>
-                                            ) : (
-                                              <div style={{ color: '#B45309', fontSize: 12, fontWeight: 700, marginTop: 8 }}>Type mix still hidden until authored steps are added.</div>
-                                            )}
-                                            <div style={{ color: '#9A3412', fontSize: 12, fontWeight: 700, marginTop: 6 }}>
-                                              {assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length} live assignment{assignments.filter((assignment) => assignment.lessonTitle === lesson.title).length === 1 ? '' : 's'} using this learner-facing lesson
-                                            </div>
-                                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-                                              <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ color: '#4F46E5', fontWeight: 700, textDecoration: 'none' }}>Open typed lesson studio →</Link>
-                                              <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(module.subjectId ?? '')}&moduleId=${encodeURIComponent(module.id)}&duplicate=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(returnPath)}`} style={{ color: '#7C3AED', fontWeight: 700, textDecoration: 'none' }}>Duplicate into new lesson →</Link>
-                                              <Link href={`/assignments?q=${encodeURIComponent(lesson.title)}`} style={{ color: '#C2410C', fontWeight: 700, textDecoration: 'none' }}>View delivery usage →</Link>
-                                            </div>
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <Pill label={lesson.status} tone={lessonPill.tone} text={lessonPill.text} />
-                                            <form action={quickUpdateLessonStatusAction}>
-                                              <input type="hidden" name="lessonId" value={lesson.id} />
-                                              <input type="hidden" name="returnPath" value={returnPath} />
-                                              <input type="hidden" name="status" value="draft" />
-                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'draft' ? '#E2E8F0' : '#F8FAFC', color: '#334155', border: '1px solid #CBD5E1' }}>
-                                                Draft
-                                              </button>
-                                            </form>
-                                            <form action={quickUpdateLessonStatusAction}>
-                                              <input type="hidden" name="lessonId" value={lesson.id} />
-                                              <input type="hidden" name="returnPath" value={returnPath} />
-                                              <input type="hidden" name="status" value="published" />
-                                              <button type="submit" style={{ ...actionButtonStyle, background: lesson.status === 'published' ? '#BBF7D0' : '#ECFDF5', color: '#166534', border: '1px solid #86EFAC' }}>
-                                                Publish
-                                              </button>
-                                            </form>
-                                            <ModalLauncher buttonLabel="✏️" title={`Edit lesson lifecycle · ${lesson.title}`} description="Update the lesson lifecycle, mode, or duration without leaving the module card." eyebrow="Edit lesson" triggerStyle={iconButtonStyle('#e6fffb', '#0f766e')}>
-                                              <UpdateLessonForm lessons={[lesson]} returnPath={returnPath} />
-                                            </ModalLauncher>
-                                            <ModalLauncher buttonLabel="🗑" title={`Delete lesson · ${lesson.title}`} description="Delete this lesson if it should no longer be in the module lane." eyebrow="Delete lesson" triggerStyle={iconButtonStyle('#fee2e2', '#b91c1c')}>
-                                              <DeleteLessonForm lessons={[lesson]} returnPath={returnPath} />
-                                            </ModalLauncher>
-                                          </div>
-                                        </div>
-                                      );
-                                    }) : (
-                                      <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7', color: '#64748b' }}>No lessons linked yet.</div>
-                                    )}
-                                  </div>
+                                  <LessonReorderLane
+                                    module={module}
+                                    lessons={moduleLessons}
+                                    assignments={assignments}
+                                    returnPath={returnPath}
+                                  />
 
                                   <div style={{ display: 'grid', gap: 10 }}>
                                     <div style={{ padding: 14, borderRadius: 18, background: '#eff6ff', border: '1px solid #bfdbfe' }}>

@@ -57,6 +57,8 @@ export function LessonStepPreviewCard({
       <div style={{ color: '#64748B', fontSize: 12 }}>{lessonStepTypeLabelMap[step.type] ?? step.type} • Evidence: {step.evidence || 'Not set yet'}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {step.choices && step.choices.length > 0 ? <span style={{ color: '#7C3AED', fontSize: 12, fontWeight: 700 }}>{step.choices.length} choice option{step.choices.length === 1 ? '' : 's'}</span> : null}
+        {step.dragItems && step.dragItems.length > 0 ? <span style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.dragItems.length} drag card{step.dragItems.length === 1 ? '' : 's'}</span> : null}
+        {step.dragTargets && step.dragTargets.length > 0 ? <span style={{ color: '#0891B2', fontSize: 12, fontWeight: 700 }}>{step.dragTargets.length} target zone{step.dragTargets.length === 1 ? '' : 's'}</span> : null}
         {step.media && step.media.length > 0 ? <span style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{step.media.length} media cue{step.media.length === 1 ? '' : 's'}</span> : null}
         <span style={{ padding: '4px 8px', borderRadius: 999, background: readinessTone.bg, color: readinessTone.text, border: `1px solid ${readinessTone.border}`, fontSize: 12, fontWeight: 800 }}>{assetSummary.readinessLabel}</span>
         {assetSummary.assetFootprint ? <span style={{ color: '#0F766E', fontSize: 12, fontWeight: 700 }}>{assetSummary.assetFootprint}</span> : null}
@@ -65,6 +67,12 @@ export function LessonStepPreviewCard({
       <div style={{ color: assetSummary.tone === 'warn' ? '#B45309' : assetSummary.tone === 'good' ? '#166534' : '#64748B', fontSize: 12, lineHeight: 1.5 }}>
         <strong>{assetSummary.label}:</strong> {assetSummary.detail}
       </div>
+      {(step.targetAudio || step.supportAudio) ? (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {step.targetAudio ? <span style={{ padding: '4px 8px', borderRadius: 999, background: '#EEF2FF', color: '#3730A3', fontSize: 12, fontWeight: 800 }}>English audio · {step.targetAudio.value || step.targetAudio.assetId || 'configured'}</span> : null}
+          {step.supportAudio ? <span style={{ padding: '4px 8px', borderRadius: 999, background: '#FFF7ED', color: '#9A3412', fontSize: 12, fontWeight: 800 }}>Hausa audio · {step.supportAudio.source === 'phrase-bank' ? step.supportAudio.phraseId || step.supportAudio.phraseText || 'phrase-bank ref' : step.supportAudio.value || step.supportAudio.assetId || 'configured'}</span> : null}
+        </div>
+      ) : null}
       {previewItems.length ? (
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ color: '#0F172A', fontSize: 12, fontWeight: 800 }}>What the learner app should render</div>

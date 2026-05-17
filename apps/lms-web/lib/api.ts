@@ -36,6 +36,7 @@ import type {
 } from './types';
 
 import { API_BASE } from './config';
+import { isProtectedEndpointAuthFailureValue } from './protected-endpoint-auth';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
 
@@ -68,7 +69,7 @@ function assertProtectedApiKeyConfigured(path: string, role = 'admin') {
 function buildApiHeaders(path: string, role = 'admin') {
   const headers: Record<string, string> = {
     'x-lumo-role': role,
-    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Pilot Admin',
+    'x-lumo-user': role === 'teacher' ? 'Teacher Demo' : 'Lumo Admin',
   };
   assertProtectedApiKeyConfigured(path, role);
   const adminApiKey = getAdminApiKey();
@@ -162,16 +163,7 @@ export class ApiRequestTimeoutError extends Error {
 }
 
 export function isProtectedEndpointAuthFailure(error: unknown) {
-  if (!(error instanceof ApiRequestError)) {
-    return false;
-  }
-
-  if (error.status !== 401 && error.status !== 403) {
-    return false;
-  }
-
-  const evidence = `${error.diagnostic.backendMessage ?? ''} ${error.diagnostic.bodySnippet ?? ''}`.toLowerCase();
-  return evidence.includes('missing or invalid api key') || evidence.includes('protected endpoint');
+  return isProtectedEndpointAuthFailureValue(error);
 }
 
 const API_REQUEST_TIMEOUT_MS = 8000;
@@ -278,19 +270,12 @@ export function fetchPods() {
   return getJson<Pod[]>('/api/v1/pods');
 }
 
-export async function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
+export function fetchDeviceRegistrations(params?: { podId?: string; mallamId?: string }) {
   const query = new URLSearchParams();
   if (params?.podId) query.set('podId', params.podId);
   if (params?.mallamId) query.set('mallamId', params.mallamId);
 
-  try {
-    return await getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 404) {
-      return [] as DeviceRegistration[];
-    }
-    throw error;
-  }
+  return getJson<DeviceRegistration[]>(`/api/v1/device-registrations${query.size ? `?${query.toString()}` : ''}`);
 }
 
 export function fetchProgress() {

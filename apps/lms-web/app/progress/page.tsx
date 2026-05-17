@@ -4,6 +4,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { ProgressCaptureForm, ProgressUpdateForm } from '../../components/progress-form';
 import { fetchCohorts, fetchCurriculumModules, fetchMallams, fetchPods, fetchProgress, fetchStudents, fetchSubjects } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { matchesSubjectFilter } from '../../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
@@ -21,7 +22,7 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
   return haystack.includes(query);
 }
 
-export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
+export default async function ProgressPage({ searchParams }: { searchParams?: Promise<{ message?: string; q?: string | string[]; student?: string | string[]; cohort?: string | string[]; pod?: string | string[]; mallam?: string | string[]; subject?: string | string[]; status?: string | string[] }> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -89,10 +90,65 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalProgressFailures = [
+    progressResult.status === 'rejected' ? 'progress board' : null,
+    studentsResult.status === 'rejected' ? 'learners' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
+    modulesResult.status === 'rejected' ? 'modules' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalProgressFailures.length) {
+    const blockerDetail = criticalProgressFailures.length === 1
+      ? `The ${criticalProgressFailures[0]} feed failed to load from the live API. Leaving progress up would make mastery review and override decisions look safe while the core progression control surface is blind.`
+      : `The ${criticalProgressFailures.join(', ')} feeds failed to load from the live API. Leaving progress up would make mastery review and override decisions look safe while the core progression control surface is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Progress"
+        subtitle="Progress is a learner-decision control surface, not a decorative report. If the core feeds are down, the route should block instead of inviting unsafe writes."
+        blockerHeadline="Deployment blocker: progression feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalProgressFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalProgressFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalProgressFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to capture mastery and change next-module decisions. If the progress board, learners, subjects, or modules disappear, a polished UI becomes dangerous fiction fast.',
+          'Cohorts, pods, and mallams can degrade separately, but the route should stop cold when the core progression feeds are missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Mastery board',
+            expected: 'Live learner, subject, module, and readiness rows load from the real backend',
+            failure: 'Empty board or fallback copy appears while the core progression feed is degraded',
+          },
+          {
+            surface: 'Capture + override flows',
+            expected: 'Operators can see real learners, subjects, and modules before changing progression records',
+            failure: 'Forms stay interactive while the core reference feeds are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until core progression feeds recover',
+            failure: 'The route implies learner progression decisions are safe when the control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const canCaptureProgress = students.length > 0 && subjects.length > 0 && modules.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
+  const studentFilter = normalizeFilterValue(query?.student).trim();
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
@@ -100,18 +156,23 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
   const statusFilter = normalizeFilterValue(query?.status).trim();
 
   const filteredStudents = students.filter((student) => {
+    const studentMatches = !studentFilter || student.id === studentFilter;
     const cohortMatches = !cohortFilter || student.cohortId === cohortFilter;
     const podMatches = !podFilter || student.podId === podFilter;
     const mallamMatches = !mallamFilter || student.mallamId === mallamFilter;
-    return cohortMatches && podMatches && mallamMatches;
+    return studentMatches && cohortMatches && podMatches && mallamMatches;
   });
   const filteredStudentIds = new Set(filteredStudents.map((student) => student.id));
   const filteredProgress = progress.filter((item) => {
     const student = students.find((entry) => entry.id === item.studentId);
+    const studentMatches = !studentFilter || item.studentId === studentFilter;
     const cohortMatches = !cohortFilter || student?.cohortId === cohortFilter;
     const podMatches = !podFilter || student?.podId === podFilter;
     const mallamMatches = !mallamFilter || student?.mallamId === mallamFilter;
-    const subjectMatches = !subjectFilter || item.subjectId === subjectFilter;
+    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+      subjectIds: [item.subjectId],
+      subjectNames: [item.subjectName],
+    });
     const statusMatches = !statusFilter || item.progressionStatus === statusFilter;
     const queryMatches = matchesQuery([
       item.studentName,
@@ -122,9 +183,9 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       student?.podLabel,
       student?.mallamName,
     ], searchText);
-    return cohortMatches && podMatches && mallamMatches && subjectMatches && statusMatches && queryMatches;
+    return studentMatches && cohortMatches && podMatches && mallamMatches && subjectMatches && statusMatches && queryMatches;
   });
-  const filtersActive = Boolean(searchText || cohortFilter || podFilter || mallamFilter || subjectFilter || statusFilter);
+  const filtersActive = Boolean(searchText || studentFilter || cohortFilter || podFilter || mallamFilter || subjectFilter || statusFilter);
 
   return (
     <PageShell title="Progress" subtitle="Track mastery, progression readiness, and admin override decisions across learners.">
@@ -140,6 +201,10 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
           <form style={{ display: 'grid', gap: 12 }}>
             <div style={{ ...responsiveGrid(220), gap: 12 }}>
               <input name="q" defaultValue={searchText} placeholder="Search learner, module, or next move" style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }} />
+              <select name="student" defaultValue={studentFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
+                <option value="">All learners</option>
+                {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+              </select>
               <select name="cohort" defaultValue={cohortFilter} style={{ border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14, width: '100%', background: 'white' }}>
                 <option value="">All cohorts</option>
                 {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}

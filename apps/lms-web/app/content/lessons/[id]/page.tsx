@@ -3,8 +3,20 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonEditorForm } from '../../../../components/lesson-editor-form';
 import { fetchAssessments, fetchCurriculumModules, fetchLesson, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { normalizeLessonAssetsForAuthoring, normalizeLessonForAuthoring } from '../../../../lib/lesson-authoring-normalize';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
+import {
+  normalizeAssessmentsForAuthoring,
+  normalizeLessonAssetsForAuthoring,
+  normalizeLessonForAuthoring,
+  normalizeLessonsForAuthoring,
+  normalizeModulesForAuthoring,
+  normalizeSubjectsForAuthoring,
+} from '../../../../lib/lesson-authoring-normalize';
 import { sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
+import { buildAssessmentReviewHref } from '../../../../lib/content-return-path';
+import { findSubjectByContext } from '../../../../lib/module-subject-match';
+import { assessmentMatchesModule } from '../../../../lib/module-assessment-match';
+import { findModuleForLesson } from '../../../../lib/module-lesson-match';
 import type { CurriculumModule, Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
 import { updateLessonAction } from '../../../actions';
@@ -31,7 +43,7 @@ function buildFallbackSubject(
 ) {
   const subjectId = lesson.subjectId?.trim() || module?.subjectId?.trim();
   const subjectName = lesson.subjectName?.trim() || module?.subjectName?.trim();
-  const matched = subjects.find((subject) => subject.id === subjectId || (subjectName && subject.name === subjectName));
+  const matched = findSubjectByContext(subjects, { subjectId, subjectName });
 
   if (matched) return matched;
 
@@ -49,7 +61,12 @@ function buildFallbackModule(
 ) {
   const moduleId = lesson.moduleId?.trim();
   const moduleTitle = lesson.moduleTitle?.trim();
-  const matched = modules.find((module) => module.id === moduleId || (moduleTitle && module.title === moduleTitle));
+  const matched = findModuleForLesson(modules, {
+    ...lesson,
+    durationMinutes: 0,
+    mode: 'recovered-fallback',
+    status: 'recovered-fallback',
+  });
 
   if (matched) return matched;
 
@@ -81,6 +98,48 @@ export default async function LessonStudioEditPage({
   const query = await searchParams;
   const from = sanitizeInternalReturnPath(query?.from, '/content');
 
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Production wiring is incomplete, so lesson editing is blocked before this route can pretend a live lesson payload is trustworthy."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson editor API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} Editing a lesson against the wrong backend is how objectives, activities, and assessments get saved into the void or the wrong deployment.
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Editor is a write surface. If the LMS cannot prove it is pointed at the real production API, every edit is suspect.',
+          'Blocking here is better than loading a stale lesson shell and letting operators think they updated the live curriculum when they did not.',
+          'This keeps lesson editing consistent with the other LMS admin routes already refusing unsafe production API wiring.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson editor route',
+            expected: 'Loads the live lesson payload only when the production API target is trustworthy',
+            failure: 'Editor shell opens against localhost, placeholder config, or a dead backend and makes lesson saves untrustworthy',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+          {
+            surface: 'Lesson context recovery',
+            expected: 'Lesson, module, subject, assessment, and asset context all resolve from the same real backend after redeploy',
+            failure: 'Stale lesson payloads or mixed context that suggests the editor and supporting feeds are not coming from the same deployment',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content board', href: from, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const [lessonResult, lessonsResult, modulesResult, subjectsResult, assessmentsResult, assetsResult] = await Promise.allSettled([
     fetchLesson(id),
     fetchLessons(),
@@ -90,31 +149,35 @@ export default async function LessonStudioEditPage({
     fetchLessonAssets(),
   ]);
 
-  const fallbackInventoryLesson = lessonsResult.status === 'fulfilled'
-    ? lessonsResult.value.find((entry) => entry.id === id) ?? null
-    : null;
-  const rawLesson = lessonResult.status === 'fulfilled' ? lessonResult.value : fallbackInventoryLesson;
-  const { lesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(rawLesson);
-  const lessonFeedRecoveredFromInventory = lessonResult.status === 'rejected' && Boolean(fallbackInventoryLesson);
+  const { items: inventoryLessons, issues: lessonInventoryPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
+  const fallbackInventoryLesson = inventoryLessons.find((entry) => entry.id === id) ?? null;
+  const { lesson: fetchedLesson, issues: lessonPayloadIssues } = normalizeLessonForAuthoring(lessonResult.status === 'fulfilled' ? lessonResult.value : null);
+  const lessonFeedUnavailable = lessonResult.status === 'rejected';
+  const lesson = fetchedLesson ?? fallbackInventoryLesson;
+  const lessonFeedRecoveredFromInventory = lessonFeedUnavailable && Boolean(fallbackInventoryLesson);
 
-  const loadedModules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const assessments = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
+  const { items: loadedModules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
+  const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
+  const { items: assessments, issues: assessmentPayloadIssues } = normalizeAssessmentsForAuthoring(assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : []);
   const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     lessonResult.status === 'rejected' && !fallbackInventoryLesson ? 'lesson' : null,
     lessonFeedRecoveredFromInventory ? 'lesson (direct feed degraded, inventory fallback used)' : null,
     lessonPayloadIssues.length ? 'lesson payload' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
+    lessonInventoryPayloadIssues.length ? 'lesson inventory payload' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
+    modulePayloadIssues.length ? 'module payload' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
+    subjectPayloadIssues.length ? 'subject payload' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    assessmentPayloadIssues.length ? 'assessment payload' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
   const matchedModuleFromLesson = lesson
-    ? loadedModules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? null
+    ? findModuleForLesson(loadedModules, lesson)
     : null;
   const fallbackSubject = lesson ? buildFallbackSubject(loadedSubjects, lesson, matchedModuleFromLesson) : null;
   const fallbackModule = lesson ? buildFallbackModule(loadedModules, lesson, fallbackSubject) : null;
@@ -136,6 +199,61 @@ export default async function LessonStudioEditPage({
     && fallbackModule
     && (loadedSubjects.length === 0 || loadedModules.length === 0),
   );
+  const criticalLessonEditorFailures = [
+    assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalLessonEditorFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalLessonEditorFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Editor"
+        subtitle="Lesson editing is blocked when the live asset library goes blind, because changing media-backed lesson steps against missing references is how you ship broken playback with very confident copy."
+        blockerHeadline="Deployment blocker: lesson asset authoring feeds are degraded."
+        blockerDetail={(
+          <>
+            The {criticalLessonEditorFailures.join(', ')} feed{criticalLessonEditorFailures.length === 1 ? ' failed' : 's failed'} to load from the live API, so Lesson Editor refuses to save blind media and support-audio references for this lesson. {secondaryFailures.length
+              ? `Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+              : ''} Lesson editor recovery build: {LESSON_EDITOR_BUILD_SIGNATURE}.
+          </>
+        )}
+        whyBlocked={[
+          'This editor can rewrite target audio, support audio, and structured media references on an existing live lesson.',
+          'If the asset feed is down, operators can still save a lesson that looks updated while its media graph is stale, incomplete, or broken.',
+          'Blocking the route is safer than trusting humans to avoid every media-touching control during an asset registry outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson asset library',
+            expected: 'Live asset choices load before Lesson Editor allows media-backed updates',
+            failure: 'Editor stays interactive while the asset registry is missing or stale',
+          },
+          {
+            surface: 'Existing lesson media refs',
+            expected: 'Operators can verify and update target/support audio against real asset records',
+            failure: 'Lesson saves can silently preserve or add broken media refs during an asset outage',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the asset feed recovers',
+            failure: 'Lesson Editor keeps its write controls while media references are unverifiable',
+          },
+        ]}
+        fixItems={[
+          { label: 'Critical failed feeds', value: criticalLessonEditorFailures.join(', ') },
+          { label: 'Still required', value: 'Live lesson asset registry and sanitized asset payloads' },
+          { label: 'Operator action', value: 'Restore the asset library feed, then reopen Lesson Editor before changing media-backed lessons' },
+        ]}
+        docs={[
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Content board', href: from, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Assessment lane', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
 
   if (!lesson || !hasUsableCurriculumContext) {
     return (
@@ -166,8 +284,8 @@ export default async function LessonStudioEditPage({
           },
           {
             surface: 'Optional metadata feeds',
-            expected: 'Assessment and asset panels can degrade without blocking editing',
-            failure: 'Optional feed loss incorrectly blocks the whole editor',
+            expected: 'Assessment side panels can degrade without blocking editing once lesson identity and asset safety are still intact',
+            failure: 'Non-critical metadata loss incorrectly blocks the whole editor after the lesson and asset registry are still trustworthy',
           },
         ]}
         fixItems={[
@@ -177,19 +295,32 @@ export default async function LessonStudioEditPage({
         ]}
         docs={[
           { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Assessment lane', href: '/content?view=assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Assessment lane', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
         ]}
       />
     );
   }
 
-  const selectedModule = modules.find((module) => module.id === lesson.moduleId || (lesson.moduleTitle && module.title === lesson.moduleTitle)) ?? fallbackModule ?? modules[0] ?? null;
-  const selectedSubject = subjects.find((subject) => subject.id === (lesson.subjectId ?? selectedModule?.subjectId) || (lesson.subjectName && subject.name === lesson.subjectName)) ?? fallbackSubject ?? subjects[0] ?? null;
-  const moduleAssessments = assessments.filter((assessment) => assessment.moduleId === selectedModule?.id);
+  const selectedModule = findModuleForLesson(modules, lesson) ?? fallbackModule ?? modules[0] ?? null;
+  const selectedSubject = findSubjectByContext(subjects, {
+    subjectId: lesson.subjectId ?? selectedModule?.subjectId,
+    subjectName: lesson.subjectName ?? selectedModule?.subjectName,
+  }) ?? fallbackSubject ?? subjects[0] ?? null;
+  const moduleAssessments = selectedModule
+    ? assessments.filter((assessment) => assessmentMatchesModule(selectedModule, assessment))
+    : [];
   const linkedAssessmentTitle = typeof lesson.lessonAssessment?.title === 'string' ? lesson.lessonAssessment.title : null;
   const linkedAssessment = linkedAssessmentTitle
     ? moduleAssessments.find((assessment) => assessment.title === linkedAssessmentTitle) ?? null
     : null;
+  const resolvedSubjectId = selectedSubject?.id ?? lesson.subjectId ?? '';
+  const resolvedModuleId = selectedModule?.id ?? lesson.moduleId ?? '';
+  const lessonEditorFormKey = [
+    lesson.id,
+    resolvedSubjectId,
+    resolvedModuleId,
+    from,
+  ].join('::');
 
   return (
     <PageShell
@@ -201,13 +332,13 @@ export default async function LessonStudioEditPage({
       ]}
       aside={(
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href={`/content/assets?subjectId=${encodeURIComponent(lesson.subjectId ?? selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(lesson.moduleId ?? selectedModule?.id ?? '')}&lessonId=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(`/content/lessons/${lesson.id}?from=${encodeURIComponent(from)}`)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+          <Link href={`/content/assets?subjectId=${encodeURIComponent(resolvedSubjectId)}&moduleId=${encodeURIComponent(resolvedModuleId)}&lessonId=${encodeURIComponent(lesson.id)}&from=${encodeURIComponent(`/content/lessons/${lesson.id}?from=${encodeURIComponent(from)}`)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
             Browse assets
           </Link>
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Back to board
           </Link>
-          <Link href={`/content/lessons/new?duplicate=${encodeURIComponent(lesson.id)}&subjectId=${encodeURIComponent(lesson.subjectId ?? selectedSubject?.id ?? '')}&moduleId=${encodeURIComponent(lesson.moduleId ?? selectedModule?.id ?? '')}&from=${encodeURIComponent(from)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={`/content/lessons/new?duplicate=${encodeURIComponent(lesson.id)}&subjectId=${encodeURIComponent(resolvedSubjectId)}&moduleId=${encodeURIComponent(resolvedModuleId)}&from=${encodeURIComponent(from)}`} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Duplicate lesson
           </Link>
         </div>
@@ -237,6 +368,7 @@ export default async function LessonStudioEditPage({
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonEditorForm
+          key={lessonEditorFormKey}
           lesson={lesson}
           subjects={subjects}
           modules={modules}
@@ -267,10 +399,15 @@ export default async function LessonStudioEditPage({
               </div>
             )}
             <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-              <Link href={`/content?view=assessments&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={buildAssessmentReviewHref({
+                returnPath: from,
+                moduleTitle: selectedModule?.title ?? lesson.title,
+                moduleId: resolvedModuleId,
+                subjectId: resolvedSubjectId,
+              })} style={{ color: '#5B21B6', fontWeight: 800, textDecoration: 'none' }}>
                 Open assessment lane →
               </Link>
-              <Link href={`/content?view=blocked&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>
+              <Link href={`/content?view=blocked&moduleId=${encodeURIComponent(resolvedModuleId)}&subject=${encodeURIComponent(selectedSubject?.id ?? '')}&q=${encodeURIComponent(selectedModule?.title ?? lesson.title)}`} style={{ color: '#92400E', fontWeight: 800, textDecoration: 'none' }}>
                 Review blocker context →
               </Link>
             </div>

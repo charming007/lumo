@@ -32,6 +32,12 @@ flutter:
     - assets/images/mallam_tutor_cutout.png
     - assets/video/mallam_voice.mp4
     - assets/audio/lesson_complete_chime.wav
+    - assets/audio/ui_tap_soft.wav
+    - assets/audio/ui_hover_soft.wav
+    - assets/audio/ui_drag_pickup.wav
+    - assets/audio/ui_drag_drop.wav
+    - assets/audio/ui_correct_chime.wav
+    - assets/audio/ui_incorrect_soft.wav
     - assets/content_packs/
     - assets/content_packs/lumo-fundamentals/
     - assets/content_packs/lumo-fundamentals/meet_mallam/

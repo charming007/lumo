@@ -11,10 +11,6 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isLessonAuthoringPath(pathname: string) {
-  return pathname === '/content/lessons/new' || pathname.startsWith('/content/lessons/');
-}
-
 function itemMonogram(label: string) {
   return label
     .split(' ')
@@ -40,28 +36,16 @@ export function Sidebar({
   onToggleSidebarCollapse,
 }: SidebarProps) {
   const pathname = usePathname();
-  const previousPathnameRef = useRef(pathname);
-  const lessonAuthoringRoute = isLessonAuthoringPath(pathname);
-  const shellLabel = lessonAuthoringRoute ? 'Lesson Studio workspace' : 'Admin workspace';
-  const shellHeadline = lessonAuthoringRoute ? 'Authoring routes active' : 'Admin routes active';
-  const brandDetail = lessonAuthoringRoute
-    ? 'Focused authoring shell for building and editing lesson packs without dropping context, assets, or curriculum alignment.'
-    : 'Full admin shell for curriculum, learners, pods, devices, assignments, attendance, progress, settings, and release operations.';
-  const calloutDetail = lessonAuthoringRoute
-    ? 'Stay inside the real lesson authoring flow: create, duplicate, edit, and asset-hop without getting dumped back into generic control-room copy.'
-    : 'Keep curriculum, learner ops, release checks, and settings in one consistent admin shell instead of dropping authors into leftover pilot-era framing.';
-  const footerTitle = lessonAuthoringRoute ? 'Lesson authoring workspace' : 'Admin workspace';
-  const footerDetail = lessonAuthoringRoute
-    ? 'This shell stays focused on lesson creation and editing, while the rest of the admin surfaces remain reachable when you deliberately step back out to the broader LMS board.'
-    : 'This shell now stays consistent across the full admin surface, so content authors do not bounce from Content Library into a pilot-branded sidebar when they open Lesson Studio.';
+  const safePathname = pathname || '';
+  const previousPathnameRef = useRef(safePathname);
 
   useEffect(() => {
-    if (previousPathnameRef.current !== pathname && mobileNavOpen) {
+    if (previousPathnameRef.current !== safePathname && mobileNavOpen) {
       onCloseMobileNav?.();
     }
 
-    previousPathnameRef.current = pathname;
-  }, [pathname, mobileNavOpen, onCloseMobileNav]);
+    previousPathnameRef.current = safePathname;
+  }, [safePathname, mobileNavOpen, onCloseMobileNav]);
 
   return (
     <>
@@ -97,9 +81,9 @@ export function Sidebar({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div className="sidebar__brand-copy">
-            <div style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
+            <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
             <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
-              {brandDetail}
+              Pilot control plane for dashboard triage, curriculum release cleanup, assignments, learner progress, and trust checks.
             </div>
           </div>
           <div className="sidebar__actions">
@@ -147,16 +131,15 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>{shellLabel}</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>{shellHeadline}</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>{calloutDetail}</div>
+          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Pilot shell</div>
+          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>Keep the visible nav brutally honest</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>This sidebar only shows the routes operators should trust for pilot go-live: dashboard, content, assignments, progress, and settings.</div>
         </div>
 
         <nav style={{ display: 'grid', gap: 10 }}>
           {navigationItems.map((item) => {
-            const active = isActivePath(pathname, item.href);
+            const active = isActivePath(safePathname, item.href);
             const monogram = itemMonogram(item.label);
-
             return (
               <Link
                 key={item.id}
@@ -172,22 +155,30 @@ export function Sidebar({
                   color: '#e5e7eb',
                   padding: '13px 14px',
                   borderRadius: 16,
-                  background: active ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)' : 'rgba(255,255,255,0.04)',
+                  background: active
+                    ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)'
+                    : 'rgba(255,255,255,0.04)',
                   fontWeight: 700,
-                  border: active ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                  border: active
+                    ? 'none'
+                    : '1px solid rgba(255,255,255,0.05)',
                   boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none',
                 }}
               >
-                <span className="sidebar__nav-icon" aria-hidden="true">{monogram}</span>
-                <span className="sidebar__nav-label">{item.label}</span>
+                <span className="sidebar__nav-icon" aria-hidden="true">
+                  <span className="sidebar__nav-icon-text">{monogram}</span>
+                </span>
+                <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>{item.label}</span>
+                </span>
               </Link>
             );
           })}
         </nav>
 
         <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>{footerTitle}</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{footerDetail}</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Pilot workspace</div>
+          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>Use this shell to verify deployment trust, clean up curriculum blockers, assign live delivery, and monitor learner risk without pretending every specialist route is pilot-ready.</div>
           <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
             <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Live build signal</div>
             <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
@@ -235,6 +226,7 @@ export function Sidebar({
         }
 
         .sidebar__nav-icon {
+          position: relative;
           width: 24px;
           height: 24px;
           border-radius: 999px;
@@ -249,9 +241,15 @@ export function Sidebar({
           flex: 0 0 auto;
         }
 
+        .sidebar__nav-icon-text {
+          line-height: 1;
+        }
+
         .sidebar--collapsed {
-          padding-left: 14px !important;
-          padding-right: 14px !important;
+          width: 92px;
+          padding: 14px 12px !important;
+          gap: 18px !important;
+          align-items: center;
         }
 
         .sidebar--collapsed .sidebar__brand-detail,
@@ -268,11 +266,38 @@ export function Sidebar({
           width: 100%;
         }
 
+        .sidebar--collapsed .sidebar__brand-mark {
+          width: 44px;
+          height: 44px;
+          border-radius: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(167, 139, 250, 0.14);
+          border: 1px solid rgba(167, 139, 250, 0.2);
+          font-size: 14px !important;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
         .sidebar--collapsed .sidebar__nav-link {
           justify-content: center;
-          padding-left: 12px !important;
-          padding-right: 12px !important;
+          width: 100%;
           min-width: 0;
+          min-height: 56px;
+          padding: 10px !important;
+          border-radius: 18px;
+        }
+
+        .sidebar--collapsed .sidebar__nav-link:hover {
+          transform: translateY(-1px);
+        }
+
+        .sidebar--collapsed .sidebar__nav-icon {
+          width: 34px;
+          height: 34px;
+          font-size: 12px;
+          background: rgba(255, 255, 255, 0.14);
         }
 
         .sidebar--collapsed .sidebar__actions {
@@ -297,16 +322,18 @@ export function Sidebar({
             padding-right: clamp(18px, 3vw, 24px) !important;
           }
 
+          .sidebar--collapsed {
+            width: min(320px, calc(100vw - 24px));
+            padding: clamp(18px, 3vw, 24px) !important;
+            gap: 22px !important;
+            align-items: stretch;
+          }
+
           .sidebar--collapsed .sidebar__brand-detail,
           .sidebar--collapsed .sidebar__callout,
           .sidebar--collapsed .sidebar__footer,
           .sidebar--collapsed .sidebar__nav-label {
-            display: initial;
-          }
-
-          .sidebar--collapsed .sidebar__callout,
-          .sidebar--collapsed .sidebar__footer {
-            display: block;
+            display: revert;
           }
 
           .sidebar--collapsed .sidebar__brand-copy {
@@ -314,10 +341,28 @@ export function Sidebar({
             width: auto;
           }
 
+          .sidebar--collapsed .sidebar__brand-mark {
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            display: block;
+            background: none;
+            border: 0;
+            font-size: 30px !important;
+            letter-spacing: normal;
+            text-transform: none;
+          }
+
           .sidebar--collapsed .sidebar__nav-link {
             justify-content: flex-start;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
+            padding: 13px 14px !important;
+          }
+
+          .sidebar--collapsed .sidebar__nav-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.12);
           }
 
           .sidebar--collapsed .sidebar__actions {

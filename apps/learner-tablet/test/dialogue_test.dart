@@ -5,9 +5,12 @@ import 'package:lumo_learner_tablet/dialogue.dart';
 void main() {
   group('LearnerDialogue', () {
     test('builds short continuation lines by remaining steps', () {
-      expect(LearnerDialogue.continuation(remainingSteps: 0, seed: 0), 'You did it.');
-      expect(LearnerDialogue.continuation(remainingSteps: 1, seed: 0), 'Nice. One more.');
-      expect(LearnerDialogue.continuation(remainingSteps: 3, seed: 1), 'Nice one. Next.');
+      expect(LearnerDialogue.continuation(remainingSteps: 0, seed: 0),
+          'You did it.');
+      expect(LearnerDialogue.continuation(remainingSteps: 1, seed: 0),
+          'Nice. One more.');
+      expect(LearnerDialogue.continuation(remainingSteps: 3, seed: 1),
+          'Nice one. Next.');
     });
 
     test('builds warmer support prompts', () {
@@ -15,14 +18,14 @@ void main() {
         LearnerDialogue.supportPrompt(
           supportType: 'hint',
           learnerName: 'Amina',
-          prompt: 'Say the answer.',
+          prompt: 'Ki fadi amsar.',
           expected: 'A is for ant.',
         ),
-        'Amina, listen again. Say the answer. If you need help, say: A is for ant.',
+        'Amina, saurara kuma. Ki fadi amsar. Idan kina bukatar taimako, ki ce: A is for ant.',
       );
       expect(
         LearnerDialogue.supportStatus('model'),
-        'Model answer played. Now the learner repeats it.',
+        'Mallam ya bada amsar misali. Yanzu mai koyo zai maimaita.',
       );
     });
   });
@@ -38,7 +41,7 @@ void main() {
 
       final accepted = state.submitLearnerResponse('A');
       expect(accepted.accepted, isTrue);
-      expect(accepted.automationStatus, 'Mallam got it. Let\'s keep moving.');
+      expect(accepted.automationStatus, 'Madalla. Mu ci gaba.');
 
       state.dispose();
       expect(
@@ -46,7 +49,7 @@ void main() {
           attemptNumber: 1,
           repeatAfterMe: false,
         ),
-        'Not quite yet. Mallam will give a small hint and try again.',
+        'Ba daidai ba tukuna. Mallam zai bada karamar alama sannan a sake gwadawa.',
       );
     });
 
@@ -62,9 +65,11 @@ void main() {
 
       expect(
         state.activeSession?.automationStatus,
-        'Small hint given. The learner can try again now.',
+        'An ba da karamar alama. Yanzu mai koyo zai sake gwadawa.',
       );
-      expect(state.activeSession?.transcript.last.text, contains('listen again'));
+      expect(
+          state.activeSession?.transcript.last.text, contains('saurara kuma'));
+      expect(state.activeSession?.transcript.last.text, contains('ki ce: A'));
       state.dispose();
     });
   });

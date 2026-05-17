@@ -99,6 +99,29 @@ class _SeedApiClient extends LumoApiClient {
   }
 }
 
+class _FooterGateMismatchState extends LumoAppState {
+  _FooterGateMismatchState() : super(includeSeedDemoContent: true);
+
+  @override
+  List<LearnerProfile> availableLearnersForLesson(LessonCardModel lesson) {
+    return const <LearnerProfile>[];
+  }
+}
+
+class _UnregisteredTabletBootstrapApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap({
+    String? overrideDeviceIdentifier,
+  }) async {
+    return LumoBootstrap(
+      learners: learnerProfilesSeed,
+      modules: learningModules,
+      lessons: assignedLessonsSeed,
+      registrationContext: const RegistrationContext(),
+    );
+  }
+}
+
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -175,10 +198,77 @@ void main() {
     await tester.pump(duration);
   }
 
+  testWidgets(
+    'subject page blocks lesson entry when no synced learner is available',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        )
+        ..modules.add(
+          const LearningModule(
+            id: 'english',
+            title: 'English',
+            description: 'Voice-first English practice',
+            voicePrompt: 'Start English',
+            readinessGoal: 'Greeting flow',
+            badge: 'Lesson ready',
+            status: 'published',
+          ),
+        )
+        ..assignedLessons.add(
+          const LessonCardModel(
+            id: 'english-live-lesson',
+            moduleId: 'english',
+            title: 'Greetings with Mallam',
+            subject: 'English',
+            durationMinutes: 10,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario: 'Lesson is synced before any learner roster lands.',
+            steps: [],
+          ),
+        );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SubjectModulesPage(
+            state: state,
+            onChanged: _noop,
+            module: state.modules.first,
+            subjectTitle: 'English',
+            subjectKey: 'english',
+            forceUnscopedLessons: true,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(
+        find.text('No learner-safe lessons are ready in English yet.'),
+        findsOneWidget,
+      );
+      expect(find.text('Greetings with Mallam'), findsNothing);
+      expect(find.text('Refresh live sync'), findsOneWidget);
+    },
+  );
+
   testWidgets('shows learner app shell after splash', (tester) async {
     await pumpAppAtSize(tester, const Size(1400, 1000));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Register'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.text('Subjects'), findsNothing);
@@ -240,7 +330,7 @@ void main() {
   );
 
   testWidgets(
-    'home screen keeps the trust banner visible on compact tablets when pilot warnings exist',
+    'home screen keeps the trust banner visible on compact tablets when deployment warnings exist',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);
       tester.view.devicePixelRatio = 1.0;
@@ -357,7 +447,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(nextLesson, isNotNull);
     expect(learnerName, isNotNull);
     expect(
@@ -468,15 +558,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Follow Mallam one lesson at a time'), findsNothing);
     expect(find.textContaining('You opened ${module.title}.'), findsNothing);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
-    expect(find.text('Lesson journey'), findsNothing);
+    expect(find.text('Available lessons'), findsNothing);
     expect(find.text('Lesson path'), findsNothing);
     expect(find.text('Next step'), findsNothing);
 
@@ -508,12 +598,51 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Back'), findsOneWidget);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('Continue'), findsOneWidget);
     expect(find.byType(FilledButton), findsAtLeastNWidgets(2));
 
     state.dispose();
   });
+
+  testWidgets(
+    'recovered sessions stay blocked until the offline snapshot is trusted',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      state.restoredFromPersistence = true;
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason = 'Bootstrap failed';
+      state.snapshotTrustedFromLiveBootstrap = false;
+      state.lastSyncedAt = null;
+      state.snapshotSavedAt = DateTime.now();
+      state.snapshotSourceBaseUrl = state.backendBaseUrl;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: () {}),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Back'), findsNothing);
+      expect(find.text('Student list'), findsOneWidget);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
+      expect(state.hasUsableOfflineSnapshot, isFalse);
+
+      state.dispose();
+    },
+  );
 
   testWidgets(
     'reopens the completion page when a finished lesson is restored',
@@ -687,9 +816,17 @@ void main() {
       expect(find.text('Retry production bootstrap'), findsOneWidget);
       expect(find.text('Open limited offline mode'), findsNothing);
       expect(find.text('Live backend target'), findsOneWidget);
+      expect(find.text('Bootstrap probe'), findsOneWidget);
+      expect(find.text('Copy bootstrap probe'), findsOneWidget);
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('Not provisioned in this build'), findsOneWidget);
       expect(
         find.textContaining('lumo-api-production-303a.up.railway.app'),
-        findsOneWidget,
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('/api/v1/learner-app/bootstrap'),
+        findsAtLeastNWidgets(1),
       );
       expect(
         find.textContaining('will not open demo learners just to look alive'),
@@ -703,13 +840,117 @@ void main() {
     },
   );
 
+  testWidgets(
+    'deployment blocker page surfaces the provisioned tablet identifier for registration mismatches',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('tablet-pod-a-007'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Compare this exact identifier against the LMS device record before retrying',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'deployment blocker page exposes copy actions for backend target, bootstrap probe, and tablet identifier',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Copy backend target'), findsOneWidget);
+      expect(find.text('Copy bootstrap probe'), findsOneWidget);
+      expect(find.text('Copy tablet identifier'), findsOneWidget);
+    },
+  );
+
+  test(
+    'unregistered live bootstrap does not get certified as a trusted offline snapshot',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = LumoAppState(
+        apiClient: _UnregisteredTabletBootstrapApiClient(),
+        includeSeedDemoContent: false,
+        configuredDeviceIdentifier: 'tablet-pod-a-007',
+      );
+
+      await state.bootstrap();
+      await state.flushPersistence();
+
+      expect(
+        state.deploymentBlockerReason,
+        contains('did not return a tablet registration'),
+      );
+      expect(state.usingFallbackData, isTrue);
+      expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
+      expect(state.hasUsableOfflineSnapshot, isFalse);
+      expect(
+        state.offlineSnapshotTrustProblem,
+        contains('never confirmed by a successful live bootstrap'),
+      );
+
+      state.dispose();
+    },
+  );
+
   testWidgets('home screen stays usable on portrait tablet widths', (
     tester,
   ) async {
     await pumpAppAtSize(tester, const Size(800, 1280));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Hear Mallam again'), findsOneWidget);
+    expect(find.text('A sake jin Mallam'), findsOneWidget);
     expect(find.text('Student list'), findsOneWidget);
     expect(find.byType(GridView), findsOneWidget);
     expect(find.byType(DetailCard), findsNothing);
@@ -717,6 +958,426 @@ void main() {
     expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
   });
+
+  testWidgets(
+    'home screen keeps a completed-for-today subject visible instead of falling back to the empty state',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Alpha',
+        cohortId: 'cohort-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+      );
+      const module = LearningModule(
+        id: 'english-reading-module',
+        title: 'Reading Foundations',
+        description: 'Reading path',
+        voicePrompt: 'Open reading.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+        status: 'published',
+      );
+      const lesson = LessonCardModel(
+        id: 'english-reading-lesson',
+        moduleId: 'english-reading-module',
+        title: 'Read the greeting',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Live lesson should stay visible after completion.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      state.learners
+        ..clear()
+        ..add(learner);
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..add(lesson);
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'session-1',
+          sessionId: 'session-1',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: DateTime.now(),
+          lastActivityAt: DateTime.now(),
+          startedAt: DateTime.now(),
+        ),
+      ];
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+      expect(find.textContaining('Completed for today'), findsOneWidget);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'home screen counts completed tap-to-act alias lessons under the canonical subject card',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Alpha',
+        cohortId: 'cohort-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Zainab',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Pod 1',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-AL07',
+      );
+      const module = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '2 lessons',
+        status: 'published',
+      );
+      const lessonOne = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'Hear and say hello',
+        subject: 'English',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Start here.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.prompt,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Say hello.',
+            coachPrompt: 'Coach the learner to say hello.',
+            facilitatorTip: 'Keep the greeting calm and short.',
+            realWorldCheck: 'Learner greets clearly before continuing.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const lessonTwo = LessonCardModel(
+        id: 'english-2',
+        moduleId: 'tap-to-act-package',
+        title: 'Tap the greeting card',
+        subject: 'English Tap to Act',
+        durationMinutes: 12,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Tap to Act follow-up',
+        scenario: 'Alias subject should still count under English.',
+        steps: [
+          LessonStep(
+            id: 'step-2',
+            type: LessonStepType.practice,
+            title: 'Tap hello',
+            instruction: 'Tap hello.',
+            expectedResponse: 'hello',
+            coachPrompt: 'Tap hello.',
+            facilitatorTip: 'Guide the learner to the right card.',
+            realWorldCheck: 'Learner taps the greeting card.',
+            speakerMode: SpeakerMode.guiding,
+            activity: LessonActivity(
+              type: LessonActivityType.tapChoice,
+              prompt: 'Tap hello.',
+              targetResponse: 'hello',
+              choices: ['hello', 'book'],
+            ),
+          ),
+        ],
+      );
+      state.learners
+        ..clear()
+        ..add(learner);
+      state.modules
+        ..clear()
+        ..add(module);
+      state.assignedLessons
+        ..clear()
+        ..addAll([lessonOne, lessonTwo]);
+      state.assignmentPacks
+        ..clear()
+        ..add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-1',
+            lessonId: lessonOne.id,
+            moduleId: lessonOne.moduleId,
+            curriculumModuleId: lessonOne.moduleId,
+            lessonTitle: lessonOne.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'session-2',
+          sessionId: 'session-2',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: 'tap-to-act-runtime-alias',
+          lessonTitle: lessonTwo.title,
+          moduleId: lessonTwo.moduleId,
+          moduleTitle: lessonTwo.subject,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lessonTwo.steps.length,
+          stepsTotal: lessonTwo.steps.length,
+          responsesCaptured: lessonTwo.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          completedAt: DateTime.now(),
+          lastActivityAt: DateTime.now(),
+          startedAt: DateTime.now(),
+        ),
+      ];
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('English'), findsOneWidget);
+      expect(find.text('2 lessons • 1 ready now'), findsOneWidget);
+      expect(find.text('English Tap to Act'), findsNothing);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'home screen still shows live subjects when bootstrap has published lessons but no explicit assignment packs',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false
+        ..registrationContext = const RegistrationContext(
+          tabletRegistration: TabletRegistration(
+            id: 'tablet-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+          ),
+        );
+      state.learners
+        ..clear()
+        ..add(
+          const LearnerProfile(
+            id: 'learner-1',
+            name: 'Amina',
+            age: 7,
+            cohort: 'Alpha',
+            cohortId: 'cohort-1',
+            podId: 'pod-1',
+            podLabel: 'Pod 1',
+            streakDays: 1,
+            guardianName: 'Zainab',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Voice-first beginner',
+            village: 'Pod 1',
+            guardianPhone: '0800000000',
+            sex: 'Girl',
+            baselineLevel: 'No prior exposure',
+            consentCaptured: true,
+            learnerCode: 'AMI-AL07',
+          ),
+        );
+      state.modules
+        ..clear()
+        ..add(
+          const LearningModule(
+            id: 'english-reading-module',
+            title: 'Reading Foundations',
+            description: 'Reading path',
+            voicePrompt: 'Open reading.',
+            readinessGoal: 'Greeting flow',
+            badge: '1 lesson',
+            status: 'published',
+          ),
+        );
+      state.assignedLessons
+        ..clear()
+        ..add(
+          const LessonCardModel(
+            id: 'english-reading-lesson',
+            moduleId: 'english-reading-module',
+            title: 'Read the greeting',
+            subject: 'English',
+            durationMinutes: 12,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario:
+                'Live lesson should stay visible without assignment packs.',
+            steps: [
+              LessonStep(
+                id: 'step-1',
+                type: LessonStepType.prompt,
+                title: 'Say hello',
+                instruction: 'Say hello.',
+                expectedResponse: 'Say hello.',
+                coachPrompt: 'Coach the learner to say hello.',
+                facilitatorTip: 'Keep the greeting calm and short.',
+                realWorldCheck: 'Learner greets clearly before continuing.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'home screen keeps registration quick action read-only while backend registration is blocked',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Register blocked'), findsOneWidget);
+      expect(find.byType(RegisterPage), findsNothing);
+
+      await tester.tap(find.text('Register blocked'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.byType(RegisterPage), findsNothing);
+    },
+  );
 
   testWidgets('home screen explains when no learner-safe subjects are ready', (
     tester,
@@ -810,7 +1471,7 @@ void main() {
       await pumpAppAtSize(tester, const Size(1280, 800));
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Hear Mallam again'), findsOneWidget);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
       expect(find.byType(DetailCard), findsNothing);
       expect(find.text('English'), findsOneWidget);
       expect(find.text('Math'), findsOneWidget);
@@ -924,7 +1585,7 @@ void main() {
     await pumpAppAtSize(tester, const Size(1280, 800));
 
     final replayButtonBottom =
-        tester.getBottomLeft(find.text('Hear Mallam again')).dy;
+        tester.getBottomLeft(find.text('A sake jin Mallam')).dy;
     final firstSubjectTop = tester.getTopLeft(find.text('English')).dy;
 
     expect(
@@ -1398,18 +2059,22 @@ void main() {
       );
       await pumpForUi(tester);
 
-      final refreshButton = find.widgetWithText(
+      final syncRequiredButtons = find.widgetWithText(
         FilledButton,
-        'Refresh sync before starting',
+        'Sync required before starting',
       );
-      expect(refreshButton, findsOneWidget);
-      expect(tester.widget<FilledButton>(refreshButton).onPressed, isNull);
+      expect(syncRequiredButtons, findsNWidgets(2));
+      for (final button
+          in tester.widgetList<FilledButton>(syncRequiredButtons)) {
+        expect(button.onPressed, isNull);
+      }
 
-      await tester.tap(refreshButton, warnIfMissed: false);
+      await tester.ensureVisible(syncRequiredButtons.first);
+      await tester.tap(syncRequiredButtons.first, warnIfMissed: false);
       await pumpForUi(tester);
 
       expect(find.byType(LessonLaunchSetupPage), findsNothing);
-      expect(find.text('Select available learner'), findsNothing);
+      expect(find.text('Refresh sync before starting'), findsNothing);
 
       state.dispose();
     },
@@ -1579,6 +2244,15 @@ void main() {
       expect(state.registrationDraft.cohort, 'Cohort A');
       expect(state.registrationDraft.mallamId, 'mallam-1');
 
+      final cohortField = tester.state<FormFieldState<String>>(
+        find.byKey(const ValueKey('registration-cohort-Cohort A-1')),
+      );
+      final mallamField = tester.state<FormFieldState<String>>(
+        find.byKey(const ValueKey('registration-mallam-mallam-1-1')),
+      );
+      expect(cohortField.value, 'Cohort A');
+      expect(mallamField.value, 'mallam-1');
+
       state.dispose();
     },
   );
@@ -1640,29 +2314,69 @@ void main() {
   );
 
   testWidgets(
-    'registration success page shows learner subject label instead of backend module title',
+    'registration success page falls back to the subject board when the assigned lesson shell is still incomplete',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 1400);
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      final state = LumoAppState(includeSeedDemoContent: true);
-      final learner = state.learners.first;
-      final recommendedModule = state.recommendedModuleForLearner(learner);
-      final expectedSubject = state
-          .lessonsForLearnerAndModule(learner, recommendedModule.id)
-          .map((lesson) => lesson.subject.trim())
-          .firstWhere((subject) => subject.isNotEmpty);
-      final moduleIndex = state.modules
-          .indexWhere((module) => module.id == recommendedModule.id);
-      state.modules[moduleIndex] = LearningModule(
-        id: recommendedModule.id,
-        title: 'Backend Module Alias',
-        description: recommendedModule.description,
-        voicePrompt: recommendedModule.voicePrompt,
-        readinessGoal: recommendedModule.readinessGoal,
-        badge: recommendedModule.badge,
-        status: recommendedModule.status,
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      addTearDown(state.dispose);
+
+      const learner = LearnerProfile(
+        id: 'learner-shell',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const shellLesson = LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'English greeting lesson',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell is visible before activity steps sync.',
+        steps: [],
+      );
+
+      state.learners.add(learner);
+      state.modules.add(
+        const LearningModule(
+          id: 'english',
+          title: 'English basics',
+          description: 'Greeting practice',
+          voicePrompt: 'Listen and repeat',
+          readinessGoal: 'Greeting flow',
+          badge: '🗣️',
+        ),
+      );
+      state.assignedLessons.add(shellLesson);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-shell',
+          lessonId: shellLesson.id,
+          moduleId: shellLesson.moduleId,
+          lessonTitle: shellLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
       );
 
       await tester.pumpWidget(
@@ -1676,13 +2390,458 @@ void main() {
       );
       await pumpForUi(tester);
 
-      expect(find.text(expectedSubject), findsWidgets);
-      expect(find.text('Backend Module Alias'), findsNothing);
+      expect(find.text('Open subject'), findsOneWidget);
+      expect(find.text('Start assigned lesson'), findsNothing);
+
+      await tester.tap(find.text('Open subject'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
     },
   );
 
   testWidgets(
-    'go to next learner handoff skips learners outside the tablet pod', (
+      'go to next learner handoff skips learners outside the tablet pod', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const currentLearner = LearnerProfile(
+      id: 'learner-current',
+      name: 'Amina',
+      age: 7,
+      cohort: 'Pod A',
+      cohortId: 'cohort-a',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const wrongPodLearner = LearnerProfile(
+      id: 'learner-wrong-pod',
+      name: 'Bashir',
+      age: 8,
+      cohort: 'Pod B',
+      cohortId: 'cohort-b',
+      podId: 'pod-b',
+      podLabel: 'Pod B',
+      streakDays: 1,
+      guardianName: 'Aisha',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000001',
+      sex: 'Boy',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'BAS-001',
+    );
+    const samePodLearner = LearnerProfile(
+      id: 'learner-same-pod',
+      name: 'Zainab',
+      age: 8,
+      cohort: 'Pod A',
+      cohortId: 'cohort-a',
+      podId: 'pod-a',
+      podLabel: 'Pod A',
+      streakDays: 1,
+      guardianName: 'Maryam',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000002',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'ZAI-001',
+    );
+    const module = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'Greeting path',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: '2 lessons',
+      status: 'published',
+    );
+    const completedLesson = LessonCardModel(
+      id: 'english-1',
+      moduleId: 'english',
+      title: 'Say hello',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Completed lesson.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.intro,
+          title: 'Hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Model hello.',
+          realWorldCheck: 'Learner greets.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+    const nextLesson = LessonCardModel(
+      id: 'english-2',
+      moduleId: 'english',
+      title: 'Ask how are you',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Next greeting step',
+      scenario: 'Same-pod learner should receive this handoff.',
+      steps: [
+        LessonStep(
+          id: 'step-2',
+          type: LessonStepType.intro,
+          title: 'How are you',
+          instruction: 'Ask how are you.',
+          expectedResponse: 'How are you?',
+          coachPrompt: 'Ask how are you.',
+          facilitatorTip: 'Guide the learner.',
+          realWorldCheck: 'Learner asks clearly.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..isBootstrapping = false
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    state.learners
+      ..clear()
+      ..addAll([currentLearner, wrongPodLearner, samePodLearner]);
+    state.modules
+      ..clear()
+      ..add(module);
+    state.assignedLessons
+      ..clear()
+      ..addAll([completedLesson, nextLesson]);
+    state.assignmentPacks
+      ..clear()
+      ..add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-next',
+          lessonId: nextLesson.id,
+          moduleId: nextLesson.moduleId,
+          curriculumModuleId: nextLesson.moduleId,
+          lessonTitle: nextLesson.title,
+          eligibleLearnerIds: [samePodLearner.id],
+        ),
+      );
+    state.selectLearner(currentLearner);
+    state.selectModule(module);
+    state.activeSession = LessonSessionState(
+      sessionId: 'session-complete',
+      lesson: completedLesson,
+      completionState: LessonCompletionState.complete,
+      startedAt: DateTime.now(),
+      automationStatus: 'Completed on this tablet.',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonCompletePage(state: state, lesson: completedLesson),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.ensureVisible(find.text('Go to next learner'));
+    await tester.tap(find.text('Go to next learner'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(state.currentLearner?.id, samePodLearner.id);
+    expect(find.byType(SubjectModulesPage), findsOneWidget);
+  });
+
+  testWidgets(
+    'lesson complete handoff does not reopen a sync-placeholder lesson as the next step',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+        backendRecommendedModuleId: 'math',
+      );
+      const englishModule = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      );
+      const mathModule = LearningModule(
+        id: 'math',
+        title: 'Math',
+        description: 'Math path',
+        voicePrompt: 'Open Math.',
+        readinessGoal: 'Number sense',
+        badge: 'Sync pending',
+      );
+      const completedLesson = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'English warmup',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Completed lesson.',
+        steps: [
+          LessonStep(
+            id: 'english-step-1',
+            type: LessonStepType.practice,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model it first.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const placeholderLesson = LessonCardModel(
+        id: 'assignment-placeholder:math-2',
+        moduleId: 'math',
+        title: 'Math still syncing',
+        subject: 'Math',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Wait for live payload',
+        scenario: 'Placeholder lesson only.',
+        steps: [
+          LessonStep(
+            id: 'placeholder-step',
+            type: LessonStepType.intro,
+            title: 'Lesson sync pending',
+            instruction: 'Refresh sync before starting this assignment.',
+            expectedResponse: 'Refresh sync first.',
+            coachPrompt: 'Do not start runtime on a placeholder lesson.',
+            facilitatorTip: 'Refresh assignments first.',
+            realWorldCheck: 'Only start once the real lesson appears.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      state.modules.addAll([englishModule, mathModule]);
+      state.learners.add(learner);
+      state.assignedLessons.addAll([completedLesson, placeholderLesson]);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-next',
+          lessonId: placeholderLesson.id,
+          moduleId: placeholderLesson.moduleId,
+          curriculumModuleId: placeholderLesson.moduleId,
+          lessonTitle: placeholderLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.selectLearner(learner);
+      state.selectModule(englishModule);
+      state.activeSession = LessonSessionState(
+        sessionId: 'session-complete',
+        lesson: completedLesson,
+        completionState: LessonCompletionState.complete,
+        startedAt: DateTime.now(),
+        automationStatus: 'Completed on this tablet.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonCompletePage(state: state, lesson: completedLesson),
+        ),
+      );
+      await pumpForUi(tester);
+
+      await tester.ensureVisible(find.text('Go to next learner'));
+      await tester.tap(find.text('Go to next learner'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'go to next learner handoff falls back to the subject board when the same learner\'s next lesson has no synced steps yet',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const learner = LearnerProfile(
+        id: 'learner-shell-steps',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        cohortId: 'cohort-a',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-002',
+        backendRecommendedModuleId: 'math',
+      );
+      const englishModule = LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      );
+      const mathModule = LearningModule(
+        id: 'math',
+        title: 'Math',
+        description: 'Math path',
+        voicePrompt: 'Open Math.',
+        readinessGoal: 'Number sense',
+        badge: 'Sync pending',
+      );
+      const completedLesson = LessonCardModel(
+        id: 'english-1',
+        moduleId: 'english',
+        title: 'English warmup',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Completed lesson.',
+        steps: [
+          LessonStep(
+            id: 'english-step-1',
+            type: LessonStepType.practice,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Model it first.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      );
+      const stepLessLesson = LessonCardModel(
+        id: 'math-shell',
+        moduleId: 'math',
+        title: 'Math shell without steps',
+        subject: 'Math',
+        durationMinutes: 10,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Wait for live payload',
+        scenario: 'Lesson shell landed without any activities yet.',
+        steps: [],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      state.modules.addAll([englishModule, mathModule]);
+      state.learners.add(learner);
+      state.assignedLessons.addAll([completedLesson, stepLessLesson]);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-step-shell',
+          lessonId: stepLessLesson.id,
+          moduleId: stepLessLesson.moduleId,
+          curriculumModuleId: stepLessLesson.moduleId,
+          lessonTitle: stepLessLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+      state.selectLearner(learner);
+      state.selectModule(englishModule);
+      state.activeSession = LessonSessionState(
+        sessionId: 'session-complete-step-shell',
+        lesson: completedLesson,
+        completionState: LessonCompletionState.complete,
+        startedAt: DateTime.now(),
+        automationStatus: 'Completed on this tablet.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonCompletePage(state: state, lesson: completedLesson),
+        ),
+      );
+      await pumpForUi(tester);
+
+      await tester.ensureVisible(find.text('Go to next learner'));
+      await tester.tap(find.text('Go to next learner'));
+      await pumpForUi(tester);
+
+      expect(find.byType(SubjectModulesPage), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+      'go to next learner handoff skips learners outside the tablet pod', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -1893,7 +3052,6 @@ void main() {
     state.dispose();
   });
 
-
   testWidgets('subject modules page stays usable on narrow tablet widths', (
     tester,
   ) async {
@@ -1916,17 +3074,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
 
     final mallamGuideTopLeft = tester.getTopLeft(
-      find.text('Hear Mallam again'),
+      find.text('A sake jin Mallam'),
     );
     final lessonChooserTopLeft = tester.getTopLeft(
-      find.text('Available lessons'),
+      find.text('Tafiyar darasi'),
     );
     expect(
       mallamGuideTopLeft.dy,
@@ -1958,11 +3116,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       String? replayedPrompt;
-      state.voiceReplay = (text, mode) async {
+      state.voiceReplay = (text, mode, {supportLanguage}) async {
         replayedPrompt = text;
       };
 
-      await tester.tap(find.text('Hear Mallam again'));
+      await tester.tap(find.text('A sake jin Mallam'));
       await pumpForUi(tester);
 
       final firstName = learner.name.split(' ').first;
@@ -2259,6 +3417,73 @@ void main() {
   );
 
   testWidgets(
+    'lesson launch shows recovery actions when every learner on the tablet is blocked',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = true
+        ..backendError = 'Backend registration is offline.';
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+      final now = DateTime.now();
+      for (final learner in state.learners) {
+        state.recentRuntimeSessionsByLearnerId[learner.id] = [
+          BackendLessonSession(
+            id: 'completed-launch-blocked-${learner.id}',
+            sessionId: 'completed-launch-blocked-${learner.id}',
+            studentId: learner.id,
+            learnerCode: learner.learnerCode,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+            moduleId: lesson.moduleId,
+            moduleTitle: module.title,
+            status: 'completed',
+            completionState: 'completed',
+            automationStatus: 'Completed on this tablet.',
+            currentStepIndex: lesson.steps.length,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: lesson.steps.length,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+            completedAt: now,
+            lastActivityAt: now,
+            startedAt: now,
+          ),
+        ];
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('No learner is launchable yet'), findsOneWidget);
+      expect(find.text('Refresh live sync'), findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
+
+      await tester.tap(find.text('Open student list').first);
+      await pumpForUi(tester);
+
+      expect(find.text('All learners'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson launch shows completed learners as unavailable and exposes absent CTA',
     (tester) async {
       final state = LumoAppState(includeSeedDemoContent: true);
@@ -2288,7 +3513,7 @@ void main() {
       );
       await pumpForUi(tester);
 
-      expect(find.text('Completed today'), findsWidgets);
+      expect(find.text('Completed'), findsWidgets);
       expect(find.text('Absent: ${completedLearner.name}'), findsNothing);
 
       await tester.tap(find.text(availableLearner.name).first);
@@ -2300,6 +3525,140 @@ void main() {
       expect(find.byIcon(Icons.pets_rounded), findsWidgets);
 
       state.dispose();
+    },
+  );
+
+  testWidgets(
+    'lesson launch footer follows the selected learner availability even when helper gating drifts',
+    (tester) async {
+      final state = _FooterGateMismatchState()..usingFallbackData = true;
+      final module = state.modules.firstWhere((item) => item.id == 'english');
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+      );
+      final learner = state.learners.first;
+      addTearDown(state.dispose);
+
+      expect(
+        learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: lesson,
+        ).canLaunch,
+        isTrue,
+      );
+      expect(state.availableLearnersForLesson(lesson), isEmpty);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.textContaining('learners ready'), findsOneWidget);
+      expect(find.text('No learner ready on this tablet'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.tap(find.text(learner.name).first);
+      await pumpForUi(tester);
+
+      final startButton = find.widgetWithText(
+        FilledButton,
+        'Start with ${learner.name}',
+      );
+      expect(startButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(startButton).onPressed, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'lesson launch setup exposes QA reset for learners completed today',
+    (
+      tester,
+    ) async {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..forceQaCompletionResetAvailabilityForTesting = true;
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final learner = state.learners.first;
+
+      state.recentRuntimeSessionsByLearnerId[learner.id] = [
+        BackendLessonSession(
+          id: 'completed-today-ui',
+          sessionId: 'completed-today-ui',
+          studentId: learner.id,
+          learnerCode: learner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          moduleTitle: module.title,
+          status: 'completed',
+          completionState: 'completed',
+          automationStatus: 'Completed on this tablet.',
+          currentStepIndex: lesson.steps.length,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: lesson.steps.length,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+          startedAt: DateTime.now().subtract(const Duration(minutes: 8)),
+          lastActivityAt: DateTime.now().subtract(const Duration(minutes: 1)),
+          completedAt: DateTime.now(),
+        ),
+      ];
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('QA only: reset completed-today gate'), findsOneWidget);
+      expect(
+        find.textContaining('Testing affordance only.'),
+        findsOneWidget,
+      );
+      expect(find.text('Reset ${learner.name}'), findsOneWidget);
+      expect(find.text('Resume ready'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Reset ${learner.name}'));
+      await tester.tap(find.text('Reset ${learner.name}'));
+      await pumpForUi(tester);
+
+      expect(state.lessonCompletedTodayForLearner(learner, lesson), isFalse);
+      expect(find.text('Reset ${learner.name}'), findsNothing);
+      expect(
+        find.textContaining(
+          'QA reset cleared ${learner.name} for ${lesson.title}.',
+        ),
+        findsOneWidget,
+      );
+
+      expect(
+        learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: lesson,
+        ).canLaunch,
+        isTrue,
+      );
     },
   );
 
@@ -2399,8 +3758,28 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Select available learner'), findsOneWidget);
-      expect(find.text('Select learner to continue'), findsOneWidget);
+      expect(
+        find.text(
+          'Learner selection stays read-only until the live lesson sync finishes.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
       expect(find.textContaining('is selected for'), findsNothing);
+
+      await tester.ensureVisible(find.text(state.learners.first.name).first);
+      final originalHitTestWarningFatal =
+          WidgetController.hitTestWarningShouldBeFatal;
+      WidgetController.hitTestWarningShouldBeFatal = true;
+      addTearDown(() {
+        WidgetController.hitTestWarningShouldBeFatal =
+            originalHitTestWarningFatal;
+      });
+      await tester.tap(find.text(state.learners.first.name).first);
+      await pumpForUi(tester);
+
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
+      expect(find.text('Absent: ${state.learners.first.name}'), findsNothing);
 
       state.dispose();
     },
@@ -2462,7 +3841,13 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Refresh sync before starting'), findsOneWidget);
       expect(find.text('Select available learner'), findsOneWidget);
-      expect(find.text('Select learner to continue'), findsOneWidget);
+      expect(
+        find.text(
+          'Learner selection stays read-only until the live lesson sync finishes.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Wait for live lesson sync'), findsOneWidget);
       expect(
         find.textContaining('is selected for Backend lesson still syncing.'),
         findsNothing,
@@ -2506,7 +3891,7 @@ void main() {
     expect(find.byType(SingleChildScrollView), findsWidgets);
 
     final mallamGuideTopLeft = tester.getTopLeft(
-      find.text('Hear Mallam again').first,
+      find.text('A sake jin Mallam').first,
     );
     final answerPanelTopLeft = tester.getTopLeft(
       find.textContaining('Start listening, capture the learner voice'),
@@ -2706,6 +4091,76 @@ void main() {
   );
 
   testWidgets(
+    'lesson launch ignores a mismatched resume session instead of locking the wrong learner',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final otherLesson = state.assignedLessons.firstWhere(
+        (item) => item.id != lesson.id,
+        orElse: () => state.assignedLessons.last,
+      );
+      final learner = state.learners.first;
+      final otherLearner = state.learners.firstWhere(
+        (item) => item.id != learner.id,
+      );
+      final mismatchedSession = BackendLessonSession(
+        id: 'runtime-wrong-lesson',
+        sessionId: 'session-wrong-lesson',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: otherLesson.id,
+        lessonTitle: otherLesson.title,
+        moduleId: otherLesson.moduleId,
+        moduleTitle: otherLesson.subject,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the other lesson instead.',
+        currentStepIndex: 1,
+        stepsTotal: otherLesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+            resumeFrom: mismatchedSession,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Resume learner'), findsNothing);
+      expect(find.text('Select available learner'), findsOneWidget);
+      expect(find.text('Resume with ${learner.name}'), findsNothing);
+      expect(find.text('Start with ${learner.name}'), findsNothing);
+      expect(find.text('Select learner to continue'), findsOneWidget);
+
+      await tester.tap(find.text(otherLearner.name).first);
+      await pumpForUi(tester);
+
+      expect(find.text('Start with ${otherLearner.name}'), findsOneWidget);
+      expect(find.text('Resume with ${learner.name}'), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson session exposes saved voice playback controls during audio-only review',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);
@@ -2750,7 +4205,7 @@ void main() {
                 .isNotEmpty,
         isTrue,
       );
-      expect(find.text('Hear Mallam again'), findsWidgets);
+      expect(find.text('A sake jin Mallam'), findsWidgets);
       expect(
         find.text('Save note + resume hands-free').evaluate().isNotEmpty ||
             find.text('Confirm transcript').evaluate().isNotEmpty,
@@ -2856,7 +4311,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Confirm transcript'), findsOneWidget);
-      expect(find.text('Hear Mallam again'), findsWidgets);
+      expect(find.text('A sake jin Mallam'), findsWidgets);
 
       state.dispose();
     },
@@ -2966,6 +4421,200 @@ void main() {
             find.text('Save note and continue').evaluate().isNotEmpty,
         isTrue,
       );
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'transcript review keeps continue locked until the typed answer verifies',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'spoken-review-gate',
+        moduleId: 'english',
+        title: 'Spoken review gate',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Only verified spoken answers should unlock continue.',
+        scenario: 'Typed drafts cannot bypass transcript review validation.',
+        steps: [
+          LessonStep(
+            id: 'spoken-review-step-1',
+            type: LessonStepType.practice,
+            title: 'Say the word',
+            instruction: 'Hear the clue and answer.',
+            expectedResponse: 'sun',
+            coachPrompt: 'What shines in the sky?',
+            facilitatorTip: 'Only continue after a verified answer.',
+            realWorldCheck: 'Typed drafts must not bypass answer checking.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.listenAnswer,
+              prompt: 'What shines in the sky?',
+              targetResponse: 'sun',
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: 'https://example.com/audio/review-take.m4a',
+        duration: const Duration(seconds: 2),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      Finder reviewButton() {
+        for (final label in const [
+          'Save note and continue',
+          'Save note + resume hands-free',
+          'Confirm transcript',
+        ]) {
+          final finder = find.widgetWithText(FilledButton, label);
+          if (finder.evaluate().isNotEmpty) {
+            return finder;
+          }
+        }
+        return find.widgetWithText(FilledButton, '__missing_review_button__');
+      }
+
+      var reviewButtonFinder = reviewButton();
+      expect(reviewButtonFinder, findsOneWidget);
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'moon');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'sun');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(
+        tester.widget<FilledButton>(reviewButtonFinder).onPressed,
+        isNotNull,
+      );
+
+      await tester.enterText(find.byType(TextField), 'moon');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'transcript review keeps continue locked for a single contained word from a longer phrase',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'spoken-review-contained-word-gate',
+        moduleId: 'english',
+        title: 'Spoken review contained word gate',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Single contained words must not unlock continue.',
+        scenario:
+            'Manual transcript edits should not pass when they only copy one word from a longer expected phrase.',
+        steps: [
+          LessonStep(
+            id: 'spoken-review-step-phrase',
+            type: LessonStepType.practice,
+            title: 'Say the whole phrase',
+            instruction: 'Hear the clue and answer with the full phrase.',
+            expectedResponse: 'the yellow sun is bright',
+            coachPrompt: 'Say: the yellow sun is bright.',
+            facilitatorTip: 'Do not advance on a one-word fragment.',
+            realWorldCheck:
+                'Continue stays locked for one-word drafts from the full phrase.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.listenAnswer,
+              prompt: 'Say: the yellow sun is bright.',
+              targetResponse: 'the yellow sun is bright',
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.attachLearnerAudioCapture(
+        path: 'https://example.com/audio/review-phrase.m4a',
+        duration: const Duration(seconds: 2),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      Finder reviewButton() {
+        for (final label in const [
+          'Save note and continue',
+          'Save note + resume hands-free',
+          'Confirm transcript',
+        ]) {
+          final finder = find.widgetWithText(FilledButton, label);
+          if (finder.evaluate().isNotEmpty) {
+            return finder;
+          }
+        }
+        return find.widgetWithText(FilledButton, '__missing_review_button__');
+      }
+
+      await tester.enterText(find.byType(TextField), 'sun');
+      await pumpForUi(tester);
+      var reviewButtonFinder = reviewButton();
+      expect(reviewButtonFinder, findsOneWidget);
+      expect(tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'yellow sun is bright');
+      await pumpForUi(tester);
+      reviewButtonFinder = reviewButton();
+      expect(
+          tester.widget<FilledButton>(reviewButtonFinder).onPressed, isNotNull);
 
       state.dispose();
     },
@@ -3093,12 +4742,13 @@ void main() {
       );
       await pumpForUi(tester, const Duration(milliseconds: 300));
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
-      await pumpForUi(tester);
+      final continueButton = find.widgetWithText(FilledButton, 'Continue');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
 
       expect(state.activeSession?.stepIndex, 0);
       expect(state.activeSession?.currentStep.id, 'choice-step-1');
-      expect(state.activeSession?.latestReview, ResponseReview.needsSupport);
+      expect(state.activeSession?.latestReview, ResponseReview.pending);
       expect(find.text('Second step'), findsNothing);
       expect(find.text('Continue'), findsOneWidget);
 
@@ -3248,6 +4898,287 @@ void main() {
       await pumpForUi(tester, const Duration(milliseconds: 400));
 
       expect(find.text('Selected'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'image choice step transition clears the previous selection and re-enables CTA on the next step',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-step-transition',
+        moduleId: 'english',
+        title: 'Image choice transition',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Clear stale selection between image-choice steps.',
+        scenario:
+            'A correct selection on step 1 must not stay selected on step 2.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-step-1',
+            type: LessonStepType.practice,
+            title: 'Pick the ant',
+            instruction: 'Tap the ant.',
+            expectedResponse: 'ant',
+            coachPrompt: 'Tap the ant.',
+            facilitatorTip: 'Only the ant should unlock continue.',
+            realWorldCheck: 'First step only advances after the right tap.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the ant.',
+              targetResponse: 'ant',
+              choices: ['ant', 'ball', 'cup'],
+              choiceEmoji: ['🐜', '⚽', '🥤'],
+            ),
+          ),
+          LessonStep(
+            id: 'image-choice-step-2',
+            type: LessonStepType.practice,
+            title: 'Pick the sun',
+            instruction: 'Tap the sun.',
+            expectedResponse: 'sun',
+            coachPrompt: 'Tap the sun.',
+            facilitatorTip: 'The old step selection must be gone now.',
+            realWorldCheck:
+                'Second step starts clean and unlocks only after the new correct tap.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the sun.',
+              targetResponse: 'sun',
+              choices: ['sun', 'moon', 'star'],
+              choiceEmoji: ['☀️', '🌙', '⭐'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      var primaryButton = find.widgetWithText(FilledButton, 'Continue');
+      final antCard = find.ancestor(
+        of: find.text('ant').first,
+        matching: find.byType(InkWell),
+      );
+
+      await tester.tap(antCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNotNull);
+
+      await tester.tap(primaryButton);
+      await pumpForUi(tester, const Duration(milliseconds: 500));
+
+      expect(state.activeSession?.stepIndex, 1);
+      expect(state.activeSession?.currentStep.id, 'image-choice-step-2');
+      expect(find.text('sun'), findsWidgets);
+      expect(find.text('Choose one object to continue'), findsOneWidget);
+      expect(find.text('Selected'), findsNothing);
+      primaryButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNull);
+
+      final sunCard = find.ancestor(
+        of: find.text('sun').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(sunCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(tester.widget<FilledButton>(primaryButton).onPressed, isNotNull);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'image choice third option unlocks CTA when targetResponse differs from expectedResponse copy',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-third-option-cta',
+        moduleId: 'english',
+        title: 'Third option CTA',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Correct third image should unlock continue.',
+        scenario:
+            'Expected response copy must not block the real image-choice answer.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-step-1',
+            type: LessonStepType.practice,
+            title: 'Pick the cherry',
+            instruction: 'Tap the cherry picture.',
+            expectedResponse: 'Tap the cherry picture.',
+            coachPrompt: 'Tap the cherry picture.',
+            facilitatorTip: 'Cherry is the correct third option.',
+            realWorldCheck: 'Continue unlocks after tapping cherry.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the cherry picture.',
+              targetResponse: 'cherry',
+              choices: ['apple', 'banana', 'cherry'],
+              choiceEmoji: ['🍎', '🍌', '🍒'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+      final cherryCard = find.ancestor(
+        of: find.text('cherry').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(cherryCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'image choice ignores stale transcript review state and keeps choice CTA routing',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      const lesson = LessonCardModel(
+        id: 'image-choice-stale-transcript-state',
+        moduleId: 'english',
+        title: 'Image choice transcript isolation',
+        subject: 'English',
+        durationMinutes: 5,
+        status: 'Assigned',
+        mascotName: 'Mallam',
+        readinessFocus:
+            'Choice steps should never fall into transcript review.',
+        scenario:
+            'A stale saved-audio review state must not hijack image-choice CTA routing.',
+        steps: [
+          LessonStep(
+            id: 'image-choice-stale-transcript-step',
+            type: LessonStepType.practice,
+            title: 'Pick the moon',
+            instruction: 'Tap the moon.',
+            expectedResponse: 'moon',
+            coachPrompt: 'Tap the moon.',
+            facilitatorTip:
+                'Choice selection should unlock the normal continue CTA.',
+            realWorldCheck:
+                'The button stays on the choice flow instead of transcript confirmation.',
+            speakerMode: SpeakerMode.listening,
+            activity: LessonActivity(
+              type: LessonActivityType.imageChoice,
+              prompt: 'Tap the moon.',
+              targetResponse: 'moon',
+              choices: ['sun', 'moon', 'star'],
+              choiceEmoji: ['☀️', '🌙', '⭐'],
+            ),
+          ),
+        ],
+      );
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      state.assignedLessons.add(lesson);
+      final learner = state.learners.first;
+      state.selectLearner(learner);
+      state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId),
+      );
+      state.startLesson(lesson);
+      state.activeSession = state.activeSession!.copyWith(
+        latestLearnerAudioPath: 'saved-audio.m4a',
+        automationStatus:
+            'Recovered session says audio review is pending, but this is now a choice step.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonSessionPage(
+            state: state,
+            lesson: lesson,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Confirm transcript'), findsNothing);
+
+      final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+      expect(continueButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+      final moonCard = find.ancestor(
+        of: find.text('moon').first,
+        matching: find.byType(InkWell),
+      );
+      await tester.tap(moonCard);
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(find.text('Selected'), findsOneWidget);
+      expect(find.text('Confirm transcript'), findsNothing);
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
 
       state.dispose();
     },
@@ -3475,6 +5406,62 @@ void main() {
     },
   );
 
+  testWidgets(
+      'assignment placeholders are blocked at the shared lesson launch gate', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    const placeholderLesson = LessonCardModel(
+      id: 'assignment-placeholder:lesson-1',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Assignment arrived before lesson sync.',
+      steps: [],
+    );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () {
+                launchLessonFlow(
+                  context: context,
+                  state: state,
+                  onChanged: () {},
+                  lesson: placeholderLesson,
+                );
+              },
+              child: const Text('Open lesson'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open lesson'));
+    await pumpForUi(tester);
+
+    expect(
+      find.text(
+        'This assignment is still waiting for the live lesson sync. Refresh sync before a learner starts it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('lesson session shows a preflight listening readiness card', (
     tester,
   ) async {
@@ -3497,7 +5484,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('Learner transcript'), findsOneWidget);
     expect(find.text('Start listening'), findsOneWidget);
     expect(
@@ -3560,7 +5547,7 @@ void main() {
     await pumpForUi(tester);
 
     expect(find.byType(LessonSessionPage), findsOneWidget);
-    expect(find.text('Hear Mallam again'), findsWidgets);
+    expect(find.text('A sake jin Mallam'), findsWidgets);
     expect(find.text('The lesson is paused safely'), findsOneWidget);
     expect(find.text('Ready to resume'), findsOneWidget);
 
@@ -3663,9 +5650,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Available lessons'), findsOneWidget);
+    expect(find.text('Tafiyar darasi'), findsOneWidget);
     expect(
-      find.textContaining('choose which available learner'),
+      find.textContaining('Darussan da aka gama suna nan a gani'),
       findsOneWidget,
     );
 
@@ -3788,4 +5775,240 @@ void main() {
       state.dispose();
     },
   );
+
+  testWidgets(
+      'drag to match shows authored target media so learners can see the target zones',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'drag-match-visual-targets',
+      moduleId: 'english',
+      title: 'Match picture cards to target zones',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Match every card to its visual zone.',
+      scenario: 'Learner matches picture cards to visual target zones.',
+      steps: [
+        LessonStep(
+          id: 'drag-visual-step',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'Watch whether the learner can sort both cards independently.',
+          realWorldCheck:
+              'Both cards land in the correct zones before continue unlocks.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                id: 'banana-zone',
+                prompt: 'Banana target zone',
+                mediaItems: [
+                  LessonActivityMedia(kind: 'word-card', values: ['BANANA']),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    expect(find.text('BANANA'), findsOneWidget);
+    expect(find.text('Banana target zone'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'drag to match keeps wrong backend-id-fallback placements blocked',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final lesson = LessonCardModel.fromBackend({
+      'id': 'drag-match-backend-fallbacks',
+      'moduleId': 'english',
+      'title': 'Drag to match backend fallbacks',
+      'subject': 'English',
+      'durationMinutes': 5,
+      'status': 'Assigned',
+      'mascotName': 'Mallam',
+      'readinessFocus': 'Wrong placements should stay blocked.',
+      'scenario':
+          'Backend payload omits drag ids, so runtime must synthesize stable ones.',
+      'activitySteps': [
+        {
+          'id': 'drag-step-1',
+          'type': 'drag_to_match',
+          'prompt': 'Match each fruit card to the right basket.',
+          'dragItems': [
+            {'label': 'Apple'},
+            {'label': 'Banana'},
+          ],
+          'dragTargets': [
+            {'prompt': 'Red basket'},
+            {'prompt': 'Yellow basket'},
+          ],
+        },
+      ],
+    });
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    Future<void> dragCardToPrompt(String cardLabel, String promptText) async {
+      final card = find.text(cardLabel).first;
+      final target = find.text(promptText).first;
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await tester.pump(const Duration(milliseconds: 650));
+      await gesture.moveTo(tester.getCenter(target));
+      await tester.pump();
+      await gesture.up();
+      await pumpForUi(tester);
+    }
+
+    await dragCardToPrompt('Apple', 'Yellow basket');
+    await dragCardToPrompt('Banana', 'Red basket');
+
+    expect(find.textContaining('Incorrect match:'), findsNWidgets(2));
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Apple', 'Red basket');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Banana', 'Yellow basket');
+    expect(find.textContaining('Incorrect match:'), findsNothing);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'drag to match gates CTA until every card lands in the correct zone',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'drag-match-1',
+      moduleId: 'english',
+      title: 'Drag to match',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Match every card to its zone.',
+      scenario: 'Learner drags fruit cards into their matching prompts.',
+      steps: [
+        LessonStep(
+          id: 'drag-step-1',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'Watch whether the learner can sort both cards independently.',
+          realWorldCheck:
+              'Both cards land in the correct zones before continue unlocks.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+              LessonActivityDragItem(
+                  id: 'apple-card', label: 'Apple', targetId: 'apple-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                  id: 'banana-zone', prompt: 'Drag Banana card here'),
+              LessonActivityDragTarget(
+                  id: 'apple-zone', prompt: 'Drag Apple card here'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    Future<void> dragCardToPrompt(String cardLabel, String promptText) async {
+      final card = find.text(cardLabel).first;
+      final target = find.text(promptText).first;
+      final gesture = await tester.startGesture(tester.getCenter(card));
+      await tester.pump(const Duration(milliseconds: 650));
+      await gesture.moveTo(tester.getCenter(target));
+      await tester.pump();
+      await gesture.up();
+      await pumpForUi(tester);
+    }
+
+    await dragCardToPrompt('Banana', 'Drag Banana card here');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await dragCardToPrompt('Apple', 'Drag Apple card here');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+    state.dispose();
+  });
 }

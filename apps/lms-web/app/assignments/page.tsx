@@ -126,7 +126,61 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
     mallamsResult.status === 'rejected' ? 'mallams' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
+  const criticalAssignmentFailures = [
+    assignmentsResult.status === 'rejected' ? 'assignment board' : null,
+    cohortsResult.status === 'rejected' ? 'cohorts' : null,
+    lessonsResult.status === 'rejected' ? 'lessons' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalAssignmentFailures.length) {
+    const blockerDetail = criticalAssignmentFailures.length === 1
+      ? `The ${criticalAssignmentFailures[0]} feed failed to load from the live API. Leaving assignments up would make delivery triage and reassignment look calm while the core control surface is blind.`
+      : `The ${criticalAssignmentFailures.join(', ')} feeds failed to load from the live API. Leaving assignments up would make delivery triage and reassignment look calm while the core control surface is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Assignments"
+        subtitle="Assignments is a delivery control surface, not a decorative board. If the core feeds are down, the route should block instead of inviting unsafe writes."
+        blockerHeadline="Deployment blocker: assignments delivery feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalAssignmentFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalAssignmentFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalAssignmentFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Operators use this route to create, reassign, and triage live delivery windows. If assignments, cohorts, lessons, or mallams disappear, a polished UI becomes dangerous fiction fast.',
+          'Assessments and pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds are missing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Assignment board',
+            expected: 'Live lesson, cohort, pod, mallam, and due-date rows load from the real backend',
+            failure: 'Empty or tiny board appears while the core assignment feed is degraded',
+          },
+          {
+            surface: 'Create + reassign flows',
+            expected: 'Operators can see real cohorts, lessons, and mallams before changing delivery windows',
+            failure: 'Forms stay interactive while the core reference feeds are missing or stale',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until core delivery feeds recover',
+            failure: 'The route implies scheduling is safe when the control surface is blind',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content library', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Progress board', href: '/progress', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+        ]}
+      />
+    );
+  }
+
   const canCreateAssignment = cohorts.length > 0 && lessons.length > 0 && mallams.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();

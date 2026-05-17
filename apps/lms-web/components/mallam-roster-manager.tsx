@@ -7,8 +7,8 @@ export function MallamRosterManager({ mallam, roster, candidateLearners, mallams
     <div style={{ display: 'grid', gap: 16 }}>
       <form action={assignLearnerToMallamAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 14, border: '1px solid #eef2f7' }}>
         <div>
-          <h2 style={{ margin: 0 }}>Move learner into this pod-owned roster</h2>
-          <p style={{ color: '#64748b', margin: '8px 0 0' }}>Pick a learner and Lumo will move them onto {mallam.displayName}’s primary pod, then derive ownership from that pod. This avoids stale manual mallam-only overrides.</p>
+          <h2 style={{ margin: 0 }}>Move learner into this pod-first roster</h2>
+          <p style={{ color: '#64748b', margin: '8px 0 0' }}>Pick a learner and Lumo will move them onto {(mallam.displayName || mallam.name)}’s primary pod, then derive ownership from that pod. This avoids stale manual mallam-only overrides.</p>
         </div>
         <input type="hidden" name="mallamId" value={mallam.id} />
         <input type="hidden" name="returnPath" value={returnPath} />
@@ -43,7 +43,7 @@ export function MallamRosterManager({ mallam, roster, candidateLearners, mallams
               <select name="mallamId" defaultValue={student.mallamId ?? ''} style={{ flex: '1 1 260px', border: '1px solid #d1d5db', borderRadius: 12, padding: '12px 14px', fontSize: 14 }}>
                 <option value="" disabled>Select destination mallam</option>
                 {mallams.filter((option) => option.id !== student.mallamId).map((option) => (
-                  <option key={option.id} value={option.id}>{option.displayName} · {option.podLabels[0] || 'No primary pod'}</option>
+                  <option key={option.id} value={option.id}>{option.displayName || option.name} · {option.podLabels[0] || 'No primary pod'}</option>
                 ))}
               </select>
               <ActionButton label="Move learner" pendingLabel="Moving…" style={{ background: '#0f172a', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700 }} />

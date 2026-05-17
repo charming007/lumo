@@ -112,3 +112,45 @@ test('module matching falls back to title-only linkage when neither side has sub
   assert.equal(filterLessonsForModule(lessons as any, module as any).length, 1);
   assert.equal(assessments.filter((assessment) => assessmentMatchesModule(module as any, assessment as any) && isLiveAssessmentGate(assessment as any)).length, 1);
 });
+
+test('publish-ready assessment gates stay linked when status is approved or published', () => {
+  const module = {
+    id: 'module-image-choice-pack',
+    title: 'Picture Vocabulary Pack',
+    subjectId: 'subject-english',
+    subjectName: 'English',
+    lessonCount: 2,
+    status: 'review',
+  };
+
+  const assessments = [
+    {
+      id: 'assessment-approved',
+      moduleId: null,
+      moduleTitle: 'Picture Vocabulary Pack',
+      subjectId: 'subject-english',
+      subjectName: 'English',
+      status: 'approved',
+    },
+    {
+      id: 'assessment-published',
+      moduleId: null,
+      moduleTitle: 'Picture Vocabulary Pack',
+      subjectId: 'subject-english',
+      subjectName: 'English',
+      status: 'published',
+    },
+    {
+      id: 'assessment-draft',
+      moduleId: null,
+      moduleTitle: 'Picture Vocabulary Pack',
+      subjectId: 'subject-english',
+      subjectName: 'English',
+      status: 'draft',
+    },
+  ];
+
+  const matchedLiveGates = assessments.filter((assessment) => assessmentMatchesModule(module as any, assessment as any) && isLiveAssessmentGate(assessment as any));
+
+  assert.deepEqual(matchedLiveGates.map((assessment) => assessment.id), ['assessment-approved', 'assessment-published']);
+});

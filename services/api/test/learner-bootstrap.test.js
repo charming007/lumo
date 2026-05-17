@@ -10,6 +10,8 @@ process.env.LUMO_DB_MODE = 'file';
 process.env.PORT = '0';
 
 const repository = require('../src/repository');
+const rewards = require('../src/rewards');
+const presenters = require('../src/presenters');
 const { startServer } = require('../src/main');
 
 let server;
@@ -620,6 +622,256 @@ test('learner availability supports absent terminal status from offline tablet s
   assert.equal(learnerEntry.lessonStatus.status, 'absent');
   assert.equal(learnerEntry.lessonStatus.canStart, false);
   assert.equal(learnerEntry.lessonStatus.isTerminalUnavailable, true);
+});
+
+test('learner reward redemption sync accepts stable student identifiers and updates reward totals', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const before = rewards.buildLearnerRewards(learner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'reward-redemption-student-1',
+          type: 'learner_reward_redeemed',
+          studentId: learner.id,
+          learnerCode: learnerProfile.learnerCode,
+          rewardId: 'tablet-reward-1',
+          optionId: 'helper-star',
+          title: 'Helper Star',
+          category: 'celebration',
+          cost: 15,
+          redeemedAt: '2026-04-23T11:30:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].type, 'learner_reward_redeemed');
+  assert.equal(syncResponse.body.results[0].rewards.totalXp, before.totalXp - 15);
+
+  const after = rewards.buildLearnerRewards(learner.id);
+  assert.equal(after.totalXp, before.totalXp - 15);
+
+  const redemption = repository.listRewardTransactions().find((entry) => entry.metadata?.clientRewardId === 'tablet-reward-1');
+  assert.ok(redemption, JSON.stringify(repository.listRewardTransactions()));
+  assert.equal(redemption.studentId, learner.id);
+  assert.equal(redemption.kind, 'redemption');
+  assert.equal(redemption.xpDelta, -15);
+});
+
+test('lesson completion sync falls back to learnerCode when studentId is stale', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const before = rewards.buildLearnerRewards(learner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'lesson-complete-stale-student-id',
+          type: 'lesson_completed',
+          studentId: 'tablet-local-zainab',
+          learnerCode: learnerProfile.learnerCode,
+          lessonId: 'lesson-1',
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          completionState: 'completed',
+          review: 'onTrack',
+          supportActionsUsed: 0,
+          observations: ['Needed no support'],
+          capturedAt: '2026-04-23T12:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].type, 'lesson_completed');
+  assert.equal(syncResponse.body.results[0].rewards.learnerId, learner.id);
+
+  const after = rewards.buildLearnerRewards(learner.id);
+  assert.equal(after.totalXp, before.totalXp + 19, JSON.stringify({ before, after }));
+
+  const completion = repository.listRewardTransactions().find((entry) => entry.studentId === learner.id && entry.kind === 'lesson_completed');
+  assert.ok(completion, JSON.stringify(repository.listRewardTransactions()));
+});
+
+test('lesson completion sync prefers learnerCode over a conflicting but existing learnerId', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  const conflictingLearner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+  assert.ok(conflictingLearner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const beforeTarget = rewards.buildLearnerRewards(learner.id);
+  const beforeConflicting = rewards.buildLearnerRewards(conflictingLearner.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'lesson-complete-conflicting-student-id',
+          type: 'lesson_completed',
+          studentId: conflictingLearner.id,
+          learnerCode: learnerProfile.learnerCode,
+          lessonId: 'lesson-1',
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          completionState: 'completed',
+          review: 'onTrack',
+          supportActionsUsed: 0,
+          observations: ['Needed no support'],
+          capturedAt: '2026-04-23T12:15:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.accepted, 1, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].rewards.learnerId, learner.id);
+
+  const afterTarget = rewards.buildLearnerRewards(learner.id);
+  const afterConflicting = rewards.buildLearnerRewards(conflictingLearner.id);
+  assert.equal(afterTarget.totalXp, beforeTarget.totalXp + 19, JSON.stringify({ beforeTarget, afterTarget }));
+  assert.equal(afterConflicting.totalXp, beforeConflicting.totalXp, JSON.stringify({ beforeConflicting, afterConflicting }));
+});
+
+test('learner rewards endpoint falls back to learnerCode when learnerId is stale', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  assert.ok(learner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  const response = await request(`/api/v1/learner-app/rewards?learnerId=tablet-local-zainab&learnerCode=${encodeURIComponent(learnerProfile.learnerCode)}`);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.learnerId, learner.id);
+});
+
+test('learner rewards endpoint prefers learnerCode over a conflicting but existing learnerId', async () => {
+  const learner = repository.listStudents().find((entry) => entry.id === 'student-4');
+  const conflictingLearner = repository.listStudents().find((entry) => entry.id === 'student-1');
+  assert.ok(learner);
+  assert.ok(conflictingLearner);
+  const learnerProfile = presenters.presentLearnerProfile(learner);
+
+  repository.createRewardTransaction({
+    studentId: learner.id,
+    kind: 'manual',
+    xpDelta: 11,
+    label: 'Conflicting id safeguard',
+    createdAt: '2026-04-23T12:30:00.000Z',
+  });
+
+  const response = await request(`/api/v1/learner-app/rewards?learnerId=${encodeURIComponent(conflictingLearner.id)}&learnerCode=${encodeURIComponent(learnerProfile.learnerCode)}`);
+
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.learnerId, learner.id);
+  assert.equal(response.body.totalXp, rewards.buildLearnerRewards(learner.id).totalXp);
+});
+
+test('learnerCode stays canonical and persisted across student updates', async () => {
+  const created = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Zainab Musa',
+    age: 8,
+    learnerCode: 'ZAI-K108',
+  });
+
+  assert.equal(created.learnerCode, 'ZAI-K108');
+  assert.equal(repository.findStudentById(created.id).learnerCode, 'ZAI-K108');
+  assert.equal(presenters.presentLearnerProfile(created).learnerCode, 'ZAI-K108');
+
+  const updated = repository.updateStudent(created.id, {
+    name: 'Zainab Musa Bello',
+    age: 9,
+    cohortId: 'cohort-2',
+  });
+
+  assert.equal(updated.learnerCode, 'ZAI-K108');
+  assert.equal(repository.findStudentById(created.id).learnerCode, 'ZAI-K108');
+  assert.equal(presenters.presentLearnerProfile(updated).learnerCode, 'ZAI-K108');
+});
+
+test('autogenerated learner codes stay unique for same-name learners in the same cohort', async () => {
+  const first = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Abdullahi Musa',
+    age: 8,
+  });
+  const second = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Abdullahi Musa',
+    age: 8,
+  });
+
+  assert.notEqual(first.learnerCode, second.learnerCode);
+  assert.match(first.learnerCode, /^ABD-[A-Z]{2}08(?:-[A-Z0-9]+)?$/);
+  assert.match(second.learnerCode, /^ABD-[A-Z]{2}08(?:-[A-Z0-9]+)?$/);
+  assert.equal(repository.findStudentById(second.id).learnerCode, second.learnerCode);
+});
+
+test('reward sync resolves duplicated same-name learners by their unique canonical learnerCode', async () => {
+  const first = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Abdullahi Musa',
+    age: 8,
+  });
+  const second = repository.createStudent({
+    cohortId: 'cohort-1',
+    mallamId: 'teacher-1',
+    name: 'Abdullahi Musa',
+    age: 8,
+  });
+  const secondProfile = presenters.presentLearnerProfile(second);
+
+  const beforeFirst = rewards.buildLearnerRewards(first.id);
+  const beforeSecond = rewards.buildLearnerRewards(second.id);
+  const syncResponse = await request('/api/v1/learner-app/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        {
+          id: 'lesson-complete-duplicate-abdullahi',
+          type: 'lesson_completed',
+          studentId: 'tablet-local-abdullahi',
+          learnerCode: secondProfile.learnerCode,
+          lessonId: 'lesson-1',
+          moduleId: 'module-1',
+          stepIndex: 3,
+          stepsTotal: 3,
+          completionState: 'completed',
+          review: 'onTrack',
+          supportActionsUsed: 0,
+          observations: ['Completed independently'],
+          capturedAt: '2026-05-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  assert.equal(syncResponse.status, 202, JSON.stringify(syncResponse.body));
+  assert.equal(syncResponse.body.results[0].rewards.learnerId, second.id);
+
+  const afterFirst = rewards.buildLearnerRewards(first.id);
+  const afterSecond = rewards.buildLearnerRewards(second.id);
+  assert.equal(afterFirst.totalXp, beforeFirst.totalXp, JSON.stringify({ beforeFirst, afterFirst }));
+  assert.equal(afterSecond.totalXp, beforeSecond.totalXp + 19, JSON.stringify({ beforeSecond, afterSecond }));
 });
 
 test('tablet-scoped learner registration also resolves pod scope from body deviceIdentifier when the header is absent', async () => {

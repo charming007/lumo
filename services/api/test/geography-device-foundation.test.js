@@ -152,6 +152,37 @@ test('device registration updates keep mallam assignment canonical to the pod ev
   assert.equal(updated.body.assignedMallamName, 'Mallama Amina Yusuf');
 });
 
+test('device registration presentation prefers pod canonical geography over stale stored device geography', async () => {
+  const created = await request('/api/v1/device-registrations', {
+    method: 'POST',
+    headers: { 'x-lumo-role': 'admin' },
+    body: JSON.stringify({
+      podId: 'pod-1',
+      deviceIdentifier: 'lumo-tablet-kano-stale-geo',
+    }),
+  });
+
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+
+  const repository = require('../src/repository');
+  const stored = repository.findDeviceRegistrationByIdentifier('lumo-tablet-kano-stale-geo');
+  stored.centerId = 'center-2';
+  stored.stateId = 'state-kaduna';
+  stored.localGovernmentId = 'lga-igabi';
+
+  const listed = await request('/api/v1/device-registrations?podId=pod-1');
+  assert.equal(listed.status, 200, JSON.stringify(listed.body));
+
+  const presented = listed.body.find((item) => item.deviceIdentifier === 'lumo-tablet-kano-stale-geo');
+  assert.ok(presented, JSON.stringify(listed.body));
+  assert.equal(presented.centerId, 'center-1');
+  assert.equal(presented.centerName, 'Kano Learning Center A');
+  assert.equal(presented.stateId, 'state-kano');
+  assert.equal(presented.stateName, 'Kano');
+  assert.equal(presented.localGovernmentId, 'lga-nassarawa');
+  assert.equal(presented.localGovernmentName, 'Nassarawa');
+});
+
 test('pods reject multiple primary mallams', async () => {
   const created = await request('/api/v1/pods', {
     method: 'POST',

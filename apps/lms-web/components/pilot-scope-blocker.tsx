@@ -11,7 +11,7 @@ const primaryLinkStyle = {
   justifyContent: 'center',
 } as const;
 
-export function PilotScopeBlocker({
+export function RouteAvailabilityBlocker({
   title,
   rationale,
   keepUsing,
@@ -23,7 +23,7 @@ export function PilotScopeBlocker({
   return (
     <PageShell
       title={title}
-      subtitle="This route exists in the repo, but it is intentionally outside the pilot LMS deployment target."
+      subtitle="This route exists in the LMS, but it stays blocked until the required live dependencies and release wiring are actually ready."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={(
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -37,22 +37,22 @@ export function PilotScopeBlocker({
         <div style={{ padding: '24px', borderRadius: 24, background: 'linear-gradient(135deg, #fff7ed 0%, #fef2f2 100%)', border: '1px solid #fed7aa', display: 'grid', gap: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: 8 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Pilot scope blocker</div>
-              <strong style={{ fontSize: 28, color: '#7C2D12' }}>{title} is deferred for pilot</strong>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Route availability blocker</div>
+              <strong style={{ fontSize: 28, color: '#7C2D12' }}>{title} is currently blocked</strong>
               <div style={{ color: '#9A3412', lineHeight: 1.7 }}>{rationale}</div>
             </div>
-            <Pill label="Deferred route" tone="#FEE2E2" text="#991B1B" />
+            <Pill label="Blocked until dependencies recover" tone="#FEE2E2" text="#991B1B" />
           </div>
 
           <div style={{ padding: '16px 18px', borderRadius: 18, background: 'white', border: '1px solid #fed7aa', display: 'grid', gap: 10 }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Use the launch-critical surfaces instead</div>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Use the live admin surfaces instead</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {keepUsing.map((label) => (
                 <Pill key={label} label={label} tone="#FFF7ED" text="#9A3412" />
               ))}
             </div>
             <div style={{ color: '#7C2D12', lineHeight: 1.7 }}>
-              If this route is suddenly required for go-live, that means pilot scope is drifting. Fix the operating plan first instead of quietly expanding the deployment target.
+              If this route is suddenly required for go-live, fix the missing dependency or release wiring first instead of letting the shell lie about availability.
             </div>
           </div>
         </div>
@@ -60,3 +60,5 @@ export function PilotScopeBlocker({
     </PageShell>
   );
 }
+
+export const PilotScopeBlocker = RouteAvailabilityBlocker;

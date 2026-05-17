@@ -3,29 +3,31 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'location_data.dart';
 import 'models.dart';
+import 'support_language.dart';
 import 'theme.dart';
 
 class LumoTopBar extends StatelessWidget {
   final VoidCallback onLogoTap;
+  final List<String> metadataLabels;
   final List<Widget> extraChips;
 
   const LumoTopBar({
     super.key,
     required this.onLogoTap,
+    this.metadataLabels = const <String>[],
     this.extraChips = const <Widget>[],
   });
 
   @override
   Widget build(BuildContext context) {
-    final item =
-        northernLocations[DateTime.now().day % northernLocations.length];
     final date = DateTime.now();
     final formattedDate = '${date.day}/${date.month}/${date.year}';
     final metadataChips = <Widget>[
-      _TopChip(text: item['city']!),
-      _TopChip(text: item['lga']!),
+      ...metadataLabels
+          .map((label) => label.trim())
+          .where((label) => label.isNotEmpty)
+          .map((label) => _TopChip(text: label)),
       _TopChip(text: formattedDate),
     ];
 
@@ -42,6 +44,7 @@ class LumoTopBar extends StatelessWidget {
 
         if (compact) {
           final logo = GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onLogoTap,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
@@ -86,6 +89,7 @@ class LumoTopBar extends StatelessWidget {
         return Row(
           children: [
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: onLogoTap,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
@@ -124,6 +128,8 @@ class MallamPanel extends StatefulWidget {
   final bool minimalStageLayout;
   final bool framelessStage;
   final bool framelessPortrait;
+  final MallamSupportLanguage shellLanguage;
+  final ValueChanged<MallamSupportLanguage>? onLanguageChanged;
 
   const MallamPanel({
     super.key,
@@ -140,6 +146,8 @@ class MallamPanel extends StatefulWidget {
     this.minimalStageLayout = false,
     this.framelessStage = false,
     this.framelessPortrait = false,
+    this.shellLanguage = MallamSupportLanguage.english,
+    this.onLanguageChanged,
   });
 
   @override
@@ -178,6 +186,7 @@ class _MallamPanelState extends State<MallamPanel>
   @override
   Widget build(BuildContext context) {
     final speakerColor = _speakerColor(widget.speakerMode);
+    final shellCopy = MallamSupportCopy.forLanguage(widget.shellLanguage);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -365,13 +374,24 @@ class _MallamPanelState extends State<MallamPanel>
         }
 
         final replayHelperText = _replayFeedbackActive
-            ? 'Mallam is speaking again. Let the learner hear it once, then continue.'
-            : 'Tap any time to hear Mallam repeat the current cue.';
+            ? shellCopy.replayHelperActive
+            : shellCopy.replayHelperIdle;
+
+        final languageToggle = widget.onLanguageChanged == null
+            ? const SizedBox.shrink()
+            : MallamSupportLanguageToggle(
+                selectedLanguage: widget.shellLanguage,
+                onChanged: widget.onLanguageChanged!,
+              );
 
         final voiceAction = Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            if (widget.onLanguageChanged != null) ...[
+              languageToggle,
+              const SizedBox(height: 12),
+            ],
             FilledButton.tonalIcon(
               onPressed: handleVoiceReplayTap,
               icon: Icon(
@@ -383,7 +403,7 @@ class _MallamPanelState extends State<MallamPanel>
               ),
               label: Text(
                 _replayFeedbackActive
-                    ? 'Mallam is replaying'
+                    ? shellCopy.replayingLabel
                     : widget.voiceButtonLabel,
                 style: TextStyle(
                   color: speakerColor,
@@ -448,8 +468,8 @@ class _MallamPanelState extends State<MallamPanel>
                   Icon(Icons.info_outline_rounded,
                       color: speakerColor, size: 18),
                   const SizedBox(width: 8),
-                  const Text(
-                    'What to do next',
+                  Text(
+                    shellCopy.guidanceTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
@@ -471,6 +491,7 @@ class _MallamPanelState extends State<MallamPanel>
                   speakerMode: widget.speakerMode,
                   speakerOutputMode: widget.speakerOutputMode,
                   voiceHint: widget.voiceHint,
+                  shellLanguage: widget.shellLanguage,
                 ),
               ],
             ],
@@ -488,8 +509,8 @@ class _MallamPanelState extends State<MallamPanel>
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: const Text(
-                  'Mallam stays visible here, ready to repeat the cue whenever the learner needs a softer second pass.',
+                child: Text(
+                  shellCopy.centeredSupportNote,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF64748B),
@@ -621,11 +642,13 @@ class _SpeakerSignalCard extends StatelessWidget {
   final SpeakerMode speakerMode;
   final String? speakerOutputMode;
   final String? voiceHint;
+  final MallamSupportLanguage shellLanguage;
 
   const _SpeakerSignalCard({
     required this.speakerMode,
     this.speakerOutputMode,
     this.voiceHint,
+    required this.shellLanguage,
   });
 
   @override
@@ -638,12 +661,13 @@ class _SpeakerSignalCard extends StatelessWidget {
       SpeakerMode.idle => const Color(0xFF94A3B8),
     };
 
+    final shellCopy = MallamSupportCopy.forLanguage(shellLanguage);
     final label = switch (speakerMode) {
-      SpeakerMode.guiding => 'Mallam is speaking now',
-      SpeakerMode.listening => 'Pause and capture the learner voice',
-      SpeakerMode.affirming => 'Praise and continue',
-      SpeakerMode.waiting => 'Give the learner a moment',
-      SpeakerMode.idle => 'Voice is standing by',
+      SpeakerMode.guiding => shellCopy.guidingNow,
+      SpeakerMode.listening => shellCopy.listeningNow,
+      SpeakerMode.affirming => shellCopy.affirmingNow,
+      SpeakerMode.waiting => shellCopy.waitingNow,
+      SpeakerMode.idle => shellCopy.idleNow,
     };
 
     return Container(
@@ -696,6 +720,45 @@ class _SpeakerSignalCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class MallamSupportLanguageToggle extends StatelessWidget {
+  final MallamSupportLanguage selectedLanguage;
+  final ValueChanged<MallamSupportLanguage> onChanged;
+
+  const MallamSupportLanguageToggle({
+    super.key,
+    required this.selectedLanguage,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<MallamSupportLanguage>(
+      segments: const [
+        ButtonSegment<MallamSupportLanguage>(
+          value: MallamSupportLanguage.hausa,
+          label: Text('Hausa support'),
+        ),
+        ButtonSegment<MallamSupportLanguage>(
+          value: MallamSupportLanguage.english,
+          label: Text('English support'),
+        ),
+      ],
+      selected: <MallamSupportLanguage>{selectedLanguage},
+      onSelectionChanged: (selection) {
+        if (selection.isEmpty) return;
+        onChanged(selection.first);
+      },
+      showSelectedIcon: false,
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

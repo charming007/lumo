@@ -232,7 +232,7 @@ export function StudentGeographySelectors({
             : 'Select pod first'}
         </div>
         <span style={{ color: '#64748b', fontSize: 12 }}>
-          Learners inherit mallam ownership from the selected pod. Change the pod if routing changes; do not hand-wire a separate mallam here.
+          Learners inherit the selected pod’s primary mallam automatically. Change the pod if routing changes; do not hand-wire a separate mallam here.
         </span>
       </FieldLabel>
     </>

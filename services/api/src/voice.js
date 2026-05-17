@@ -65,7 +65,7 @@ function buildTutorVoiceHeaders() {
   };
 }
 
-function buildTutorVoiceBody({ text, mode = 'guiding' }) {
+function buildTutorVoiceBody({ text, mode = 'guiding', supportLanguage = '' }) {
   const trimmed = String(text || '').trim();
   const config = getVoiceConfig();
   const stability = mode === 'affirming' ? 0.42 : 0.55;
@@ -86,11 +86,12 @@ function buildTutorVoiceBody({ text, mode = 'guiding' }) {
       requestId: crypto.randomUUID(),
       channel: 'learner-tablet',
       mode,
+      supportLanguage: String(supportLanguage || '').trim() || undefined,
     },
   };
 }
 
-async function synthesizeTutorVoice({ text, mode = 'guiding' }) {
+async function synthesizeTutorVoice({ text, mode = 'guiding', supportLanguage = '' }) {
   const trimmed = String(text || '').trim();
   if (!trimmed) {
     return { ok: false, status: 400, code: 'empty-text', message: 'Tutor voice text is empty.' };
@@ -106,7 +107,11 @@ async function synthesizeTutorVoice({ text, mode = 'guiding' }) {
     {
       method: 'POST',
       headers: buildTutorVoiceHeaders(),
-      body: JSON.stringify(buildTutorVoiceBody({ text: trimmed, mode })),
+      body: JSON.stringify(buildTutorVoiceBody({
+        text: trimmed,
+        mode,
+        supportLanguage,
+      })),
     },
   );
 

@@ -1,8 +1,11 @@
 import { CreatePodForm, DeletePodForm, UpdatePodForm } from '../../components/admin-forms';
+import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
+import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { podGeographyLabel } from '../../lib/geography';
+import { getPodAdminReferenceHealth } from '../../lib/admin-reference-health';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function formatDateTime(value?: string | null) {
@@ -29,6 +32,47 @@ function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
 }
 
 export default async function PodsPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Pods"
+        subtitle="Pod deployment control is blocked until the LMS is pointed at a real production API, because pod ownership lies cascade into every other rollout surface."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: pods API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} the pod registry cannot be trusted for geography, facilitator ownership, or tablet deployment mapping. Fix the env var, redeploy, then verify live pod data.
+          </>
+        )}
+        whyBlocked={[
+          'Pods is the operational anchor for mallam ownership, learner routing, geography, and device placement. If this route lies, the rest of the rollout graph lies with it.',
+          'Allowing pod writes against a missing, placeholder, or localhost backend is how teams think they changed deployment footprint when they actually changed nothing.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Pod registry',
+            expected: 'Live pod rows, geography, mallam ownership, and tablet counts load from the backend',
+            failure: 'Registry looks empty or tidy only because the LMS never connected to the real API',
+          },
+          {
+            surface: 'Add / edit pod flows',
+            expected: 'Center, mallam, state, and local government selectors load and submit against the live backend',
+            failure: 'Forms open with dead selectors, stale references, or writes that disappear into the void',
+          },
+          {
+            surface: 'Tablet linkage',
+            expected: 'Pod-linked tablet counts still match the live rollout footprint after save',
+            failure: 'Operators think a pod owns tablets or geography it never actually saved',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Devices', href: '/devices', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const query = await searchParams;
   const [podsResult, centersResult, statesResult, localGovernmentsResult, mallamsResult, deviceRegistrationsResult] = await Promise.allSettled([
     fetchPods(),
@@ -45,26 +89,91 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
   const localGovernments = localGovernmentsResult.status === 'fulfilled' ? localGovernmentsResult.value : [];
   const mallams = mallamsResult.status === 'fulfilled' ? mallamsResult.value : [];
   const deviceRegistrations = deviceRegistrationsResult.status === 'fulfilled' ? deviceRegistrationsResult.value : [];
+  const podReferenceHealth = getPodAdminReferenceHealth({
+    pods,
+    centers,
+    mallams,
+    states,
+    localGovernments,
+  });
   const failedSources = [
     podsResult.status === 'rejected' ? 'pods' : null,
     centersResult.status === 'rejected' ? 'centers' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
+    ...podReferenceHealth.missingReferences,
     deviceRegistrationsResult.status === 'rejected' ? 'device registrations' : null,
-  ].filter(Boolean);
+  ].filter((value, index, source) => Boolean(value) && source.indexOf(value) === index) as string[];
+  const criticalPodAdminFailures = [
+    podsResult.status === 'rejected' ? 'pods' : null,
+    centersResult.status === 'rejected' ? 'centers' : null,
+    statesResult.status === 'rejected' ? 'states' : null,
+    localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
+    mallamsResult.status === 'rejected' ? 'mallams' : null,
+    ...podReferenceHealth.missingReferences,
+  ].filter((value, index, source) => Boolean(value) && source.indexOf(value) === index) as string[];
+  const hasCorePodGap = podsResult.status === 'rejected' || podReferenceHealth.blocked;
+
+  if (criticalPodAdminFailures.length) {
+    const blockerDetail = criticalPodAdminFailures.length === 1
+      ? `The ${criticalPodAdminFailures[0]} feed failed to load from the live API. Leaving pod create, edit, or delete controls up would let operators rewrite rollout ownership while geography or primary mallam context is blind.`
+      : `The ${criticalPodAdminFailures.join(', ')} feeds failed to load from the live API. Leaving pod create, edit, or delete controls up would let operators rewrite rollout ownership while geography or primary mallam context is blind.`;
+
+    return (
+      <DeploymentBlockerCard
+        title="Pods"
+        subtitle="Pod admin is a rollout control surface, not a decorative registry. If the ownership feeds are down, the route should block instead of inviting blind writes."
+        blockerHeadline="Deployment blocker: pod admin feeds are degraded."
+        blockerDetail={(
+          <>
+            {blockerDetail} {failedSources.length > criticalPodAdminFailures.length
+              ? `Additional degraded feed${failedSources.length - criticalPodAdminFailures.length === 1 ? '' : 's'}: ${failedSources.filter((source) => !criticalPodAdminFailures.includes(source)).join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'Pods define geography, primary mallam ownership, learner routing, and downstream tablet placement. If those reference feeds are degraded, pod writes become polished guesswork.',
+          'A banner is too weak here. Modal forms can still open with missing or stale geography and mallam references, which is exactly how rollout ownership gets corrupted under outage conditions.',
+          'Device registrations can degrade separately as read-only context, but the core pod admin feeds should stop the route cold when they are blind.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Pod registry + ownership graph',
+            expected: 'Live pod rows, geography, and primary mallam ownership all load before operators can trust pod admin',
+            failure: 'Pod create/edit/delete controls remain available while the ownership graph is missing or stale',
+          },
+          {
+            surface: 'Geography and mallam selectors',
+            expected: 'State, local government, center, and primary mallam references load from the live backend before a pod write is allowed',
+            failure: 'Forms open with partial or empty reference data, letting operators save blind changes',
+          },
+          {
+            surface: 'Rollout trust',
+            expected: 'The route blocks until the core pod admin feeds recover, then ownership edits happen against visible live references',
+            failure: 'Deployment review mistakes a degraded pod control surface for a healthy rollout registry',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Devices', href: '/devices', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
 
   const activePods = pods.filter((pod) => (pod.status || '').toLowerCase() === 'active').length;
 
   return (
     <PageShell
       title="Pods"
-      subtitle="Create, update, retire, and inspect operational pods as the anchor for mallam, learner, and tablet ownership."
+      subtitle="Create, update, retire, and inspect operational pods as the anchor for primary mallam, learner, and tablet ownership."
       breadcrumbs={[{ label: 'Dashboard', href: '/' }]}
       aside={
         <div style={{ display: 'grid', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <ModalLauncher buttonLabel="Add pod" title="Add pod" description="Create a real pod record with geography, mallam ownership, and live operational details." eyebrow="Pod admin">
+            <ModalLauncher buttonLabel="Add pod" title="Add pod" description="Create a real pod record with geography, mallam ownership, and live operational details." eyebrow="Pod admin" disabled={hasCorePodGap}>
               <CreatePodForm centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
             </ModalLauncher>
           </div>
@@ -82,7 +191,9 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       }
     >
       <FeedbackBanner message={query?.message} />
-      {failedSources.length ? routeAlert(`Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
+      {failedSources.length ? routeAlert(hasCorePodGap
+        ? `Pod admin is degraded because the ${failedSources.join(', ')} feed${failedSources.length === 1 ? ' has' : 's have'} failed. The page stays visible so operators get an honest outage surface instead of a fake-empty registry, but pod create/edit actions are intentionally disabled until the pods feed recovers.`
+        : `Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
       {!pods.length ? routeAlert('No pods are loading right now. That could mean a genuinely empty registry or a still-broken upstream seed. Do not treat this as proof the deployment footprint is clean.', failedSources.length ? 'error' : 'warning') : null}
 
       <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
@@ -110,8 +221,11 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
       <div style={{ marginBottom: 20 }}>
         <Card title="Pod registry" eyebrow="CRUD admin">
           <SimpleTable
-            columns={['Pod', 'Status', 'Geography', 'Learners', 'Mallams', 'Tablets', 'Center', 'Actions']}
-            rows={pods.map((pod) => {
+            columns={['Pod', 'Status', 'Geography', 'Learners', 'Primary mallam', 'Tablets', 'Center', 'Actions']}
+            rows={hasCorePodGap ? [[
+              <span key="pods-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Pod registry unavailable. Recover the pods feed before using pod admin actions.</span>,
+              '', '', '', '', '', '', '',
+            ]] : pods.map((pod) => {
               const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
               return [
                 pod.label || pod.id,

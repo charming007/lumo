@@ -3,8 +3,15 @@ import { DeploymentBlockerCard } from '../../../../components/deployment-blocker
 import { FeedbackBanner } from '../../../../components/feedback-banner';
 import { LessonCreateForm } from '../../../../components/lesson-create-form';
 import { fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects } from '../../../../lib/api';
-import { normalizeLessonAssetsForAuthoring } from '../../../../lib/lesson-authoring-normalize';
-import { filterModulesForSubject } from '../../../../lib/module-subject-match';
+import {
+  normalizeLessonAssetsForAuthoring,
+  normalizeLessonsForAuthoring,
+  normalizeModulesForAuthoring,
+  normalizeSubjectsForAuthoring,
+} from '../../../../lib/lesson-authoring-normalize';
+import { buildReviewBlockersHref } from '../../../../lib/content-return-path';
+import { API_BASE_DIAGNOSTIC } from '../../../../lib/config';
+import { resolveLessonStudioLaunchContext } from '../../../../lib/lesson-studio-launch-context';
 import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../../lib/safe-return-path';
 import type { Subject } from '../../../../lib/types';
 import { PageShell } from '../../../../lib/ui';
@@ -33,6 +40,48 @@ export default async function LessonStudioCreatePage({
 }) {
   const query = await searchParams;
 
+  if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Production wiring is incomplete, so lesson creation is blocked before the authoring route can fake a real curriculum lane."
+        blockerHeadline={API_BASE_DIAGNOSTIC.blockerHeadline ?? 'Deployment blocker: lesson creation API base URL is unsafe for production.'}
+        blockerDetail={(
+          <>
+            <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code> is missing or unsafe for production. {API_BASE_DIAGNOSTIC.blockerDetail} Lesson creation depends on live subject, module, lesson, and asset feeds, so opening the composer against a dead or wrong backend would be data corruption with nicer typography.
+          </>
+        )}
+        whyBlocked={[
+          'Lesson Studio creates persistent curriculum records. If the LMS is pointed at localhost, a placeholder host, or no real backend, every save is untrustworthy.',
+          'Blocking here is better than letting operators draft into a shell that cannot prove which curriculum lane will actually receive the lesson.',
+          'This keeps lesson creation aligned with the rest of the LMS admin routes already enforcing production API safety.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson Studio create route',
+            expected: 'Loads the live authoring form only when the production API target is trustworthy',
+            failure: 'Form shell opens against localhost, placeholder config, or a dead backend and pretends lesson creation is safe',
+          },
+          {
+            surface: 'Configured API base URL',
+            expected: `Uses a real HTTPS production host such as ${API_BASE_DIAGNOSTIC.expectedFormat}`,
+            failure: `Placeholder, localhost, invalid, or non-HTTPS value${API_BASE_DIAGNOSTIC.configuredApiBase ? ` like ${API_BASE_DIAGNOSTIC.configuredApiBase}` : ''}`,
+          },
+          {
+            surface: 'Authoring context feeds',
+            expected: 'Subjects, modules, lessons, and assets load from the same real backend after redeploy',
+            failure: 'Mixed or empty authoring context that suggests the LMS and API are pointed at different deployments',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+        ]}
+      />
+    );
+  }
+
   const [subjectsResult, modulesResult, lessonsResult, assetsResult] = await Promise.allSettled([
     fetchSubjects(),
     fetchCurriculumModules(),
@@ -40,18 +89,22 @@ export default async function LessonStudioCreatePage({
     fetchLessonAssets(),
   ]);
 
-  const loadedSubjects = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
-  const modules = modulesResult.status === 'fulfilled' ? modulesResult.value : [];
-  const lessons = lessonsResult.status === 'fulfilled' ? lessonsResult.value : [];
+  const { items: loadedSubjects, issues: subjectPayloadIssues } = normalizeSubjectsForAuthoring(subjectsResult.status === 'fulfilled' ? subjectsResult.value : []);
+  const { items: modules, issues: modulePayloadIssues } = normalizeModulesForAuthoring(modulesResult.status === 'fulfilled' ? modulesResult.value : []);
+  const { items: lessons, issues: lessonPayloadIssues } = normalizeLessonsForAuthoring(lessonsResult.status === 'fulfilled' ? lessonsResult.value : []);
   const { assets, issues: assetPayloadIssues } = normalizeLessonAssetsForAuthoring(assetsResult.status === 'fulfilled' ? assetsResult.value : []);
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assetsResult.status === 'rejected' ? 'assets' : null,
+    subjectPayloadIssues.length ? 'subject payload' : null,
+    modulePayloadIssues.length ? 'module payload' : null,
+    lessonPayloadIssues.length ? 'lesson payload' : null,
     assetPayloadIssues.length ? 'asset payload' : null,
   ].filter(Boolean) as string[];
 
+  const derivedSubjectKeys = new Set<string>();
   const derivedSubjects = modules.reduce<Subject[]>((acc, module) => {
     const subjectId = module.subjectId?.trim();
     const subjectName = module.subjectName?.trim();
@@ -62,10 +115,15 @@ export default async function LessonStudioCreatePage({
       name: subjectName ?? 'Recovered subject',
     } satisfies Subject;
 
-    if (acc.some((subject) => subject.id === derived.id || subject.name === derived.name)) {
+    const normalizedId = derived.id.trim().toLowerCase();
+    const normalizedName = derived.name.trim().toLowerCase();
+    const duplicateKeys = [normalizedId, normalizedName].filter(Boolean);
+
+    if (duplicateKeys.some((key) => derivedSubjectKeys.has(key))) {
       return acc;
     }
 
+    duplicateKeys.forEach((key) => derivedSubjectKeys.add(key));
     acc.push(derived);
     return acc;
   }, []);
@@ -74,6 +132,61 @@ export default async function LessonStudioCreatePage({
     ? loadedSubjects
     : derivedSubjects;
   const hasUsableAuthoringContext = modules.length > 0 && subjects.length > 0;
+  const criticalLessonCreateFailures = [
+    assetsResult.status === 'rejected' ? 'assets' : null,
+    assetPayloadIssues.length ? 'asset payload' : null,
+  ].filter(Boolean) as string[];
+
+  if (criticalLessonCreateFailures.length) {
+    const secondaryFailures = failedSources.filter((source) => !criticalLessonCreateFailures.includes(source));
+
+    return (
+      <DeploymentBlockerCard
+        title="Lesson Studio"
+        subtitle="Lesson creation is blocked when the live asset library goes blind, because authoring media-backed lesson steps against missing references is still shipping broken curriculum."
+        blockerHeadline="Deployment blocker: lesson asset authoring feeds are degraded."
+        blockerDetail={(
+          <>
+            The {criticalLessonCreateFailures.join(', ')} feed{criticalLessonCreateFailures.length === 1 ? ' failed' : 's failed'} to load from the live API, so Lesson Studio refuses to create lesson payloads with blind media and support-audio references. {secondaryFailures.length
+              ? `Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
+              : ''}
+          </>
+        )}
+        whyBlocked={[
+          'This form does not just draft text. It can attach target audio, support audio, and structured media references that must agree with the live asset registry.',
+          'If the asset feed is down, operators can still save a lesson that looks polished while its media graph is stale, incomplete, or flat-out wrong.',
+          'A loud blocker is safer than pretending asset-backed authoring is still trustworthy during a registry outage.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Lesson asset library',
+            expected: 'Live asset choices load before Lesson Studio allows media-backed authoring',
+            failure: 'Create form stays interactive while the asset registry is missing or stale',
+          },
+          {
+            surface: 'Support-audio references',
+            expected: 'Operators can resolve target and support audio against real asset records',
+            failure: 'Lesson payload can be saved with blind audio refs during an asset outage',
+          },
+          {
+            surface: 'Route trustworthiness',
+            expected: 'Deployment review sees a blocker card until the asset feed recovers',
+            failure: 'Lesson Studio keeps its buttons while media references are unverifiable',
+          },
+        ]}
+        fixItems={[
+          { label: 'Critical failed feeds', value: criticalLessonCreateFailures.join(', ') },
+          { label: 'Still required', value: 'Live lesson asset registry and sanitized asset payloads' },
+          { label: 'Operator action', value: 'Restore the asset library feed, then reopen Lesson Studio before creating media-backed lessons' },
+        ]}
+        docs={[
+          { label: 'Asset library', href: '/content/assets', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Blocked modules', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+        ]}
+      />
+    );
+  }
 
   if (!hasUsableAuthoringContext) {
     return (
@@ -104,8 +217,8 @@ export default async function LessonStudioCreatePage({
           },
           {
             surface: 'Optional feeds',
-            expected: 'Duplicate source lessons and asset panels can degrade without blocking draft creation',
-            failure: 'Optional feed loss incorrectly blocks the full authoring route',
+            expected: 'Duplicate source lessons can degrade without blocking draft creation once the curriculum lane is still trustworthy',
+            failure: 'Non-critical lesson inventory loss incorrectly blocks the full authoring route after asset safety is already satisfied',
           },
         ]}
         fixItems={[
@@ -128,15 +241,20 @@ export default async function LessonStudioCreatePage({
   const createdLessonId = normalizeRouteParam(query?.createdLessonId);
   const createdLessonTitle = normalizeRouteParam(query?.createdLessonTitle);
 
-  const requestedModule = requestedModuleId ? modules.find((module) => module.id === requestedModuleId) ?? null : null;
-  const requestedSubject = requestedSubjectId ? subjects.find((subject) => subject.id === requestedSubjectId) ?? null : null;
+  const {
+    requestedModule,
+    selectedSubject,
+    selectedModule,
+    resolvedSubjectId,
+    resolvedModuleId,
+    requestedModuleRecoveredSubject,
+    requestedModuleHasRecoverableSubject,
+    subjectRecoveredFromModule,
+  } = resolveLessonStudioLaunchContext(subjects, modules, {
+    requestedSubjectId,
+    requestedModuleId,
+  });
   const requestedModuleSubjectId = requestedModule?.subjectId?.trim() ?? '';
-  const requestedModuleRecoveredSubject = requestedModule
-    ? subjects.find((subject) => subject.id === requestedModuleSubjectId)
-      ?? subjects.find((subject) => subject.name.trim().toLowerCase() === (requestedModule.subjectName?.trim().toLowerCase() ?? ''))
-      ?? null
-    : null;
-  const requestedModuleHasRecoverableSubject = Boolean(requestedModuleRecoveredSubject);
 
   if (requestedModule && !requestedModuleHasRecoverableSubject) {
     return (
@@ -179,12 +297,17 @@ export default async function LessonStudioCreatePage({
     );
   }
 
-  const subjectId = requestedSubjectId || requestedModuleRecoveredSubject?.id || subjects[0]?.id || '';
-  const selectedSubject = requestedSubject ?? requestedModuleRecoveredSubject ?? subjects.find((subject) => subject.id === requestedModule?.subjectId) ?? subjects[0] ?? null;
-  const subjectScopedModules = filterModulesForSubject(modules, selectedSubject);
-  const moduleId = requestedModuleId || subjectScopedModules[0]?.id || modules[0]?.id || '';
-
-  const selectedModule = modules.find((module) => module.id === moduleId) ?? subjectScopedModules[0] ?? modules[0] ?? null;
+  const subjectId = resolvedSubjectId;
+  const moduleId = resolvedModuleId;
+  const reviewBlockersHref = buildReviewBlockersHref(from);
+  const lessonCreateFormKey = [
+    subjectId,
+    moduleId,
+    duplicateLessonId ?? '',
+    from,
+    selectedSubject?.id ?? '',
+    selectedModule?.id ?? '',
+  ].join('::');
 
   return (
     <PageShell
@@ -202,7 +325,7 @@ export default async function LessonStudioCreatePage({
           <Link href={from} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
             Back to board
           </Link>
-          <Link href="/content?view=blocked" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href={reviewBlockersHref} style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
             Review blockers
           </Link>
         </div>
@@ -210,7 +333,7 @@ export default async function LessonStudioCreatePage({
     >
       <FeedbackBanner message={query?.message} />
 
-      {failedSources.length || (requestedSubjectId && selectedSubject && requestedSubjectId !== selectedSubject.id) ? (
+      {failedSources.length || subjectRecoveredFromModule ? (
         <div style={{ marginBottom: 18, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
           {failedSources.length
             ? `Lesson Studio recovered with degraded feeds: ${failedSources.join(', ')}. Draft creation stays live because a usable curriculum context is still available.`
@@ -241,6 +364,7 @@ export default async function LessonStudioCreatePage({
 
       <section style={{ display: 'grid', gap: 18 }}>
         <LessonCreateForm
+          key={lessonCreateFormKey}
           subjects={subjects}
           modules={modules}
           lessons={lessons}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createAssessmentAction } from '../app/actions';
-import { filterModulesForSubject } from '../lib/module-subject-match';
+import { filterModulesForSubject, findSubjectByContext } from '../lib/module-subject-match';
 import type { CurriculumModule, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 
@@ -53,13 +53,13 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
   const defaultModule = modules[0] ?? null;
-  const defaultSubject = subjects.find((subject) => subject.id === defaultModule?.subjectId)
-    ?? (defaultModule?.subjectName ? subjects.find((subject) => subject.name === defaultModule.subjectName) : null)
-    ?? subjects[0]
-    ?? null;
+  const defaultSubject = findSubjectByContext(subjects, {
+    subjectId: defaultModule?.subjectId,
+    subjectName: defaultModule?.subjectName,
+  }) ?? subjects[0] ?? null;
   const [subjectId, setSubjectId] = useState(defaultSubject?.id ?? '');
   const activeSubject = useMemo(
-    () => subjects.find((subject) => subject.id === subjectId) ?? defaultSubject ?? null,
+    () => findSubjectByContext(subjects, { subjectId }) ?? defaultSubject ?? null,
     [defaultSubject, subjectId, subjects],
   );
 
