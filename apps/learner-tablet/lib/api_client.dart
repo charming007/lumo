@@ -212,9 +212,7 @@ class LumoApiClient {
     final decoded = _decodeObject(response.body,
         action: 'load learner app bootstrap', uri: uri);
     final learnersJson = _asList(decoded['learners']);
-    final subjectsJson = _asList(decoded['subjects']);
-    final modulesJson =
-        subjectsJson.isNotEmpty ? subjectsJson : _asList(decoded['modules']);
+    final modulesJson = _asList(decoded['modules']);
     final lessonsJson = _asList(decoded['lessons']);
     final registrationContext = decoded['registrationContext'];
     final meta = decoded['meta'];
@@ -286,7 +284,7 @@ class LumoApiClient {
   }
 
   Future<LumoModuleBundle> fetchModuleBundle(String moduleId) async {
-    final uri = _learnerAppUri('/api/v1/learner-app/subjects/$moduleId');
+    final uri = _learnerAppUri('/api/v1/learner-app/modules/$moduleId');
     final response = await _send(
       () => _client.get(
         uri,
@@ -299,11 +297,9 @@ class LumoApiClient {
     _ensureOk(response, 'load module details for $moduleId', uri);
     final decoded = _decodeObject(response.body,
         action: 'load module details for $moduleId', uri: uri);
-    final moduleJson = decoded['subject'] is Map
-        ? Map<String, dynamic>.from(decoded['subject'] as Map)
-        : decoded['module'] is Map
-            ? Map<String, dynamic>.from(decoded['module'] as Map)
-            : decoded;
+    final moduleJson = decoded['module'] is Map
+        ? Map<String, dynamic>.from(decoded['module'] as Map)
+        : decoded;
     return LumoModuleBundle(
       module: LearningModule.fromBackend(moduleJson),
       lessons:
