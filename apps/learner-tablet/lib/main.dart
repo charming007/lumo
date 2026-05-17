@@ -3961,13 +3961,17 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             const SizedBox(width: 12),
                                             StatusPill(
                                               text:
-                                                  lesson.isAssignmentPlaceholder
+                                                  lessonRequiresSyncBeforeStarting(
+                                                        lesson,
+                                                      )
                                                       ? 'Sync first'
                                                       : matchesResumableSession
                                                           ? 'Resume ready'
                                                           : 'Ready',
-                                              color: lesson
-                                                      .isAssignmentPlaceholder
+                                              color:
+                                                  lessonRequiresSyncBeforeStarting(
+                                                        lesson,
+                                                      )
                                                   ? LumoTheme.accentOrange
                                                   : matchesResumableSession
                                                       ? LumoTheme.primary
