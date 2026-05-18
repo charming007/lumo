@@ -868,6 +868,8 @@ enum _SubjectLessonAvailabilitySummary {
   completedToday,
   completed,
   locked,
+  waitingForSync,
+  syncIncomplete,
   unavailable,
 }
 
@@ -893,6 +895,12 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       return _SubjectLessonAvailabilitySummary.locked;
     }
+    if (availability.label == 'Waiting for sync') {
+      return _SubjectLessonAvailabilitySummary.waitingForSync;
+    }
+    if (availability.label == 'Sync incomplete') {
+      return _SubjectLessonAvailabilitySummary.syncIncomplete;
+    }
     return _SubjectLessonAvailabilitySummary.unavailable;
   }
 
@@ -906,6 +914,8 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   var sawCompleted = false;
   var sawCompletedToday = false;
   var sawLocked = false;
+  var sawWaitingForSync = false;
+  var sawSyncIncomplete = false;
   for (final candidate in eligibleLearners) {
     if (!state.learnerMatchesTabletPod(candidate)) continue;
     final availability = learnerLessonAvailability(
@@ -925,6 +935,14 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     }
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       sawLocked = true;
+      continue;
+    }
+    if (availability.label == 'Waiting for sync') {
+      sawWaitingForSync = true;
+      continue;
+    }
+    if (availability.label == 'Sync incomplete') {
+      sawSyncIncomplete = true;
     }
   }
 
@@ -937,6 +955,12 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   if (sawLocked) {
     return _SubjectLessonAvailabilitySummary.locked;
   }
+  if (sawWaitingForSync) {
+    return _SubjectLessonAvailabilitySummary.waitingForSync;
+  }
+  if (sawSyncIncomplete) {
+    return _SubjectLessonAvailabilitySummary.syncIncomplete;
+  }
   return _SubjectLessonAvailabilitySummary.unavailable;
 }
 
@@ -946,6 +970,8 @@ String _subjectCardStatusLabel({
   required int completedTodayLessonCount,
   required int completedLessonCount,
   required int lockedLessonCount,
+  required int waitingForSyncLessonCount,
+  required int syncIncompleteLessonCount,
   required bool hasEligibleLearner,
 }) {
   if (!hasEligibleLearner) {
@@ -973,6 +999,12 @@ String _subjectCardStatusLabel({
   }
   if (completedLessonCount > 0) {
     return 'Progress saved';
+  }
+  if (waitingForSyncLessonCount == lessonCount && lessonCount > 0) {
+    return 'Waiting for sync';
+  }
+  if (syncIncompleteLessonCount == lessonCount && lessonCount > 0) {
+    return 'Sync incomplete';
   }
   return 'Visible on tablet';
 }
@@ -1018,6 +1050,8 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         var completedTodayLessonCount = 0;
         var completedLessonCount = 0;
         var lockedLessonCount = 0;
+        var waitingForSyncLessonCount = 0;
+        var syncIncompleteLessonCount = 0;
 
         for (final lesson in visibleLessons) {
           final summary = _summarizeLessonAvailability(
@@ -1035,6 +1069,12 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             completedLessonCount += 1;
           } else if (summary == _SubjectLessonAvailabilitySummary.locked) {
             lockedLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.waitingForSync) {
+            waitingForSyncLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.syncIncomplete) {
+            syncIncompleteLessonCount += 1;
           }
         }
 
@@ -1057,6 +1097,8 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             completedTodayLessonCount: completedTodayLessonCount,
             completedLessonCount: completedLessonCount,
             lockedLessonCount: lockedLessonCount,
+            waitingForSyncLessonCount: waitingForSyncLessonCount,
+            syncIncompleteLessonCount: syncIncompleteLessonCount,
             hasEligibleLearner: hasEligibleLearner,
           ),
         );
@@ -3289,13 +3331,12 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
-    final nextLesson =
-        launchableNextLesson ??
+    final nextLesson = launchableNextLesson ??
         allAssignedLessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) =>
-              lesson != null && lessonRequiresSyncBeforeStarting(lesson),
-          orElse: () => null,
-        );
+              (lesson) =>
+                  lesson != null && lessonRequiresSyncBeforeStarting(lesson),
+              orElse: () => null,
+            );
     final nextLessonNeedsSync =
         nextLesson != null && lessonRequiresSyncBeforeStarting(nextLesson);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
@@ -3907,7 +3948,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           icon: Icon(
                                             nextLessonNeedsSync
                                                 ? Icons.sync_problem_rounded
-                                                : matchedResumableSession == null
+                                                : matchedResumableSession ==
+                                                        null
                                                     ? Icons.play_arrow_rounded
                                                     : Icons
                                                         .play_circle_fill_rounded,
@@ -3917,7 +3959,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                 ? lessonSyncBlockerCtaLabel(
                                                     nextLesson,
                                                   )
-                                                : matchedResumableSession == null
+                                                : matchedResumableSession ==
+                                                        null
                                                     ? 'Start assigned lesson'
                                                     : 'Resume assigned lesson',
                                           ),
@@ -3962,20 +4005,21 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             StatusPill(
                                               text:
                                                   lessonRequiresSyncBeforeStarting(
-                                                        lesson,
-                                                      )
+                                                lesson,
+                                              )
                                                       ? 'Sync first'
                                                       : matchesResumableSession
                                                           ? 'Resume ready'
                                                           : 'Ready',
                                               color:
                                                   lessonRequiresSyncBeforeStarting(
-                                                        lesson,
-                                                      )
-                                                  ? LumoTheme.accentOrange
-                                                  : matchesResumableSession
-                                                      ? LumoTheme.primary
-                                                      : LumoTheme.accentGreen,
+                                                lesson,
+                                              )
+                                                      ? LumoTheme.accentOrange
+                                                      : matchesResumableSession
+                                                          ? LumoTheme.primary
+                                                          : LumoTheme
+                                                              .accentGreen,
                                             ),
                                           ],
                                         ),
@@ -7264,9 +7308,11 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
     widget.state.selectLearner(widget.learner);
 
     try {
-      final matchedResumeSession = widget.state.lessonForBackendSession(
-        widget.resumeFrom,
-      )?.id ==
+      final matchedResumeSession = widget.state
+                  .lessonForBackendSession(
+                    widget.resumeFrom,
+                  )
+                  ?.id ==
               widget.lesson.id
           ? widget.resumeFrom
           : null;

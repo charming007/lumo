@@ -298,6 +298,71 @@ void main() {
   });
 
   test(
+      'subject cards surface sync-incomplete shells instead of generic visibility',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+
+    state.modules.add(
+      const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      ),
+    );
+    state.learners.add(
+      const LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod 1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      ),
+    );
+    state.registrationContext = const RegistrationContext(
+      tabletRegistration: TabletRegistration(
+        id: 'tablet-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+      ),
+    );
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'Greeting lesson shell',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Published lesson shell before steps sync.',
+        steps: [],
+      ),
+    );
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, hasLength(1));
+    expect(subjectCards.single.statusLabel, 'Sync incomplete');
+  });
+
+  test(
       'source status escalates pending learner registration sync over generic queue copy',
       () {
     final state = LumoAppState(includeSeedDemoContent: true)
