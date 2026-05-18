@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { CreateAssessmentForm } from '../components/admin-forms';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
+import { ModalLauncher } from '../components/modal-launcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -444,6 +446,10 @@ export default async function HomePage() {
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
+  const scopedAssessmentSubjects = topReleaseBlocker?.subjectId
+    ? subjects.filter((subject) => subject.id === topReleaseBlocker.subjectId)
+    : subjects;
+  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects.length ? scopedAssessmentSubjects : subjects;
 
   if (shouldBlockDashboardPage({
     criticalDashboardFailureCount: criticalDashboardFailures.length,
@@ -890,6 +896,43 @@ export default async function HomePage() {
                   <Link href={topReleaseBlockerPrimaryHref} style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
                     {topReleaseBlockerPrimaryLabel}
                   </Link>
+                  {!topReleaseBlocker.hasAssessmentGate
+                    ? (subjectsResult.status === 'fulfilled' && topReleaseBlockerAssessmentSubjects.length ? (
+                      <ModalLauncher
+                        buttonLabel="Add assessment gate"
+                        title={`Create assessment gate · ${topReleaseBlocker.title}`}
+                        description="Create the missing progression gate directly from the top dashboard blocker instead of bouncing back to the full content board first."
+                        eyebrow="Create assessment"
+                        triggerStyle={{
+                          ...quickActionStyle,
+                          background: '#EDE9FE',
+                          color: '#5B21B6',
+                          border: '1px solid #DDD6FE',
+                          padding: '10px 12px',
+                          boxShadow: 'none',
+                        }}
+                      >
+                        <CreateAssessmentForm
+                          modules={[{
+                            id: topReleaseBlocker.id,
+                            title: topReleaseBlocker.title,
+                            subjectId: topReleaseBlocker.subjectId,
+                            subjectName: topReleaseBlocker.subjectName,
+                            strandName: '',
+                            level: '',
+                            lessonCount: Math.max(topReleaseBlocker.missingLessons, 0),
+                            status: topReleaseBlocker.isDraftModule ? 'draft' : 'review',
+                          } satisfies CurriculumModule]}
+                          subjects={topReleaseBlockerAssessmentSubjects}
+                          returnPath="/"
+                        />
+                      </ModalLauncher>
+                    ) : (
+                      <Link href={topReleaseBlockerBoardHref} style={{ ...quickActionStyle, background: '#EDE9FE', color: '#5B21B6', border: '1px solid #DDD6FE', padding: '10px 12px' }}>
+                        Add assessment gate
+                      </Link>
+                    ))
+                    : null}
                   <Link href={topReleaseBlockerBoardHref} style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
                     Open scoped blocker board
                   </Link>
