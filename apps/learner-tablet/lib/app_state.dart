@@ -330,6 +330,14 @@ class LumoAppState {
       return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
     }
 
+    final hasCurriculumWithoutLearners = data.learners.isEmpty &&
+        (data.modules.isNotEmpty ||
+            hasLearnerVisibleLessons ||
+            hasLiveAssignments);
+    if (hasCurriculumWithoutLearners) {
+      return 'Production bootstrap returned curriculum content for this tablet, but zero synced learners in the scoped roster. The learner app would open without any valid learner handoff, so deployment trust is broken.';
+    }
+
     if (!hasLaunchableLearnerLesson &&
         hasLiveAssignments &&
         hasVisibleCurriculumShell &&
