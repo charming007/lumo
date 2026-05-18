@@ -51,6 +51,12 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
 }
 
+function resolveAssessmentStatusDefault(moduleStatus?: string | null) {
+  if (moduleStatus === 'draft') return 'draft';
+  if (moduleStatus === 'published' || moduleStatus === 'active') return 'published';
+  return 'review';
+}
+
 export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
   const defaultModule = modules[0] ?? null;
   const defaultSubject = findSubjectByContext(subjects, {
@@ -87,6 +93,7 @@ export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { 
   }, [filteredModules, moduleId]);
 
   const selectedModule = filteredModules.find((module) => module.id === moduleId) ?? filteredModules[0] ?? null;
+  const defaultStatus = resolveAssessmentStatusDefault(selectedModule?.status ?? defaultModule?.status);
 
   return (
     <form action={createAssessmentAction} style={cardStyle}>
@@ -124,7 +131,14 @@ export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { 
       <div style={threeColumnGrid}>
         <FieldLabel>Progression gate<input name="progressionGate" defaultValue="bridge" style={inputStyle} /></FieldLabel>
         <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue="0.7" style={inputStyle} /></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
+        <FieldLabel>
+          Status
+          <select name="status" defaultValue={defaultStatus} style={inputStyle} key={selectedModule?.id ?? 'no-module'}>
+            <option value="draft">Draft</option>
+            <option value="review">In review</option>
+            <option value="published">Published</option>
+          </select>
+        </FieldLabel>
       </div>
       <ActionButton label="Create assessment" pendingLabel="Creating assessment…" style={buttonStyle} disabled={!selectedModule} />
     </form>

@@ -24,3 +24,29 @@ test('create assessment form recovers its subject context through the shared sub
     'assessment gate should not rely on brittle exact subject-id matching for its default subject',
   );
 });
+
+test('create assessment form only offers supported release statuses and defaults from module state', () => {
+  assert.match(
+    source,
+    /function resolveAssessmentStatusDefault\(moduleStatus\?: string \| null\)/,
+    'assessment gate should normalize the default status from the selected module state',
+  );
+
+  assert.match(
+    source,
+    /moduleStatus === 'published' \|\| moduleStatus === 'active'\) return 'published';/,
+    'assessment gate should treat legacy active modules as published when seeding the gate status',
+  );
+
+  assert.match(
+    source,
+    /<select name="status" defaultValue=\{defaultStatus\} style=\{inputStyle\} key=\{selectedModule\?\.id \?\? 'no-module'\}>[\s\S]*<option value="draft">Draft<\/option>[\s\S]*<option value="review">In review<\/option>[\s\S]*<option value="published">Published<\/option>/,
+    'assessment gate should expose the supported draft/review/published lifecycle options and re-seed when the module changes',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /<option value="active">Active<\/option>|<option value="retired">Retired<\/option>/,
+    'assessment gate should not offer stale assessment statuses that do not belong in the release flow',
+  );
+});
