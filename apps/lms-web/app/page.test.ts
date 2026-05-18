@@ -81,6 +81,29 @@ test('dashboard bulk blocker handoff copy matches the direct canvas launch', () 
   );
 });
 
+test('dashboard top blocker can create a missing assessment gate directly from the handoff card', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ CreateAssessmentForm \} from '\.\.\/components\/admin-forms';/,
+    'dashboard should import the assessment creation form so the top blocker can fix missing gates directly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /buttonLabel="Add assessment gate"/,
+    'dashboard should expose an explicit add-assessment-gate action on the top blocker card',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Create the missing progression gate directly from the top dashboard blocker instead of bouncing back to the full content board first\./,
+    'dashboard should explain why the direct gate action exists',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<CreateAssessmentForm[\s\S]*returnPath="\/"/,
+    'dashboard should wire the direct top-blocker gate action back to the dashboard after create',
+  );
+});
+
 test('dashboard reuses the normalized blocker-board href helper instead of hand-building dashboard CTA links', () => {
   assert.match(
     dashboardPageSource,
