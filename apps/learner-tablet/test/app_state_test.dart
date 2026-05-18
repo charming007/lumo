@@ -7573,6 +7573,100 @@ void main() {
     );
 
     test(
+      'production-like bootstrap hard-blocks when live backend returns curriculum but zero learners',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-live-1',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'English hello',
+                        'status': 'published',
+                        'activitySteps': [
+                          {
+                            'id': 'english-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Say hello',
+                            'prompt': 'Say hello.',
+                            'detail': 'Greeting step',
+                            'evidence': 'Learner greets',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'english-live-1',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English hello',
+                        'cohortName': 'Alpha',
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [],
+                      },
+                    ],
+                    'registrationContext': {
+                      'tabletRegistration': {
+                        'id': 'tablet-1',
+                        'podId': 'pod-1',
+                        'podLabel': 'Pod 1',
+                      },
+                      'cohorts': [],
+                      'mallams': [],
+                    },
+                    'meta': {
+                      'generatedAt': '2026-04-21T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.learners, isEmpty);
+        expect(state.modules, isNotEmpty);
+        expect(state.assignedLessons, isNotEmpty);
+        expect(state.assignmentPacks, isNotEmpty);
+        expect(state.usingFallbackData, isTrue);
+        expect(
+          state.deploymentBlockerReason,
+          contains('zero synced learners in the scoped roster'),
+        );
+        expect(state.backendError, state.deploymentBlockerReason);
+      },
+    );
+
+    test(
       'production-like bootstrap hard-blocks when assignments resolve only to placeholder lesson cards',
       () async {
         final state = LumoAppState(
