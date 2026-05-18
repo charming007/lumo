@@ -4530,10 +4530,20 @@ class SubjectModulesPage extends StatelessWidget {
                                                         learner: scopedLearner,
                                                         lesson: lesson,
                                                       );
+                                            final aggregateAvailability =
+                                                scopedLearner == null
+                                                    ? _summarizeLessonAvailability(
+                                                        state: state,
+                                                        lesson: lesson,
+                                                        learner: null,
+                                                      )
+                                                    : null;
                                             final canOpen = !lesson
                                                     .isAssignmentPlaceholder &&
-                                                (availability == null ||
-                                                    availability.canLaunch);
+                                                (availability?.canLaunch == true ||
+                                                    aggregateAvailability ==
+                                                        _SubjectLessonAvailabilitySummary
+                                                            .ready);
                                             return _LessonJourneyStepCard(
                                               lesson: lesson,
                                               index: i,
@@ -4542,6 +4552,8 @@ class SubjectModulesPage extends StatelessWidget {
                                               nextLessonId:
                                                   nextAssignedLesson?.id,
                                               availability: availability,
+                                              aggregateAvailability:
+                                                  aggregateAvailability,
                                               onTap: canOpen
                                                   ? () => openLesson(lesson)
                                                   : null,
@@ -4632,6 +4644,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
   final String? highlightedLessonId;
   final String? nextLessonId;
   final LearnerLessonAvailability? availability;
+  final _SubjectLessonAvailabilitySummary? aggregateAvailability;
   final VoidCallback? onTap;
 
   const _LessonJourneyStepCard({
@@ -4640,6 +4653,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
     required this.highlightedLessonId,
     required this.nextLessonId,
     this.availability,
+    this.aggregateAvailability,
     this.onTap,
   });
 
@@ -4658,8 +4672,44 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final isNext = nextLessonId == lesson.id;
     final syncPending = lesson.isAssignmentPlaceholder;
     final status = availability;
-    final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked;
-    final isCompleted = status?.kind == LearnerLessonAvailabilityKind.completed;
+    final aggregateStatus = aggregateAvailability;
+    final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked ||
+        aggregateStatus == _SubjectLessonAvailabilitySummary.locked;
+    final isCompleted = status?.kind == LearnerLessonAvailabilityKind.completed ||
+        aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
+        aggregateStatus == _SubjectLessonAvailabilitySummary.completedToday;
+    final aggregateStatusLabel = switch (aggregateStatus) {
+      _SubjectLessonAvailabilitySummary.waitingForSync => 'Waiting for sync',
+      _SubjectLessonAvailabilitySummary.syncIncomplete => 'Sync incomplete',
+      _SubjectLessonAvailabilitySummary.locked => 'Locked',
+      _SubjectLessonAvailabilitySummary.completedToday => 'Completed',
+      _SubjectLessonAvailabilitySummary.completed => 'Completed',
+      _SubjectLessonAvailabilitySummary.unavailable => 'Needs learner',
+      _SubjectLessonAvailabilitySummary.ready || null => null,
+    };
+    final blockedStatusLabel = syncPending
+        ? 'Waiting for sync'
+        : status != null && !status.canLaunch
+            ? status.label
+            : aggregateStatusLabel;
+    final blockedStatusColor = syncPending
+        ? const Color(0xFFB45309)
+        : status != null && !status.canLaunch
+            ? _learnerAvailabilityColor(status.kind)
+            : aggregateStatus == _SubjectLessonAvailabilitySummary.locked
+                ? const Color(0xFF7C3AED)
+                : aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
+                        aggregateStatus ==
+                            _SubjectLessonAvailabilitySummary.completedToday
+                    ? const Color(0xFF0F766E)
+                    : aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary.waitingForSync ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary.syncIncomplete ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary.unavailable
+                        ? const Color(0xFFB45309)
+                        : null;
     final palette = _paletteFor(
       index,
       syncPending: syncPending,
@@ -4757,19 +4807,12 @@ class _LessonJourneyStepCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  syncPending
-                      ? 'Waiting for sync'
-                      : isCompleted
-                          ? 'Completed'
-                          : isLocked
-                              ? 'Locked'
-                              : status != null && !status.canLaunch
-                                  ? status.label
-                                  : isNext
-                                      ? 'Start next lesson'
-                                      : isHighlighted
-                                          ? 'Ready now'
-                                          : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                  blockedStatusLabel ??
+                      (isNext
+                          ? 'Start next lesson'
+                          : isHighlighted
+                              ? 'Ready now'
+                              : '${lesson.steps.length} steps · ${lesson.durationMinutes} min'),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4777,17 +4820,10 @@ class _LessonJourneyStepCard extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
-                    color: syncPending
-                        ? const Color(0xFFB45309)
-                        : isCompleted
-                            ? const Color(0xFF0F766E)
-                            : isLocked
-                                ? const Color(0xFF7C3AED)
-                                : status != null && !status.canLaunch
-                                    ? _learnerAvailabilityColor(status.kind)
-                                    : isNext || isHighlighted
-                                        ? palette.first
-                                        : const Color(0xFF64748B),
+                    color: blockedStatusColor ??
+                        (isNext || isHighlighted
+                            ? palette.first
+                            : const Color(0xFF64748B)),
                   ),
                 ),
               ],
