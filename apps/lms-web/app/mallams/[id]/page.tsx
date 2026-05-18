@@ -106,6 +106,7 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
   const criticalMallamDetailFailures = [
     centersResult.status === 'rejected' ? 'centers' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
+    studentsResult.status === 'rejected' ? 'students' : null,
     statesResult.status === 'rejected' ? 'states' : null,
     localGovernmentsResult.status === 'rejected' ? 'local governments' : null,
   ].filter(Boolean) as string[];
@@ -128,19 +129,19 @@ export default async function MallamDetailPage({ params }: { params: Promise<{ i
           </>
         )}
         whyBlocked={[
-          'Operators use this route to edit facilitator geography, update pod coverage, and manage roster ownership. If centers, pods, states, or local governments disappear, the detail form stops being trustworthy.',
-          'Learner counts can degrade separately as supporting context, but facilitator detail should stop cold when the core staffing-reference graph is missing.',
+          'Operators use this route to edit facilitator geography, update pod coverage, and manage roster ownership. If centers, pods, students, states, or local governments disappear, the detail form stops being trustworthy.',
+          'This detail route renders the live roster manager itself. If the student feed is down, the page can fake an empty or partial learner pool while still looking operational, which is exactly the kind of quiet lie deployment review should block.',
         ]}
         verificationItems={[
           {
             surface: 'Mallam detail profile',
-            expected: 'Center, state, local government, and pod references all load before the facilitator detail form is trusted',
+            expected: 'Center, state, local government, pod, and learner roster references all load before the facilitator detail form is trusted',
             failure: 'Edit controls remain reachable while the staffing-reference graph is missing or stale',
           },
           {
             surface: 'Roster ownership decisions',
             expected: 'Pod coverage and candidate routing context reflect the live backend before operators move learners or change ownership',
-            failure: 'The route implies mallam ownership updates are safe while the geography or pod graph is degraded',
+            failure: 'The route implies mallam ownership updates are safe while the geography, pod, or learner graph is degraded',
           },
         ]}
         docs={[

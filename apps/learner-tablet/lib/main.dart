@@ -994,17 +994,17 @@ String _subjectCardStatusLabel({
         ? 'Progress saved • next locked'
         : 'Locked by progression';
   }
+  if (waitingForSyncLessonCount > 0) {
+    return 'Waiting for sync';
+  }
+  if (syncIncompleteLessonCount > 0) {
+    return 'Sync incomplete';
+  }
   if (completedTodayLessonCount > 0) {
     return 'Progress saved today';
   }
   if (completedLessonCount > 0) {
     return 'Progress saved';
-  }
-  if (waitingForSyncLessonCount == lessonCount && lessonCount > 0) {
-    return 'Waiting for sync';
-  }
-  if (syncIncompleteLessonCount == lessonCount && lessonCount > 0) {
-    return 'Sync incomplete';
   }
   return 'Visible on tablet';
 }
