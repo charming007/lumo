@@ -563,5 +563,9 @@ void main() {
       contains('!lessonRequiresSyncBeforeStarting(\n                                                      lesson,'),
     );
     expect(source, contains("final syncPending = lessonRequiresSyncBeforeStarting(lesson);"));
+    expect(source, contains("final syncPendingLabel = lesson.isAssignmentPlaceholder"));
+    expect(source, contains("? 'Waiting for sync'"));
+    expect(source, contains(": 'Sync incomplete';"));
+    expect(source, contains('blockedStatusLabel = syncPending\n        ? syncPendingLabel'));
   });
 }

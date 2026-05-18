@@ -4675,6 +4675,9 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
     final syncPending = lessonRequiresSyncBeforeStarting(lesson);
+    final syncPendingLabel = lesson.isAssignmentPlaceholder
+        ? 'Waiting for sync'
+        : 'Sync incomplete';
     final status = availability;
     final aggregateStatus = aggregateAvailability;
     final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked ||
@@ -4693,7 +4696,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
       _SubjectLessonAvailabilitySummary.ready || null => null,
     };
     final blockedStatusLabel = syncPending
-        ? 'Waiting for sync'
+        ? syncPendingLabel
         : status != null && !status.canLaunch
             ? status.label
             : aggregateStatusLabel;
