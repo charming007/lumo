@@ -47,6 +47,19 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
 });
 
+test('content board treats strand outages as critical release blockers', () => {
+  assert.match(
+    contentPageSource,
+    /const criticalReleaseFailures = \[[\s\S]*strandsResult\.status === 'rejected' \? 'strands' : null,[\s\S]*\]\.filter\(Boolean\);/,
+    'content page should treat a missing strands feed as a critical release-readiness failure, not a soft warning',
+  );
+  assert.match(
+    contentPageSource,
+    /Strands are the structural spine for subject lanes and module placement\./,
+    'content page should explain why a missing strands feed blocks deployment trust for the curriculum board',
+  );
+});
+
 test('content blocker actions keep multi-lesson gaps on the bulk blocker flow instead of single-lesson studio', () => {
   assert.match(
     contentPageSource,
