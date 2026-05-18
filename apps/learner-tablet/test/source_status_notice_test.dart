@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -529,5 +531,37 @@ void main() {
           'backend rejected at least one learner event as unknown'),
       findsOneWidget,
     );
+  });
+
+  test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length'),
+    );
+    expect(
+      source,
+      contains('1 assigned lesson is still sync-incomplete. Refresh sync before launch.'),
+    );
+    expect(
+      source,
+      contains('1 assigned lesson is still sync-incomplete on this tablet.'),
+    );
+  });
+
+  test('subject journey blocks sync-incomplete shell lessons before start affordances render', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('lesson != null && !lessonRequiresSyncBeforeStarting(lesson)'),
+    );
+    expect(source, contains('if (lessonRequiresSyncBeforeStarting(lesson)) return;'));
+    expect(
+      source,
+      contains('!lessonRequiresSyncBeforeStarting(\n                                                      lesson,'),
+    );
+    expect(source, contains("final syncPending = lessonRequiresSyncBeforeStarting(lesson);"));
   });
 }

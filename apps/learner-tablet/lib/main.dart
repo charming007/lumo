@@ -1684,7 +1684,7 @@ class HomePage extends StatelessWidget {
                         state: state,
                       );
                       final assignmentGapCount = state.assignedLessons
-                          .where((lesson) => lesson.isAssignmentPlaceholder)
+                          .where(lessonRequiresSyncBeforeStarting)
                           .length;
                       return Expanded(
                         flex: shortHeight ? 9 : (compact ? 7 : 6),
@@ -1707,8 +1707,8 @@ class HomePage extends StatelessWidget {
                                     ? '${state.registrationBlockerReason!} Fix the roster feed before expecting learner-ready subjects.'
                                     : assignmentGapCount > 0
                                         ? assignmentGapCount == 1
-                                            ? '1 assigned lesson is still only a placeholder. Refresh sync after the publish finishes so learners do not hit a dead-end card.'
-                                            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                            ? '1 assigned lesson is still sync-incomplete. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync after publish finishes so learners do not hit dead-end cards.'
                                         : state.usingFallbackData
                                             ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
                                             : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
@@ -2128,9 +2128,8 @@ class _HomeTrustBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final registrationBlocked = state.registrationBlockerReason;
-    final assignmentGapCount = state.assignedLessons
-        .where((lesson) => lesson.isAssignmentPlaceholder)
-        .length;
+    final assignmentGapCount =
+        state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
     final hasPriorityWarning =
         registrationBlocked != null || assignmentGapCount > 0;
 
@@ -2150,8 +2149,8 @@ class _HomeTrustBanner extends StatelessWidget {
     final compactWarning = registrationBlocked != null
         ? '$registrationBlocked Fix backend reachability first.'
         : assignmentGapCount == 1
-            ? '1 assigned lesson is still a placeholder. Refresh sync before launch.'
-            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync before launch.';
+            ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.';
 
     return Container(
       width: double.infinity,
@@ -2409,8 +2408,8 @@ class _HomeTrustBanner extends StatelessWidget {
                       registrationBlocked != null
                           ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
                           : assignmentGapCount == 1
-                              ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                              : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                              ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                              : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
@@ -4229,7 +4228,8 @@ class SubjectModulesPage extends StatelessWidget {
     }
 
     return lessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+          (lesson) =>
+              lesson != null && !lessonRequiresSyncBeforeStarting(lesson),
           orElse: () => lessons.first,
         );
   }
@@ -4261,7 +4261,8 @@ class SubjectModulesPage extends StatelessWidget {
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
           (lesson) => lesson?.id == nextAssignedLesson?.id,
           orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+                (lesson) =>
+                    lesson != null && !lessonRequiresSyncBeforeStarting(lesson),
                 orElse: () => lessons.isNotEmpty ? lessons.first : null,
               ),
         );
@@ -4270,7 +4271,7 @@ class SubjectModulesPage extends StatelessWidget {
     );
 
     void openLesson(LessonCardModel lesson) {
-      if (lesson.isAssignmentPlaceholder) return;
+      if (lessonRequiresSyncBeforeStarting(lesson)) return;
       state.selectModule(module);
       onChanged();
       launchLessonFlow(
@@ -4538,12 +4539,15 @@ class SubjectModulesPage extends StatelessWidget {
                                                         learner: null,
                                                       )
                                                     : null;
-                                            final canOpen = !lesson
-                                                    .isAssignmentPlaceholder &&
-                                                (availability?.canLaunch == true ||
-                                                    aggregateAvailability ==
-                                                        _SubjectLessonAvailabilitySummary
-                                                            .ready);
+                                            final canOpen =
+                                                !lessonRequiresSyncBeforeStarting(
+                                                      lesson,
+                                                    ) &&
+                                                    (availability?.canLaunch ==
+                                                            true ||
+                                                        aggregateAvailability ==
+                                                            _SubjectLessonAvailabilitySummary
+                                                                .ready);
                                             return _LessonJourneyStepCard(
                                               lesson: lesson,
                                               index: i,
@@ -4670,14 +4674,15 @@ class _LessonJourneyStepCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
-    final syncPending = lesson.isAssignmentPlaceholder;
+    final syncPending = lessonRequiresSyncBeforeStarting(lesson);
     final status = availability;
     final aggregateStatus = aggregateAvailability;
     final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked ||
         aggregateStatus == _SubjectLessonAvailabilitySummary.locked;
-    final isCompleted = status?.kind == LearnerLessonAvailabilityKind.completed ||
-        aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
-        aggregateStatus == _SubjectLessonAvailabilitySummary.completedToday;
+    final isCompleted =
+        status?.kind == LearnerLessonAvailabilityKind.completed ||
+            aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
+            aggregateStatus == _SubjectLessonAvailabilitySummary.completedToday;
     final aggregateStatusLabel = switch (aggregateStatus) {
       _SubjectLessonAvailabilitySummary.waitingForSync => 'Waiting for sync',
       _SubjectLessonAvailabilitySummary.syncIncomplete => 'Sync incomplete',
@@ -4698,14 +4703,17 @@ class _LessonJourneyStepCard extends StatelessWidget {
             ? _learnerAvailabilityColor(status.kind)
             : aggregateStatus == _SubjectLessonAvailabilitySummary.locked
                 ? const Color(0xFF7C3AED)
-                : aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
+                : aggregateStatus ==
+                            _SubjectLessonAvailabilitySummary.completed ||
                         aggregateStatus ==
                             _SubjectLessonAvailabilitySummary.completedToday
                     ? const Color(0xFF0F766E)
                     : aggregateStatus ==
-                                _SubjectLessonAvailabilitySummary.waitingForSync ||
+                                _SubjectLessonAvailabilitySummary
+                                    .waitingForSync ||
                             aggregateStatus ==
-                                _SubjectLessonAvailabilitySummary.syncIncomplete ||
+                                _SubjectLessonAvailabilitySummary
+                                    .syncIncomplete ||
                             aggregateStatus ==
                                 _SubjectLessonAvailabilitySummary.unavailable
                         ? const Color(0xFFB45309)
