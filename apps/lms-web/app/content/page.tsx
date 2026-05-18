@@ -132,6 +132,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     subjectsResult.status === 'rejected' ? 'subjects' : null,
+    strandsResult.status === 'rejected' ? 'strands' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean);
   const hasCriticalContentGap = criticalReleaseFailures.length > 0;
@@ -156,7 +157,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         whyBlocked={[
           'This page decides whether modules are genuinely shippable. Zeroed cards and empty blocker rows during an outage are a lie, not a fallback.',
           'Operators should not be able to open lesson or assessment creation flows when the reference curriculum context is missing or stale.',
-          'Assignments can degrade separately, but modules, lessons, subjects, and assessment gates are the trust backbone for this route.',
+          'Strands are the structural spine for subject lanes and module placement. If that feed disappears, the board can fake an empty curriculum skeleton while still leaving creation controls exposed.',
+          'Assignments can degrade separately, but modules, lessons, subjects, strands, and assessment gates are the trust backbone for this route.',
         ]}
         verificationItems={[
           {
