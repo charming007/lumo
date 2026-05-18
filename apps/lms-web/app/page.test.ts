@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
-const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
+const routeErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
 test('dashboard does not hard-block on subject metadata degradation alone', () => {
@@ -246,32 +246,32 @@ test('wrong-backend blocker exposes route evidence and copy-paste verification c
 
 test('global error route keeps the dashboard recovery actions without forcing Next to prerender-bug itself', () => {
   assert.doesNotMatch(
-    globalErrorSource,
+    routeErrorSource,
     /export const dynamic = 'force-dynamic';/,
     'global error route should not force dynamic rendering because Next 16 trips a prerender invariant on /_global-error during production builds',
   );
   assert.match(
-    globalErrorSource,
+    routeErrorSource,
     /Retry page/,
     'global error route should keep the retry action visible',
   );
   assert.match(
-    globalErrorSource,
+    routeErrorSource,
     /Treat this as a deployment blocker until proven otherwise\./,
     'global error route should call out repeated runtime crashes as a deployment blocker',
   );
   assert.match(
-    globalErrorSource,
+    routeErrorSource,
     /href="\/settings"/,
     'global error route should keep the settings escape hatch visible',
   );
   assert.match(
-    globalErrorSource,
+    routeErrorSource,
     /href="\/DEPLOY_VERIFICATION_CHECKLIST\.html"/,
     'global error route should link directly to the shipped deploy checklist',
   );
   assert.match(
-    globalErrorSource,
+    routeErrorSource,
     /href="\/content\?view=blocked"/,
     'global error route should expose the content blocker board as a recovery path',
   );
