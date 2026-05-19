@@ -14,8 +14,8 @@ test('getModuleReleaseState allows publish when subject context, ready lessons, 
       status: 'review',
     } as any,
     lessons: [
-      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'approved' },
-      { id: 'lesson-2', title: 'Lesson 2', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'published' },
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'approved', activityCount: 2 },
+      { id: 'lesson-2', title: 'Lesson 2', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'published', activitySteps: [{ id: 'step-1' }] },
     ] as any,
     assessments: [
       { id: 'assessment-1', moduleId: 'module-1', moduleTitle: 'Readiness lane', trigger: 'module-complete', status: 'active' },
@@ -40,7 +40,7 @@ test('getModuleReleaseState blocks publish when ready lessons or gate are missin
       status: 'draft',
     } as any,
     lessons: [
-      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-2', subjectId: 'subject-readiness', status: 'review' },
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-2', subjectId: 'subject-readiness', status: 'review', activityCount: 1 },
     ] as any,
     assessments: [] as any,
     subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }],
@@ -75,6 +75,31 @@ test('getModuleReleaseState blocks review and publish when subject context canno
   assert.equal(state.publishBlockers[0], 'Recover the module subject context before moving this lane forward.');
 });
 
+test('getModuleReleaseState keeps published shells with no activity payload out of publish-ready counts', () => {
+  const state = getModuleReleaseState({
+    module: {
+      id: 'module-shell',
+      title: 'Shell lane',
+      subjectId: 'subject-readiness',
+      subjectName: 'Lumo Readiness',
+      lessonCount: 1,
+      status: 'review',
+    } as any,
+    lessons: [
+      { id: 'lesson-shell', title: 'Lesson shell', moduleId: 'module-shell', subjectId: 'subject-readiness', status: 'published', activitySteps: [] },
+    ] as any,
+    assessments: [
+      { id: 'assessment-shell', moduleId: 'module-shell', moduleTitle: 'Shell lane', trigger: 'module-complete', status: 'active' },
+    ] as any,
+    subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }],
+  });
+
+  assert.equal(state.readyLessonCount, 0);
+  assert.equal(state.missingReadyLessons, 1);
+  assert.equal(state.canPublish, false);
+  assert.deepEqual(state.publishBlockers, ['1 ready lesson still missing before publish.']);
+});
+
 test('getModuleReleaseState keeps subject context recoverable when ids only differ by case or whitespace', () => {
   const state = getModuleReleaseState({
     module: {
@@ -86,7 +111,7 @@ test('getModuleReleaseState keeps subject context recoverable when ids only diff
       status: 'review',
     } as any,
     lessons: [
-      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-4', subjectId: 'subject-readiness', status: 'approved' },
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-4', subjectId: 'subject-readiness', status: 'approved', activityCount: 1 },
     ] as any,
     assessments: [
       { id: 'assessment-1', moduleId: 'module-4', moduleTitle: 'Recovered lane', trigger: 'module-complete', status: 'active' },

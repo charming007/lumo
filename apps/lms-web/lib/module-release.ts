@@ -1,4 +1,5 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match.ts';
+import { isLessonReleaseReady } from './lesson-release-readiness.ts';
 import { filterLessonsForModule } from './module-lesson-match.ts';
 import { resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
@@ -17,7 +18,7 @@ export function getModuleReleaseState({
   subjects,
 }: ModuleReleaseStateArgs) {
   const moduleLessons = filterLessonsForModule(lessons, module);
-  const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+  const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
   const missingReadyLessons = Math.max(module.lessonCount - readyLessonCount, 0);
   const hasAssessmentGate = assessments.some((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
   const recoveredSubjectId = resolveModuleSubjectId(module, subjects);

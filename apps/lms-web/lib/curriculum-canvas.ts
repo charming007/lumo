@@ -1,4 +1,5 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
+import { isLessonReleaseReady } from './lesson-release-readiness';
 import { lessonMatchesModule } from './module-lesson-match';
 import type { Assessment, CurriculumModule, Lesson, Strand, Subject } from './types';
 
@@ -247,7 +248,7 @@ function buildLessonNode(lesson: Lesson | CurriculumCanvasApiNode, moduleAssessm
 }
 
 function summarizeModule(expectedLessonCount: number, lessonNodes: CurriculumCanvasLesson[], moduleAssessments: Assessment[]) {
-  const readyLessons = lessonNodes.filter((lesson) => ['approved', 'published', 'active'].includes(normalize(lesson.status))).length;
+  const readyLessons = lessonNodes.filter((lesson) => isLessonReleaseReady(lesson)).length;
   const missingLessons = Math.max(expectedLessonCount - lessonNodes.length, 0);
   const lessonsMissingGate = lessonNodes.filter((lesson) => !lesson.assessmentId).length;
   const missingAssessments = moduleAssessments.length ? 0 : 1;
