@@ -973,11 +973,12 @@ class LumoAppState {
                   recoveredSessionShouldStayPending
               ? Map<String, dynamic>.from(activeSessionRaw)
               : null;
-      final recoveredLessonIsPlaceholder =
-          recoveredSession?.lesson.isAssignmentPlaceholder == true;
+      final recoveredLessonRequiresSync =
+          recoveredSession != null &&
+          _lessonRequiresSyncBeforeStarting(recoveredSession.lesson);
       if ((recoveredCompletionState == 'complete' ||
               recoveredCompletionState == 'completed') &&
-          recoveredLessonIsPlaceholder) {
+          recoveredLessonRequiresSync) {
         pendingRecoveredSessionSnapshot = null;
       }
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
