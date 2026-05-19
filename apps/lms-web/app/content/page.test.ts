@@ -47,6 +47,24 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
 });
 
+test('content blockers count only payload-ready lessons toward release readiness', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ isLessonReleaseReady \} from '\.\.\/\.\.\/lib\/lesson-release-readiness';/,
+    'content board should share the payload-ready lesson readiness helper with the dashboard instead of trusting status labels alone',
+  );
+  assert.match(
+    contentPageSource,
+    /const readyLessonCount = moduleLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/,
+    'content blocker rows should only count lessons with launchable activity payloads as release-ready',
+  );
+  assert.match(
+    contentPageSource,
+    /still need launchable activity payloads before release/,
+    'content blocker copy should tell operators the exact payload gap instead of implying status labels alone are enough',
+  );
+});
+
 test('content board treats strand outages as critical release blockers', () => {
   assert.match(
     contentPageSource,

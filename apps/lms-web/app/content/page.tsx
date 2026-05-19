@@ -23,6 +23,7 @@ import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-le
 import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
+import { isLessonReleaseReady } from '../../lib/lesson-release-readiness';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -243,7 +244,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
   const blockedModules = modules.filter((module) => {
     const moduleLessons = filterLessonsForModule(lessons, module);
-    const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+    const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
     return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module) || module.status === 'draft';
   });
 
@@ -425,7 +426,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         {[
           { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with direct lifecycle controls you can trust.' },
           { label: 'Modules', value: String(modules.length), note: 'Structured under strands, without making strand lifecycle another noisy operator job.' },
-          { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
+          { label: 'Lessons ready', value: String(lessons.filter((lesson) => isLessonReleaseReady(lesson)).length), note: 'Only lessons with release-safe status and launchable payloads count as ready.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
           { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not placeholder curriculum rows.' },
         ].map((item) => (
@@ -499,7 +500,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
                 rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
                   const moduleLessons = filterLessonsForModule(lessons, module);
-                  const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                  const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
                   const isDraftModule = module.status === 'draft';
@@ -530,7 +531,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     </div>,
                     module.subjectName ?? '—',
                     <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
-                      <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                      <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need launchable activity payloads before release.` : 'Lesson count is ready.'}</span>
                       <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
                       <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
                         {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}
@@ -658,7 +659,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
               rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
                 const moduleLessons = filterLessonsForModule(lessons, module);
-                const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);
                 const isDraftModule = module.status === 'draft';
@@ -688,7 +689,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   </div>,
                   module.subjectName ?? '—',
                   <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
-                    <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                    <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need launchable activity payloads before release.` : 'Lesson count is ready.'}</span>
                     <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
                     <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
                       {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}

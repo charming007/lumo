@@ -11,3 +11,9 @@ test('assignment publishing keeps assessment gates visible when lesson module id
   assert.match(createAssignmentFormSource, /subjectName: selectedLesson\.subjectName \?\? ''/);
   assert.doesNotMatch(createAssignmentFormSource, /assessment\.moduleId && assessment\.moduleId === selectedLesson\?\.moduleId/);
 });
+
+test('assignment publishing only exposes lessons with launchable payloads', () => {
+  assert.match(createAssignmentFormSource, /import \{ isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
+  assert.match(createAssignmentFormSource, /lessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)/);
+  assert.match(createAssignmentFormSource, /launchable activity payload/);
+});

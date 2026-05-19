@@ -24,3 +24,9 @@ test('content subject lanes keep module drag-reorder on the real module cards on
   assert.match(source, /draggable=\{orderedModules\.length > 1 && !isReorderPending\}/);
   assert.match(source, /setDraggedModuleByStrand\(\(current\) => \(\{ \.\.\.current, \[strand\.id\]: module\.id \}\)\)/);
 });
+
+test('content subject lanes count only payload-ready lessons in release chips', () => {
+  assert.match(source, /import \{ isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
+  assert.match(source, /const readyLessons = subjectLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/);
+  assert.match(source, /const readyLessonCount = moduleLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/);
+});
