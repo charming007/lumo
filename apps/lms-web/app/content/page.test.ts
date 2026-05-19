@@ -47,6 +47,46 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
 });
 
+test('content blockers count only payload-ready lessons toward release readiness', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ isLessonReleaseReady \} from '\.\.\/\.\.\/lib\/lesson-release-readiness';/,
+    'content board should share the payload-ready lesson readiness helper with the dashboard instead of trusting status labels alone',
+  );
+  assert.match(
+    contentPageSource,
+    /const readyLessonCount = moduleLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/,
+    'content blocker rows should only count lessons with launchable activity payloads as release-ready',
+  );
+  assert.match(
+    contentPageSource,
+    /still need launchable activity payloads before release/,
+    'content blocker copy should tell operators the exact payload gap instead of implying status labels alone are enough',
+  );
+});
+
+test('content blockers reuse shared module release checks so subject-context failures cannot look publish-safe', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ getModuleReleaseState \} from '\.\.\/\.\.\/lib\/module-release';/,
+    'content board should reuse the shared module release-state helper instead of drifting from dashboard release logic',
+  );
+  assert.match(
+    contentPageSource,
+    /const releaseState = getModuleReleaseState\(\{[\s\S]*module,[\s\S]*lessons,[\s\S]*assessments,[\s\S]*subjects,[\s\S]*\}\);/,
+    'content blocker detection should evaluate the same module release inputs the dashboard uses',
+  );
+  assert.match(
+    contentPageSource,
+    /return releaseState\.publishBlockers\.length > 0 \|\| module\.status === 'draft';/,
+    'content board should treat shared publish blockers as release blockers so broken subject context cannot disappear from the UI',
+  );
+  assert.match(
+    contentPageSource,
+    /Subject context must be repaired before this lane is safe to publish\./,
+    'content blocker rows should tell operators plainly when subject context still blocks release',
+  );
+});
 test('content board treats strand outages as critical release blockers', () => {
   assert.match(
     contentPageSource,

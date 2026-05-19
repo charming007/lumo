@@ -20,9 +20,11 @@ import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
+import { getModuleReleaseState } from '../../lib/module-release';
 import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
+import { isLessonReleaseReady } from '../../lib/lesson-release-readiness';
 import { createLessonAction } from '../actions';
 
 const actionButtonStyle = {
@@ -43,7 +45,9 @@ function iconButtonStyle(background: string, color: string) {
   return { ...actionButtonStyle, background, color };
 }
 
-function blockerRiskMeta(missingLessons: number, hasAssessment: boolean, isDraftModule: boolean) {
+function blockerRiskMeta(missingLessons: number, hasAssessment: boolean, isDraftModule: boolean, hasAuthoringContext: boolean) {
+  if (!hasAuthoringContext && (missingLessons > 0 || !hasAssessment || isDraftModule)) return { label: 'Context + release gap', tone: '#FEE2E2', text: '#991B1B' };
+  if (!hasAuthoringContext) return { label: 'Context blocker', tone: '#FEE2E2', text: '#991B1B' };
   if (missingLessons > 0 && !hasAssessment) return { label: 'Hard block', tone: '#FEE2E2', text: '#991B1B' };
   if (isDraftModule && (missingLessons > 0 || !hasAssessment)) return { label: 'Draft + release gap', tone: '#FEE2E2', text: '#991B1B' };
   if (isDraftModule) return { label: 'Draft blocker', tone: '#FEF3C7', text: '#92400E' };
@@ -242,9 +246,13 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   );
 
   const blockedModules = modules.filter((module) => {
-    const moduleLessons = filterLessonsForModule(lessons, module);
-    const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
-    return readyLessonCount < module.lessonCount || !moduleHasAssessmentGate(module) || module.status === 'draft';
+    const releaseState = getModuleReleaseState({
+      module,
+      lessons,
+      assessments,
+      subjects,
+    });
+    return releaseState.publishBlockers.length > 0 || module.status === 'draft';
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -425,7 +433,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         {[
           { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with direct lifecycle controls you can trust.' },
           { label: 'Modules', value: String(modules.length), note: 'Structured under strands, without making strand lifecycle another noisy operator job.' },
-          { label: 'Lessons ready', value: String(lessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length), note: 'Approved or published lessons live in the release lane.' },
+          { label: 'Lessons ready', value: String(lessons.filter((lesson) => isLessonReleaseReady(lesson)).length), note: 'Launchable lesson payloads live in the release lane.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
           { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not placeholder curriculum rows.' },
         ].map((item) => (
@@ -499,17 +507,16 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
                 rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
                   const moduleLessons = filterLessonsForModule(lessons, module);
-                  const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                  const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
                   const isDraftModule = module.status === 'draft';
-                  const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
-
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                   const hasAuthoringContext = Boolean(
                     moduleSubjectId
                     && (subjects.length === 0 || subjectsIncludeId(subjects, moduleSubjectId))
                   );
+                  const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule, hasAuthoringContext);
                   const blockerCta = resolveTopReleaseBlockerCta({
                     missingLessons,
                     hasAuthoringContext,
@@ -530,8 +537,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     </div>,
                     module.subjectName ?? '—',
                     <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
-                      <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                      <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need launchable activity payloads before release.` : 'Lesson count is ready.'}</span>
                       <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                      <span style={{ color: hasAuthoringContext ? '#64748b' : '#B45309', fontWeight: hasAuthoringContext ? 600 : 800 }}>
+                        {hasAuthoringContext ? 'Subject context is recoverable.' : 'Subject context must be repaired before this lane is safe to publish.'}
+                      </span>
                       <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
                         {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}
                       </span>
@@ -539,17 +549,19 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                     <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
                       <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
                       <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
-                        {missingLessons > 0 && !hasAssessment
-                          ? 'Module cannot ship: content is incomplete and progression has no gate.'
-                          : isDraftModule && missingLessons > 0
-                            ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
-                            : isDraftModule && !hasAssessment
-                              ? 'This module is still draft and also missing its progression gate.'
-                              : isDraftModule
-                                ? 'Content is structurally ready, but the draft module status still blocks release.'
-                                : missingLessons > 0
-                                  ? 'Assessment exists, but learner-facing lesson coverage is still short.'
-                                  : 'Lessons are ready, but progression still has no gate.'}
+                        {!hasAuthoringContext
+                          ? 'This lane still fails shared release checks because its subject context cannot be recovered cleanly from the live curriculum metadata.'
+                          : missingLessons > 0 && !hasAssessment
+                            ? 'Module cannot ship: content is incomplete and progression has no gate.'
+                            : isDraftModule && missingLessons > 0
+                              ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
+                              : isDraftModule && !hasAssessment
+                                ? 'This module is still draft and also missing its progression gate.'
+                                : isDraftModule
+                                  ? 'Content is structurally ready, but the draft module status still blocks release.'
+                                  : missingLessons > 0
+                                    ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                                    : 'Lessons are ready, but progression still has no gate.'}
                       </span>
                     </div>,
                     <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
@@ -658,16 +670,16 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
               columns={['Module', 'Subject', 'Readiness gap', 'Release risk', 'Fix now']}
               rows={filteredBlockedModules.length ? filteredBlockedModules.map((module) => {
                 const moduleLessons = filterLessonsForModule(lessons, module);
-                const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);
                 const isDraftModule = module.status === 'draft';
-                const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule);
                 const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                 const hasAuthoringContext = Boolean(
                   moduleSubjectId
                   && (subjects.length === 0 || subjectsIncludeId(subjects, moduleSubjectId))
                 );
+                const blocker = blockerRiskMeta(missingLessons, hasAssessment, isDraftModule, hasAuthoringContext);
                 const blockerCta = resolveTopReleaseBlockerCta({
                   missingLessons,
                   hasAuthoringContext,
@@ -688,8 +700,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   </div>,
                   module.subjectName ?? '—',
                   <div key={`${module.id}-gap`} style={{ display: 'grid', gap: 6, color: '#334155' }}>
-                    <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need approval or publishing.` : 'Lesson count is ready.'}</span>
+                    <span>{missingLessons > 0 ? `${missingLessons} lesson${missingLessons === 1 ? '' : 's'} still need launchable activity payloads before release.` : 'Lesson count is ready.'}</span>
                     <span>{hasAssessment ? 'Assessment gate linked.' : 'Assessment gate missing.'}</span>
+                    <span style={{ color: hasAuthoringContext ? '#64748b' : '#B45309', fontWeight: hasAuthoringContext ? 600 : 800 }}>
+                      {hasAuthoringContext ? 'Subject context is recoverable.' : 'Subject context must be repaired before this lane is safe to publish.'}
+                    </span>
                     <span style={{ color: isDraftModule ? '#B45309' : '#64748b', fontWeight: isDraftModule ? 800 : 600 }}>
                       {isDraftModule ? 'Module is still draft.' : 'Module status is release-safe.'}
                     </span>
@@ -697,17 +712,19 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   <div key={`${module.id}-risk`} style={{ display: 'grid', gap: 8 }}>
                     <Pill label={blocker.label} tone={blocker.tone} text={blocker.text} />
                     <span style={{ color: '#475569', fontSize: 13, lineHeight: 1.5 }}>
-                      {missingLessons > 0 && !hasAssessment
-                        ? 'Module cannot ship: content is incomplete and progression has no gate.'
-                        : isDraftModule && missingLessons > 0
-                          ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
-                          : isDraftModule && !hasAssessment
-                            ? 'This module is still draft and also missing its progression gate.'
-                            : isDraftModule
-                              ? 'Content is structurally ready, but the draft module status still blocks release.'
-                              : missingLessons > 0
-                                ? 'Assessment exists, but learner-facing lesson coverage is still short.'
-                                : 'Lessons are ready, but progression still has no gate.'}
+                      {!hasAuthoringContext
+                        ? 'This lane still fails shared release checks because its subject context cannot be recovered cleanly from the live curriculum metadata.'
+                        : missingLessons > 0 && !hasAssessment
+                          ? 'Module cannot ship: content is incomplete and progression has no gate.'
+                          : isDraftModule && missingLessons > 0
+                            ? 'Lessons are partly ready, but the module is still draft and cannot ship yet.'
+                            : isDraftModule && !hasAssessment
+                              ? 'This module is still draft and also missing its progression gate.'
+                              : isDraftModule
+                                ? 'Content is structurally ready, but the draft module status still blocks release.'
+                                : missingLessons > 0
+                                  ? 'Assessment exists, but learner-facing lesson coverage is still short.'
+                                  : 'Lessons are ready, but progression still has no gate.'}
                     </span>
                   </div>,
                   <div key={`${module.id}-actions`} style={{ display: 'grid', gap: 8 }}>
