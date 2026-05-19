@@ -65,6 +65,29 @@ test('content blockers count only payload-ready lessons toward release readiness
   );
 });
 
+test('content blockers reuse shared module release checks so subject-context failures cannot look publish-safe', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ getModuleReleaseState \} from '\.\.\/\.\.\/lib\/module-release';/,
+    'content board should reuse the shared module release-state helper instead of drifting from dashboard release logic',
+  );
+  assert.match(
+    contentPageSource,
+    /const releaseState = getModuleReleaseState\(\{[\s\S]*module,[\s\S]*lessons,[\s\S]*assessments,[\s\S]*subjects,[\s\S]*\}\);/,
+    'content blocker detection should evaluate the same module release inputs the dashboard uses',
+  );
+  assert.match(
+    contentPageSource,
+    /return releaseState\.publishBlockers\.length > 0 \|\| module\.status === 'draft';/,
+    'content board should treat shared publish blockers as release blockers so broken subject context cannot disappear from the UI',
+  );
+  assert.match(
+    contentPageSource,
+    /Subject context must be repaired before this lane is safe to publish\./,
+    'content blocker rows should tell operators plainly when subject context still blocks release',
+  );
+});
+
 test('content board treats strand outages as critical release blockers', () => {
   assert.match(
     contentPageSource,
