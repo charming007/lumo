@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -265,6 +267,77 @@ void main() {
     expect(availability.canLaunch, isFalse);
   });
 
+  test('operator curriculum chip flags published lesson shells as incomplete', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'lesson-shell-1',
+        moduleId: 'english',
+        title: 'Greeting lesson',
+        subject: 'English',
+        durationMinutes: 10,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell synced before activity steps land.',
+        steps: [],
+      ),
+    );
+
+    expect(state.curriculumSourceLabel, 'Curriculum incomplete');
+    expect(
+      state.curriculumTruthWarning,
+      contains('full activity payload'),
+    );
+  });
+
+  testWidgets(
+      'home trust chips show curriculum incomplete for published lesson shells',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'lesson-shell-1',
+        moduleId: 'english',
+        title: 'Greeting lesson',
+        subject: 'English',
+        durationMinutes: 10,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell synced before activity steps land.',
+        steps: [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Curriculum incomplete'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('subject cards stay hidden until a synced learner lands on the tablet',
       () {
     final state = LumoAppState(includeSeedDemoContent: false)
@@ -295,6 +368,178 @@ void main() {
     final subjectCards = buildLearnerSubjectCards(state: state);
 
     expect(subjectCards, isEmpty);
+  });
+
+  test(
+      'subject cards surface sync-incomplete shells instead of generic visibility',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+
+    state.modules.add(
+      const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      ),
+    );
+    state.learners.add(
+      const LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod 1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      ),
+    );
+    state.registrationContext = const RegistrationContext(
+      tabletRegistration: TabletRegistration(
+        id: 'tablet-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+      ),
+    );
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'english-shell',
+        moduleId: 'english',
+        title: 'Greeting lesson shell',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Published lesson shell before steps sync.',
+        steps: [],
+      ),
+    );
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, hasLength(1));
+    expect(subjectCards.single.statusLabel, 'Sync incomplete');
+  });
+
+  test(
+      'subject cards keep sync-incomplete blockers visible even after earlier lesson progress exists',
+      () async {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina',
+      age: 7,
+      cohort: 'Pod 1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Hauwa',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const completedLesson = LessonCardModel(
+      id: 'english-complete',
+      moduleId: 'english',
+      title: 'Completed greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Finished lesson already saved on this tablet.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+    const waitingLesson = LessonCardModel(
+      id: 'english-next-shell',
+      moduleId: 'english',
+      title: 'Next greeting lesson',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson shell visible before activity steps sync.',
+      steps: [],
+    );
+    const module = LearningModule(
+      id: 'english',
+      title: 'English',
+      description: 'English path',
+      voicePrompt: 'Open English.',
+      readinessGoal: 'Greeting flow',
+      badge: '2 lessons',
+    );
+
+    state.modules.add(module);
+    state.learners.add(learner);
+    state.registrationContext = const RegistrationContext(
+      tabletRegistration: TabletRegistration(
+        id: 'tablet-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+      ),
+    );
+    state.assignedLessons.addAll([completedLesson, waitingLesson]);
+    state.assignmentPacks.addAll([
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-complete',
+        lessonId: completedLesson.id,
+        moduleId: completedLesson.moduleId,
+        lessonTitle: completedLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-next',
+        lessonId: waitingLesson.id,
+        moduleId: waitingLesson.moduleId,
+        lessonTitle: waitingLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    ]);
+    state.selectLearner(learner);
+    state.selectModule(module);
+    state.startLesson(completedLesson);
+    await state.completeLesson(completedLesson);
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, hasLength(1));
+    expect(subjectCards.single.statusLabel, 'Sync incomplete');
   });
 
   test(
@@ -357,5 +602,41 @@ void main() {
           'backend rejected at least one learner event as unknown'),
       findsOneWidget,
     );
+  });
+
+  test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length'),
+    );
+    expect(
+      source,
+      contains('1 assigned lesson is still sync-incomplete. Refresh sync before launch.'),
+    );
+    expect(
+      source,
+      contains('1 assigned lesson is still sync-incomplete on this tablet.'),
+    );
+  });
+
+  test('subject journey blocks sync-incomplete shell lessons before start affordances render', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('lesson != null && !lessonRequiresSyncBeforeStarting(lesson)'),
+    );
+    expect(source, contains('if (lessonRequiresSyncBeforeStarting(lesson)) return;'));
+    expect(
+      source,
+      contains('!lessonRequiresSyncBeforeStarting(\n                                                      lesson,'),
+    );
+    expect(source, contains("final syncPending = lessonRequiresSyncBeforeStarting(lesson);"));
+    expect(source, contains("final syncPendingLabel = lesson.isAssignmentPlaceholder"));
+    expect(source, contains("? 'Waiting for sync'"));
+    expect(source, contains(": 'Sync incomplete';"));
+    expect(source, contains('blockedStatusLabel = syncPending\n        ? syncPendingLabel'));
   });
 }

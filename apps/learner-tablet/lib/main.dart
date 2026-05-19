@@ -868,6 +868,8 @@ enum _SubjectLessonAvailabilitySummary {
   completedToday,
   completed,
   locked,
+  waitingForSync,
+  syncIncomplete,
   unavailable,
 }
 
@@ -893,6 +895,12 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       return _SubjectLessonAvailabilitySummary.locked;
     }
+    if (availability.label == 'Waiting for sync') {
+      return _SubjectLessonAvailabilitySummary.waitingForSync;
+    }
+    if (availability.label == 'Sync incomplete') {
+      return _SubjectLessonAvailabilitySummary.syncIncomplete;
+    }
     return _SubjectLessonAvailabilitySummary.unavailable;
   }
 
@@ -906,6 +914,8 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   var sawCompleted = false;
   var sawCompletedToday = false;
   var sawLocked = false;
+  var sawWaitingForSync = false;
+  var sawSyncIncomplete = false;
   for (final candidate in eligibleLearners) {
     if (!state.learnerMatchesTabletPod(candidate)) continue;
     final availability = learnerLessonAvailability(
@@ -925,6 +935,14 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     }
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       sawLocked = true;
+      continue;
+    }
+    if (availability.label == 'Waiting for sync') {
+      sawWaitingForSync = true;
+      continue;
+    }
+    if (availability.label == 'Sync incomplete') {
+      sawSyncIncomplete = true;
     }
   }
 
@@ -937,6 +955,12 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   if (sawLocked) {
     return _SubjectLessonAvailabilitySummary.locked;
   }
+  if (sawWaitingForSync) {
+    return _SubjectLessonAvailabilitySummary.waitingForSync;
+  }
+  if (sawSyncIncomplete) {
+    return _SubjectLessonAvailabilitySummary.syncIncomplete;
+  }
   return _SubjectLessonAvailabilitySummary.unavailable;
 }
 
@@ -946,6 +970,8 @@ String _subjectCardStatusLabel({
   required int completedTodayLessonCount,
   required int completedLessonCount,
   required int lockedLessonCount,
+  required int waitingForSyncLessonCount,
+  required int syncIncompleteLessonCount,
   required bool hasEligibleLearner,
 }) {
   if (!hasEligibleLearner) {
@@ -967,6 +993,12 @@ String _subjectCardStatusLabel({
     return completedLessonCount > 0
         ? 'Progress saved • next locked'
         : 'Locked by progression';
+  }
+  if (waitingForSyncLessonCount > 0) {
+    return 'Waiting for sync';
+  }
+  if (syncIncompleteLessonCount > 0) {
+    return 'Sync incomplete';
   }
   if (completedTodayLessonCount > 0) {
     return 'Progress saved today';
@@ -1018,6 +1050,8 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         var completedTodayLessonCount = 0;
         var completedLessonCount = 0;
         var lockedLessonCount = 0;
+        var waitingForSyncLessonCount = 0;
+        var syncIncompleteLessonCount = 0;
 
         for (final lesson in visibleLessons) {
           final summary = _summarizeLessonAvailability(
@@ -1035,6 +1069,12 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             completedLessonCount += 1;
           } else if (summary == _SubjectLessonAvailabilitySummary.locked) {
             lockedLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.waitingForSync) {
+            waitingForSyncLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.syncIncomplete) {
+            syncIncompleteLessonCount += 1;
           }
         }
 
@@ -1057,6 +1097,8 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             completedTodayLessonCount: completedTodayLessonCount,
             completedLessonCount: completedLessonCount,
             lockedLessonCount: lockedLessonCount,
+            waitingForSyncLessonCount: waitingForSyncLessonCount,
+            syncIncompleteLessonCount: syncIncompleteLessonCount,
             hasEligibleLearner: hasEligibleLearner,
           ),
         );
@@ -1383,7 +1425,7 @@ Color _operatorStatusColor(String label) {
     case 'Offline pack curriculum':
     case 'Cached curriculum':
     case 'Curriculum mixed':
-    case 'Assignments incomplete':
+    case 'Curriculum incomplete':
     case 'Sync stale':
       return LumoTheme.accentOrange;
     case 'Backend offline':
@@ -1408,7 +1450,7 @@ IconData _operatorStatusIcon(String label) {
       return Icons.save_rounded;
     case 'Curriculum mixed':
       return Icons.layers_rounded;
-    case 'Assignments incomplete':
+    case 'Curriculum incomplete':
       return Icons.rule_folder_rounded;
     case 'Sync stale':
       return Icons.sync_problem_rounded;
@@ -1642,7 +1684,7 @@ class HomePage extends StatelessWidget {
                         state: state,
                       );
                       final assignmentGapCount = state.assignedLessons
-                          .where((lesson) => lesson.isAssignmentPlaceholder)
+                          .where(lessonRequiresSyncBeforeStarting)
                           .length;
                       return Expanded(
                         flex: shortHeight ? 9 : (compact ? 7 : 6),
@@ -1665,8 +1707,8 @@ class HomePage extends StatelessWidget {
                                     ? '${state.registrationBlockerReason!} Fix the roster feed before expecting learner-ready subjects.'
                                     : assignmentGapCount > 0
                                         ? assignmentGapCount == 1
-                                            ? '1 assigned lesson is still only a placeholder. Refresh sync after the publish finishes so learners do not hit a dead-end card.'
-                                            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                            ? '1 assigned lesson is still sync-incomplete. Refresh sync after publish finishes so learners do not hit a dead-end card.'
+                                            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync after publish finishes so learners do not hit dead-end cards.'
                                         : state.usingFallbackData
                                             ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
                                             : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
@@ -2086,9 +2128,8 @@ class _HomeTrustBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final registrationBlocked = state.registrationBlockerReason;
-    final assignmentGapCount = state.assignedLessons
-        .where((lesson) => lesson.isAssignmentPlaceholder)
-        .length;
+    final assignmentGapCount =
+        state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
     final hasPriorityWarning =
         registrationBlocked != null || assignmentGapCount > 0;
 
@@ -2108,8 +2149,8 @@ class _HomeTrustBanner extends StatelessWidget {
     final compactWarning = registrationBlocked != null
         ? '$registrationBlocked Fix backend reachability first.'
         : assignmentGapCount == 1
-            ? '1 assigned lesson is still a placeholder. Refresh sync before launch.'
-            : '$assignmentGapCount assigned lessons are still placeholders. Refresh sync before launch.';
+            ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.';
 
     return Container(
       width: double.infinity,
@@ -2367,8 +2408,8 @@ class _HomeTrustBanner extends StatelessWidget {
                       registrationBlocked != null
                           ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
                           : assignmentGapCount == 1
-                              ? '1 assigned lesson is still only a placeholder on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                              : '$assignmentGapCount assigned lessons are still placeholders on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                              ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                              : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
@@ -3289,13 +3330,12 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
-    final nextLesson =
-        launchableNextLesson ??
+    final nextLesson = launchableNextLesson ??
         allAssignedLessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) =>
-              lesson != null && lessonRequiresSyncBeforeStarting(lesson),
-          orElse: () => null,
-        );
+              (lesson) =>
+                  lesson != null && lessonRequiresSyncBeforeStarting(lesson),
+              orElse: () => null,
+            );
     final nextLessonNeedsSync =
         nextLesson != null && lessonRequiresSyncBeforeStarting(nextLesson);
     final nextAssignmentPack = state.nextAssignmentPackForLearner(learner);
@@ -3907,7 +3947,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                           icon: Icon(
                                             nextLessonNeedsSync
                                                 ? Icons.sync_problem_rounded
-                                                : matchedResumableSession == null
+                                                : matchedResumableSession ==
+                                                        null
                                                     ? Icons.play_arrow_rounded
                                                     : Icons
                                                         .play_circle_fill_rounded,
@@ -3917,7 +3958,8 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                 ? lessonSyncBlockerCtaLabel(
                                                     nextLesson,
                                                   )
-                                                : matchedResumableSession == null
+                                                : matchedResumableSession ==
+                                                        null
                                                     ? 'Start assigned lesson'
                                                     : 'Resume assigned lesson',
                                           ),
@@ -3962,20 +4004,21 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             StatusPill(
                                               text:
                                                   lessonRequiresSyncBeforeStarting(
-                                                        lesson,
-                                                      )
+                                                lesson,
+                                              )
                                                       ? 'Sync first'
                                                       : matchesResumableSession
                                                           ? 'Resume ready'
                                                           : 'Ready',
                                               color:
                                                   lessonRequiresSyncBeforeStarting(
-                                                        lesson,
-                                                      )
-                                                  ? LumoTheme.accentOrange
-                                                  : matchesResumableSession
-                                                      ? LumoTheme.primary
-                                                      : LumoTheme.accentGreen,
+                                                lesson,
+                                              )
+                                                      ? LumoTheme.accentOrange
+                                                      : matchesResumableSession
+                                                          ? LumoTheme.primary
+                                                          : LumoTheme
+                                                              .accentGreen,
                                             ),
                                           ],
                                         ),
@@ -4185,7 +4228,8 @@ class SubjectModulesPage extends StatelessWidget {
     }
 
     return lessons.cast<LessonCardModel?>().firstWhere(
-          (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+          (lesson) =>
+              lesson != null && !lessonRequiresSyncBeforeStarting(lesson),
           orElse: () => lessons.first,
         );
   }
@@ -4217,7 +4261,8 @@ class SubjectModulesPage extends StatelessWidget {
     final highlightedLesson = lessons.cast<LessonCardModel?>().firstWhere(
           (lesson) => lesson?.id == nextAssignedLesson?.id,
           orElse: () => lessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) => lesson != null && !lesson.isAssignmentPlaceholder,
+                (lesson) =>
+                    lesson != null && !lessonRequiresSyncBeforeStarting(lesson),
                 orElse: () => lessons.isNotEmpty ? lessons.first : null,
               ),
         );
@@ -4226,7 +4271,7 @@ class SubjectModulesPage extends StatelessWidget {
     );
 
     void openLesson(LessonCardModel lesson) {
-      if (lesson.isAssignmentPlaceholder) return;
+      if (lessonRequiresSyncBeforeStarting(lesson)) return;
       state.selectModule(module);
       onChanged();
       launchLessonFlow(
@@ -4486,10 +4531,23 @@ class SubjectModulesPage extends StatelessWidget {
                                                         learner: scopedLearner,
                                                         lesson: lesson,
                                                       );
-                                            final canOpen = !lesson
-                                                    .isAssignmentPlaceholder &&
-                                                (availability == null ||
-                                                    availability.canLaunch);
+                                            final aggregateAvailability =
+                                                scopedLearner == null
+                                                    ? _summarizeLessonAvailability(
+                                                        state: state,
+                                                        lesson: lesson,
+                                                        learner: null,
+                                                      )
+                                                    : null;
+                                            final canOpen =
+                                                !lessonRequiresSyncBeforeStarting(
+                                                      lesson,
+                                                    ) &&
+                                                    (availability?.canLaunch ==
+                                                            true ||
+                                                        aggregateAvailability ==
+                                                            _SubjectLessonAvailabilitySummary
+                                                                .ready);
                                             return _LessonJourneyStepCard(
                                               lesson: lesson,
                                               index: i,
@@ -4498,6 +4556,8 @@ class SubjectModulesPage extends StatelessWidget {
                                               nextLessonId:
                                                   nextAssignedLesson?.id,
                                               availability: availability,
+                                              aggregateAvailability:
+                                                  aggregateAvailability,
                                               onTap: canOpen
                                                   ? () => openLesson(lesson)
                                                   : null,
@@ -4588,6 +4648,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
   final String? highlightedLessonId;
   final String? nextLessonId;
   final LearnerLessonAvailability? availability;
+  final _SubjectLessonAvailabilitySummary? aggregateAvailability;
   final VoidCallback? onTap;
 
   const _LessonJourneyStepCard({
@@ -4596,6 +4657,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
     required this.highlightedLessonId,
     required this.nextLessonId,
     this.availability,
+    this.aggregateAvailability,
     this.onTap,
   });
 
@@ -4612,10 +4674,53 @@ class _LessonJourneyStepCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
-    final syncPending = lesson.isAssignmentPlaceholder;
+    final syncPending = lessonRequiresSyncBeforeStarting(lesson);
+    final syncPendingLabel = lesson.isAssignmentPlaceholder
+        ? 'Waiting for sync'
+        : 'Sync incomplete';
     final status = availability;
-    final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked;
-    final isCompleted = status?.kind == LearnerLessonAvailabilityKind.completed;
+    final aggregateStatus = aggregateAvailability;
+    final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked ||
+        aggregateStatus == _SubjectLessonAvailabilitySummary.locked;
+    final isCompleted =
+        status?.kind == LearnerLessonAvailabilityKind.completed ||
+            aggregateStatus == _SubjectLessonAvailabilitySummary.completed ||
+            aggregateStatus == _SubjectLessonAvailabilitySummary.completedToday;
+    final aggregateStatusLabel = switch (aggregateStatus) {
+      _SubjectLessonAvailabilitySummary.waitingForSync => 'Waiting for sync',
+      _SubjectLessonAvailabilitySummary.syncIncomplete => 'Sync incomplete',
+      _SubjectLessonAvailabilitySummary.locked => 'Locked',
+      _SubjectLessonAvailabilitySummary.completedToday => 'Completed',
+      _SubjectLessonAvailabilitySummary.completed => 'Completed',
+      _SubjectLessonAvailabilitySummary.unavailable => 'Needs learner',
+      _SubjectLessonAvailabilitySummary.ready || null => null,
+    };
+    final blockedStatusLabel = syncPending
+        ? syncPendingLabel
+        : status != null && !status.canLaunch
+            ? status.label
+            : aggregateStatusLabel;
+    final blockedStatusColor = syncPending
+        ? const Color(0xFFB45309)
+        : status != null && !status.canLaunch
+            ? _learnerAvailabilityColor(status.kind)
+            : aggregateStatus == _SubjectLessonAvailabilitySummary.locked
+                ? const Color(0xFF7C3AED)
+                : aggregateStatus ==
+                            _SubjectLessonAvailabilitySummary.completed ||
+                        aggregateStatus ==
+                            _SubjectLessonAvailabilitySummary.completedToday
+                    ? const Color(0xFF0F766E)
+                    : aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary
+                                    .waitingForSync ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary
+                                    .syncIncomplete ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary.unavailable
+                        ? const Color(0xFFB45309)
+                        : null;
     final palette = _paletteFor(
       index,
       syncPending: syncPending,
@@ -4713,19 +4818,12 @@ class _LessonJourneyStepCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  syncPending
-                      ? 'Waiting for sync'
-                      : isCompleted
-                          ? 'Completed'
-                          : isLocked
-                              ? 'Locked'
-                              : status != null && !status.canLaunch
-                                  ? status.label
-                                  : isNext
-                                      ? 'Start next lesson'
-                                      : isHighlighted
-                                          ? 'Ready now'
-                                          : '${lesson.steps.length} steps · ${lesson.durationMinutes} min',
+                  blockedStatusLabel ??
+                      (isNext
+                          ? 'Start next lesson'
+                          : isHighlighted
+                              ? 'Ready now'
+                              : '${lesson.steps.length} steps · ${lesson.durationMinutes} min'),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -4733,17 +4831,10 @@ class _LessonJourneyStepCard extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
-                    color: syncPending
-                        ? const Color(0xFFB45309)
-                        : isCompleted
-                            ? const Color(0xFF0F766E)
-                            : isLocked
-                                ? const Color(0xFF7C3AED)
-                                : status != null && !status.canLaunch
-                                    ? _learnerAvailabilityColor(status.kind)
-                                    : isNext || isHighlighted
-                                        ? palette.first
-                                        : const Color(0xFF64748B),
+                    color: blockedStatusColor ??
+                        (isNext || isHighlighted
+                            ? palette.first
+                            : const Color(0xFF64748B)),
                   ),
                 ),
               ],
@@ -7264,9 +7355,11 @@ class _LessonCountdownPageState extends State<LessonCountdownPage> {
     widget.state.selectLearner(widget.learner);
 
     try {
-      final matchedResumeSession = widget.state.lessonForBackendSession(
-        widget.resumeFrom,
-      )?.id ==
+      final matchedResumeSession = widget.state
+                  .lessonForBackendSession(
+                    widget.resumeFrom,
+                  )
+                  ?.id ==
               widget.lesson.id
           ? widget.resumeFrom
           : null;
