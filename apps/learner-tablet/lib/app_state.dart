@@ -516,8 +516,9 @@ class LumoAppState {
         _kOperatorRosterStaleThreshold;
   }
 
-  bool get hasAssignmentPayloadGaps =>
-      assignedLessons.any((lesson) => lesson.isAssignmentPlaceholder);
+  bool get hasAssignmentPayloadGaps => assignedLessons.any(
+    (lesson) => lesson.isAssignmentPlaceholder || lesson.steps.isEmpty,
+  );
 
   Set<ContentOrigin> get visibleCurriculumOrigins => assignedLessons
       .map(lessonOriginFor)
@@ -565,7 +566,7 @@ class LumoAppState {
 
   String get curriculumSourceLabel {
     if (hasAssignmentPayloadGaps) {
-      return 'Assignments incomplete';
+      return 'Curriculum incomplete';
     }
     if (usingFallbackData && hasBundledOfflinePack) {
       return 'Offline pack curriculum';
@@ -595,7 +596,7 @@ class LumoAppState {
 
   String? get curriculumTruthWarning {
     if (hasAssignmentPayloadGaps) {
-      return 'Some live assignments reached the tablet before the full lesson payload, so routing may be right while lesson content is still incomplete.';
+      return 'Some live lessons reached the tablet before their full activity payload, so routing may look right while lesson content is still incomplete.';
     }
     if (!usingFallbackData && curriculumHasMixedOrigins) {
       return 'Backend connectivity is healthy, but the visible curriculum still mixes live lessons with cached or bundled content.';

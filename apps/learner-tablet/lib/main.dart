@@ -1425,7 +1425,7 @@ Color _operatorStatusColor(String label) {
     case 'Offline pack curriculum':
     case 'Cached curriculum':
     case 'Curriculum mixed':
-    case 'Assignments incomplete':
+    case 'Curriculum incomplete':
     case 'Sync stale':
       return LumoTheme.accentOrange;
     case 'Backend offline':
@@ -1450,7 +1450,7 @@ IconData _operatorStatusIcon(String label) {
       return Icons.save_rounded;
     case 'Curriculum mixed':
       return Icons.layers_rounded;
-    case 'Assignments incomplete':
+    case 'Curriculum incomplete':
       return Icons.rule_folder_rounded;
     case 'Sync stale':
       return Icons.sync_problem_rounded;

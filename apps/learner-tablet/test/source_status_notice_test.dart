@@ -267,6 +267,77 @@ void main() {
     expect(availability.canLaunch, isFalse);
   });
 
+  test('operator curriculum chip flags published lesson shells as incomplete', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'lesson-shell-1',
+        moduleId: 'english',
+        title: 'Greeting lesson',
+        subject: 'English',
+        durationMinutes: 10,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell synced before activity steps land.',
+        steps: [],
+      ),
+    );
+
+    expect(state.curriculumSourceLabel, 'Curriculum incomplete');
+    expect(
+      state.curriculumTruthWarning,
+      contains('full activity payload'),
+    );
+  });
+
+  testWidgets(
+      'home trust chips show curriculum incomplete for published lesson shells',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+    addTearDown(state.dispose);
+
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'lesson-shell-1',
+        moduleId: 'english',
+        title: 'Greeting lesson',
+        subject: 'English',
+        durationMinutes: 10,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson shell synced before activity steps land.',
+        steps: [],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Curriculum incomplete'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('subject cards stay hidden until a synced learner lands on the tablet',
       () {
     final state = LumoAppState(includeSeedDemoContent: false)
