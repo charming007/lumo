@@ -170,6 +170,31 @@ test('dashboard blocked modules snapshot summarizes all blocker types instead of
   );
 });
 
+
+
+test('dashboard hard-blocks when release feeds resolve but the curriculum graph is internally contradictory', () => {
+  assert.match(
+    dashboardPageSource,
+    /const hasReleaseGraphMismatch = releaseFeedsAvailable && \([\s\S]*modules\.length > 0 && lessons\.length === 0 && modules\.some\(\(module\) => module\.lessonCount > 0\)[\s\S]*modules\.length === 0 && \(lessons\.length > 0 \|\| assessments\.length > 0\)[\s\S]*\);/,
+    'dashboard should detect impossible curriculum release graphs instead of treating them as honest authoring blockers',
+  );
+  assert.match(
+    dashboardPageSource,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
+    'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: curriculum release graph is internally contradictory\./,
+    'dashboard should call out contradictory curriculum data as an explicit deployment blocker',
+  );
+  assert.match(
+    dashboardPageSource,
+    /live modules claim lesson coverage while the lessons feed came back empty/,
+    'dashboard should explain the stale-backend failure mode when modules resolve but lessons disappear',
+  );
+});
+
 test('dashboard deploy checklist CTA points at a shipped public document', () => {
   assert.match(
     dashboardPageSource,

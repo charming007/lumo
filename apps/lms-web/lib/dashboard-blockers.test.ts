@@ -9,6 +9,7 @@ test('blocks the dashboard when a critical dashboard feed fails', () => {
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
     hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: false,
   }), true);
 });
 
@@ -18,6 +19,7 @@ test('blocks the dashboard when release-readiness feeds fail', () => {
     criticalReleaseFailureCount: 1,
     hasCriticalAssetOpsGap: false,
     hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: false,
   }), true);
 });
 
@@ -27,6 +29,7 @@ test('does not block the dashboard for subject metadata degradation alone when c
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
     hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: false,
   }), false);
 });
 
@@ -36,6 +39,7 @@ test('blocks the dashboard when asset operations are broken even if other feeds 
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: true,
     hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: false,
   }), true);
 });
 
@@ -45,6 +49,19 @@ test('blocks the dashboard when release-readiness feeds resolve cleanly but retu
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
     hasEmptyReleaseBoard: true,
+    hasReleaseGraphMismatch: false,
+  }), true);
+});
+
+
+
+test('blocks the dashboard when release feeds resolve but the curriculum graph is internally contradictory', () => {
+  assert.equal(shouldBlockDashboardPage({
+    criticalDashboardFailureCount: 0,
+    criticalReleaseFailureCount: 0,
+    hasCriticalAssetOpsGap: false,
+    hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: true,
   }), true);
 });
 
@@ -54,5 +71,6 @@ test('does not block the dashboard when all critical feeds are healthy', () => {
     criticalReleaseFailureCount: 0,
     hasCriticalAssetOpsGap: false,
     hasEmptyReleaseBoard: false,
+    hasReleaseGraphMismatch: false,
   }), false);
 });

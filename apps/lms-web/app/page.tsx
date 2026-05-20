@@ -421,6 +421,10 @@ export default async function HomePage() {
   });
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
   const hasEmptyReleaseBoard = releaseFeedsAvailable && modules.length === 0 && lessons.length === 0 && assessments.length === 0;
+  const hasReleaseGraphMismatch = releaseFeedsAvailable && (
+    (modules.length > 0 && lessons.length === 0 && modules.some((module) => module.lessonCount > 0))
+    || (modules.length === 0 && (lessons.length > 0 || assessments.length > 0))
+  );
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
@@ -468,6 +472,7 @@ export default async function HomePage() {
     criticalReleaseFailureCount: criticalReleaseFailures.length,
     hasCriticalAssetOpsGap,
     hasEmptyReleaseBoard,
+    hasReleaseGraphMismatch,
   })) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
@@ -491,11 +496,15 @@ export default async function HomePage() {
             ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
             : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for live content operations.'
           : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
-        : !modules.length && !lessons.length && !assessments.length
-          ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
-          : criticalReleaseFailures.length === 1
-            ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
-            : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
+        : hasReleaseGraphMismatch
+          ? modules.length > 0 && lessons.length === 0
+            ? 'The release feeds answered, but the curriculum graph is impossible: live modules claim lesson coverage while the lessons feed came back empty. Treat that as a stale or partial backend, not a real blocker board.'
+            : 'The release feeds answered, but the curriculum graph is impossible: lessons or assessments appeared without any modules. Treat that as a stale or partial backend, not a real blocker board.'
+          : !modules.length && !lessons.length && !assessments.length
+            ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
+            : criticalReleaseFailures.length === 1
+              ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
+              : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
 
     return (
       <DeploymentBlockerCard
@@ -506,9 +515,11 @@ export default async function HomePage() {
             ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
             : hasCriticalAssetOpsGap
               ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
-              : hasEmptyReleaseBoard
-                ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
-                : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+              : hasReleaseGraphMismatch
+                ? 'The admin landing page also blocks when the curriculum release graph contradicts itself.'
+                : hasEmptyReleaseBoard
+                  ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
+                  : 'The admin landing page also blocks when release-readiness feeds are blind.'}
         blockerHeadline={backendTargetDiagnosis
           ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
           : hasCriticalDashboardGap
@@ -517,9 +528,11 @@ export default async function HomePage() {
               ? assetRuntimeAuthBlocked
                 ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
                 : 'Deployment blocker: asset operations are not trustworthy.'
-              : hasEmptyReleaseBoard
-                ? 'Deployment blocker: release board came back empty.'
-                : 'Deployment blocker: release-readiness feeds are degraded.'}
+              : hasReleaseGraphMismatch
+                ? 'Deployment blocker: curriculum release graph is internally contradictory.'
+                : hasEmptyReleaseBoard
+                  ? 'Deployment blocker: release board came back empty.'
+                  : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -551,11 +564,17 @@ export default async function HomePage() {
                   'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
                   'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
                 ]
-            : [
-                'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
-                'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
-                'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
-              ]}
+            : hasReleaseGraphMismatch
+              ? [
+                  'If the release feeds return an impossible graph, the dashboard should not reframe backend drift as curriculum work the content team suddenly forgot to do.',
+                  'Operators use the front door to decide whether a blocker board reflects real authoring gaps or a broken deployment. Contradictory curriculum data destroys that trust line.',
+                  'A loud blocker is safer than a dashboard that mistakes stale backend evidence for honest release triage.',
+                ]
+              : [
+                  'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
+                  'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
+                  'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
+                ]}
         verificationItems={hasCriticalDashboardGap
           ? [
               {
@@ -646,8 +665,17 @@ export default async function HomePage() {
             : [
                 { label: 'Frontend build', value: buildSignature.summary },
                 { label: 'Current API target', value: apiTarget },
-                { label: hasEmptyReleaseBoard ? 'Observed state' : 'Failing feeds', value: hasEmptyReleaseBoard ? 'modules, lessons, and assessments all resolved empty' : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
-                { label: 'Operator action', value: hasEmptyReleaseBoard ? 'Verify the API is serving real curriculum, lesson, and assessment data before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+                {
+                  label: hasEmptyReleaseBoard || hasReleaseGraphMismatch ? 'Observed state' : 'Failing feeds',
+                  value: hasEmptyReleaseBoard
+                    ? 'modules, lessons, and assessments all resolved empty'
+                    : hasReleaseGraphMismatch
+                      ? modules.length > 0 && lessons.length === 0
+                        ? 'modules resolved with lesson expectations, but the lessons feed resolved empty'
+                        : 'lessons or assessments resolved without any modules'
+                      : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments',
+                },
+                { label: 'Operator action', value: hasEmptyReleaseBoard || hasReleaseGraphMismatch ? 'Verify the API is serving a coherent curriculum, lesson, and assessment graph before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
               ]}
         docs={backendTargetDiagnosis
