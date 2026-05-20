@@ -1326,6 +1326,10 @@ bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
   return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
 }
 
+String lessonSyncBlockerStatusLabel(LessonCardModel lesson) {
+  return lesson.isAssignmentPlaceholder ? 'Waiting for sync' : 'Sync incomplete';
+}
+
 String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
   return lessonRequiresSyncBeforeStarting(lesson)
       ? 'Sync required before starting'
@@ -4006,7 +4010,9 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                   lessonRequiresSyncBeforeStarting(
                                                 lesson,
                                               )
-                                                      ? 'Sync first'
+                                                      ? lessonSyncBlockerStatusLabel(
+                                                          lesson,
+                                                        )
                                                       : matchesResumableSession
                                                           ? 'Resume ready'
                                                           : 'Ready',
@@ -4675,9 +4681,7 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final isHighlighted = highlightedLessonId == lesson.id;
     final isNext = nextLessonId == lesson.id;
     final syncPending = lessonRequiresSyncBeforeStarting(lesson);
-    final syncPendingLabel = lesson.isAssignmentPlaceholder
-        ? 'Waiting for sync'
-        : 'Sync incomplete';
+    final syncPendingLabel = lessonSyncBlockerStatusLabel(lesson);
     final status = availability;
     final aggregateStatus = aggregateAvailability;
     final isLocked = status?.kind == LearnerLessonAvailabilityKind.locked ||
