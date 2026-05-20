@@ -35,3 +35,15 @@ test('curriculum canvas blocker and module handoffs carry exact module ids into 
     /href=\{`\/content\?view=blocked&subject=\$\{encodeURIComponent\(subjectId\)\}\$\{assessment\.moduleId \? `&moduleId=\$\{encodeURIComponent\(assessment\.moduleId\)\}` : ''\}&q=\$\{encodeURIComponent\(moduleTitle\)\}`\}/,
   );
 });
+
+test('curriculum canvas triage quick action keeps payload-empty published lessons in the not-ready queue', () => {
+  assert.match(source, /import \{ isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
+  assert.match(
+    source,
+    /const selectedModuleNotReadyLessons = selected \? selected\.module\.lessons\.filter\(\(lesson\) => !isLessonReleaseReady\(lesson\)\) : \[];/,
+  );
+  assert.doesNotMatch(
+    source,
+    /const selectedModuleNotReadyLessons = selected \? selected\.module\.lessons\.filter\(\(lesson\) => !\['approved', 'published', 'active'\]\.includes\(normalize\(lesson\.status\)\)\) : \[];/,
+  );
+});
