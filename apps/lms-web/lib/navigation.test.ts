@@ -33,5 +33,8 @@ test('admin navigation keeps the visible pilot shell limited to the routes opera
 test('topbar copy tells the truth about the pilot shell instead of implying the full LMS nav is live', () => {
   assert.match(topbarSource, /Lumo command center/);
   assert.match(topbarSource, /Pilot nav locked/);
+  assert.match(topbarSource, /Outside pilot shell/);
+  assert.match(topbarSource, /Blocked pilot surface/);
+  assert.match(topbarSource, /data-route-scope-chip=\{pilotRoute\.status\}/);
   assert.doesNotMatch(topbarSource, /Full LMS shell live/);
 });

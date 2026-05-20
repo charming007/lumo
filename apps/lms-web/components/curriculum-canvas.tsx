@@ -4,6 +4,7 @@ import type React from 'react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { findSubjectByContext, subjectMatchesContext } from '../lib/module-subject-match';
+import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
 import { Pill } from '../lib/ui';
 import { ModalLauncher } from './modal-launcher';
 import type { Assessment } from '../lib/types';
@@ -589,7 +590,7 @@ export function CurriculumCanvas({
     ? selectedModuleMissingOrders.map((order) => `${selected.module.title} Lesson ${order}`)
     : [];
   const selectedModuleUnlinkedLessons = selected ? selected.module.lessons.filter((lesson) => !lesson.assessmentId) : [];
-  const selectedModuleNotReadyLessons = selected ? selected.module.lessons.filter((lesson) => !['approved', 'published', 'active'].includes(normalize(lesson.status))) : [];
+  const selectedModuleNotReadyLessons = selected ? selected.module.lessons.filter((lesson) => !isLessonReleaseReady(lesson)) : [];
   const selectedModuleGateCount = selected?.module.assessments.length ?? 0;
   const firstLessonMissingGate = selectedModuleUnlinkedLessons[0] ?? null;
   const firstLessonNeedingReadiness = selectedModuleNotReadyLessons[0] ?? null;

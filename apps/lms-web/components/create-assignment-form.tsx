@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createAssignmentAction } from '../app/actions';
+import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
 import { assessmentMatchesModule } from '../lib/module-assessment-match';
 import type { Assessment, Cohort, CurriculumModule, Lesson, Mallam } from '../lib/types';
 import { ActionButton } from './action-button';
@@ -29,17 +30,13 @@ function nextWeekDate() {
   return date.toISOString().slice(0, 10);
 }
 
-function isReleaseReadyLesson(lesson: Lesson) {
-  return lesson.status === 'approved' || lesson.status === 'published';
-}
-
 export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }: { cohorts: Cohort[]; lessons: Lesson[]; mallams: Mallam[]; assessments: Assessment[] }) {
   const activeAssessments = useMemo(
     () => assessments.filter((assessment) => assessment.status !== 'retired'),
     [assessments],
   );
   const eligibleLessons = useMemo(
-    () => lessons.filter((lesson) => isReleaseReadyLesson(lesson)),
+    () => lessons.filter((lesson) => isLessonReleaseReady(lesson)),
     [lessons],
   );
 
@@ -93,10 +90,10 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
 
       <div style={{ padding: 14, borderRadius: 16, background: formLocked ? '#fff7ed' : '#eff6ff', border: `1px solid ${formLocked ? '#fed7aa' : '#bfdbfe'}`, color: formLocked ? '#9a3412' : '#1d4ed8', lineHeight: 1.6 }}>
         {formLocked
-          ? 'Assignment publishing is paused because there is no release-ready lesson yet. Approve or publish the lesson first.'
+          ? 'Assignment publishing is paused because there is no release-ready lesson with a real launchable activity payload yet.'
           : activeAssessments.length
-            ? `Only release-ready lessons are available here. ${blockedLessons.length} draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`
-            : `Assessment gate data is unavailable right now, but assignment publishing is still live. ${blockedLessons.length} draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
+            ? `Only release-ready lessons with launchable activity payloads are available here. ${blockedLessons.length} non-launchable or draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`
+            : `Assessment gate data is unavailable right now, but assignment publishing still only exposes release-ready lessons with launchable activity payloads. ${blockedLessons.length} non-launchable or draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
       </div>
 
       <select name="cohortId" defaultValue={cohorts[0]?.id} style={inputStyle}>

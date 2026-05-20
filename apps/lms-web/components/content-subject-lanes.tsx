@@ -21,6 +21,7 @@ import { ModalLauncher } from './modal-launcher';
 import { quickUpdateCanvasModuleAction, quickUpdateLessonStatusAction, quickUpdateSubjectStatusAction, reorderModuleLessonsAction, reorderStrandModulesAction, reorderSubjectStrandsAction, updateStrandAction } from '../app/actions';
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import { filterLessonsForModule } from '../lib/module-lesson-match';
+import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
 import { getModuleReleaseState } from '../lib/module-release';
 import { resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from '../lib/module-subject-match';
 import { Card, Pill } from '../lib/ui';
@@ -322,7 +323,7 @@ export function ContentSubjectLanes({
       }));
       const subjectAssignments = assignments.filter((assignment) => subjectLessons.some((lesson) => lesson.title === assignment.lessonTitle));
       const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
-      const readyLessons = subjectLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+      const readyLessons = subjectLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
 
       return { subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons };
     })
@@ -624,7 +625,7 @@ export function ContentSubjectLanes({
                             const moduleLessons = filterLessonsForModule(subjectLessons, module);
                             const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
-                            const readyLessonCount = moduleLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length;
+                            const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                             const pill = statusPill(module.status);
                             const releaseState = getModuleReleaseState({
                               module,

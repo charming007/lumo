@@ -15,8 +15,8 @@ test('dashboard release blockers stay clear when the shared release state allows
       status: 'review',
     } as CurriculumModule],
     lessons: [
-      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'approved' },
-      { id: 'lesson-2', title: 'Lesson 2', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'published' },
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'approved', activityCount: 1 },
+      { id: 'lesson-2', title: 'Lesson 2', moduleId: 'module-1', subjectId: 'subject-readiness', status: 'published', activityCount: 1 },
     ] as Lesson[],
     assessments: [
       { id: 'assessment-1', moduleId: 'module-1', moduleTitle: 'Readiness lane', trigger: 'module-complete', status: 'active' },
@@ -38,7 +38,7 @@ test('dashboard release blockers inherit shared publish blockers instead of reim
       status: 'review',
     } as CurriculumModule],
     lessons: [
-      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-2', subjectId: 'subject-readiness', status: 'approved' },
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-2', subjectId: 'subject-readiness', status: 'approved', activityCount: 1 },
     ] as Lesson[],
     assessments: [] as Assessment[],
     subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }] as Subject[],
@@ -73,6 +73,7 @@ test('dashboard release blockers recover the subject name from live subject meta
       moduleId: 'module-reading-1',
       durationMinutes: 12,
       mode: 'guided',
+      activityCount: 1,
     },
   ];
 

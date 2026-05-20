@@ -36,6 +36,13 @@ export function Topbar({
       : pilotRoute.status === 'off-shell'
         ? { background: '#FFF7ED', border: '1px solid #FED7AA', eyebrow: '#9A3412', title: '#7C2D12', detail: '#9A3412' }
         : { background: '#F8FAFC', border: '1px solid #CBD5E1', eyebrow: '#475569', title: '#0F172A', detail: '#475569' };
+  const navStatusChip = pilotRoute.status === 'visible'
+    ? { label: 'Pilot nav locked', background: '#f1f5f9', color: '#0f172a' }
+    : pilotRoute.status === 'off-shell'
+      ? { label: 'Outside pilot shell', background: '#FFF7ED', color: '#9A3412' }
+      : pilotRoute.status === 'blocked'
+        ? { label: 'Blocked pilot surface', background: '#EEF2FF', color: '#3730A3' }
+        : { label: 'Unclassified route', background: '#E2E8F0', color: '#334155' };
 
   return (
     <>
@@ -79,7 +86,13 @@ export function Topbar({
         </div>
       </div>
       <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
-        <div className="topbar__meta-chip" style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: '#0f172a' }}>Pilot nav locked</div>
+        <div
+          className="topbar__meta-chip"
+          data-route-scope-chip={pilotRoute.status}
+          style={{ background: navStatusChip.background, padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: navStatusChip.color }}
+        >
+          {navStatusChip.label}
+        </div>
         <div className="topbar__meta-chip" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
           Live shell: v{buildSignature.version} · {buildSignature.commitShort} · {buildSignature.deploymentLabel}
         </div>
