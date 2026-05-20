@@ -99,7 +99,7 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject \? \[scopedAssessmentSubject\] : subjects;/,
+    /const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject \? \[scopedAssessmentSubject\] : \[];/,
     'dashboard should keep the top-blocker assessment modal pinned to one normalized recovered subject instead of falling back to an unscoped subject list when ids drift',
   );
   assert.match(
@@ -109,7 +109,7 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
+    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*scopedAssessmentSubject[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
     'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and scoped subjects',
   );
   assert.match(

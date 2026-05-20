@@ -453,12 +453,13 @@ export default async function HomePage() {
         subjectName: topReleaseBlocker.subjectName,
       })
     : null;
-  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject ? [scopedAssessmentSubject] : subjects;
+  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject ? [scopedAssessmentSubject] : [];
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate
     && topReleaseBlocker.hasAuthoringContext
     && subjectsResult.status === 'fulfilled'
+    && scopedAssessmentSubject
     && topReleaseBlockerAssessmentSubjects.length,
   );
 
