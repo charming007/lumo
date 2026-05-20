@@ -267,6 +267,108 @@ void main() {
     expect(availability.canLaunch, isFalse);
   });
 
+  testWidgets(
+      'learner profile blocks runtime resume CTA when the lesson payload is still sync-incomplete',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      cohortId: 'cohort-1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const shellLesson = LessonCardModel(
+      id: 'lesson-shell-1',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson shell synced before activity steps land.',
+      steps: [],
+    );
+
+    state.learners.add(learner);
+    state.currentLearner = learner;
+    state.assignedLessons.add(shellLesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-1',
+        lessonId: shellLesson.id,
+        moduleId: shellLesson.moduleId,
+        lessonTitle: shellLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+    state.recentRuntimeSessionsByLearnerId[learner.id] = [
+      BackendLessonSession(
+        id: 'runtime-shell',
+        sessionId: 'session-shell',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: shellLesson.id,
+        lessonTitle: shellLesson.title,
+        moduleId: shellLesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Mallam is waiting for the next response.',
+        currentStepIndex: 1,
+        stepsTotal: 0,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 1,
+        facilitatorObservations: 0,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerProfilePage(state: state, learner: learner),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Refresh sync before resuming'), findsOneWidget);
+    expect(find.text('Resume from backend session'), findsNothing);
+    expect(
+      find.textContaining('missing its activity steps'),
+      findsOneWidget,
+    );
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Refresh sync before resuming'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
   test('operator curriculum chip flags published lesson shells as incomplete', () {
     final state = LumoAppState(includeSeedDemoContent: false)
       ..usingFallbackData = false

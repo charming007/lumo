@@ -4871,6 +4871,11 @@ class LumoAppState {
       if (_terminalSessionSupersedesResumableCandidate(session, sessions)) {
         continue;
       }
+      final resolvedLesson = lessonForBackendSession(session);
+      if (resolvedLesson == null ||
+          _lessonRequiresSyncBeforeStarting(resolvedLesson)) {
+        continue;
+      }
       return session;
     }
     return null;

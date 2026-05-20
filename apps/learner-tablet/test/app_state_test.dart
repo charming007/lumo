@@ -3083,6 +3083,61 @@ void main() {
     });
 
     test(
+      'does not advertise resumable runtime when the synced lesson payload is empty',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+        final payloadEmptyLesson = LessonCardModel(
+          id: lesson.id,
+          moduleId: lesson.moduleId,
+          title: lesson.title,
+          subject: lesson.subject,
+          durationMinutes: lesson.durationMinutes,
+          status: lesson.status,
+          mascotName: lesson.mascotName,
+          readinessFocus: lesson.readinessFocus,
+          scenario: lesson.scenario,
+          steps: const [],
+          supportLanguage: lesson.supportLanguage,
+          targetLanguage: lesson.targetLanguage,
+          localization: lesson.localization,
+        );
+        final lessonIndex = state.assignedLessons.indexOf(lesson);
+        state.assignedLessons[lessonIndex] = payloadEmptyLesson;
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-shell',
+            sessionId: 'session-shell',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: payloadEmptyLesson.id,
+            lessonTitle: payloadEmptyLesson.title,
+            moduleId: payloadEmptyLesson.moduleId,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Mallam is waiting for the next response.',
+            currentStepIndex: 1,
+            stepsTotal: 0,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner), isNull);
+        expect(state.resumableLessonForLearner(beginner), isNull);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          isNot(contains('Resume ready')),
+        );
+      },
+    );
+
+    test(
       'ignores stale in-progress runtime session when a newer completion exists for the same lesson',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
