@@ -114,3 +114,31 @@ test('dashboard release blockers keep recoverable subject context when subject m
   assert.equal(blockers[0]?.subjectName, 'Recovered Subject');
   assert.equal(blockers[0]?.hasAuthoringContext, true);
 });
+
+test('dashboard release blockers keep fully-authored draft modules in the blocker stack', () => {
+  const blockers = getDashboardReleaseBlockers({
+    modules: [{
+      id: 'module-draft-ready',
+      title: 'Draft but complete lane',
+      subjectId: 'subject-readiness',
+      subjectName: 'Lumo Readiness',
+      lessonCount: 2,
+      status: 'draft',
+    } as CurriculumModule],
+    lessons: [
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-draft-ready', subjectId: 'subject-readiness', status: 'approved', activityCount: 1 },
+      { id: 'lesson-2', title: 'Lesson 2', moduleId: 'module-draft-ready', subjectId: 'subject-readiness', status: 'published', activitySteps: [{ id: 'step-1' }] },
+    ] as Lesson[],
+    assessments: [
+      { id: 'assessment-1', moduleId: 'module-draft-ready', moduleTitle: 'Draft but complete lane', trigger: 'module-complete', status: 'active' },
+    ] as Assessment[],
+    subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }] as Subject[],
+  });
+
+  assert.equal(blockers.length, 1);
+  assert.equal(blockers[0]?.title, 'Draft but complete lane');
+  assert.equal(blockers[0]?.isDraftModule, true);
+  assert.equal(blockers[0]?.missingLessons, 0);
+  assert.equal(blockers[0]?.hasAssessmentGate, true);
+  assert.equal(blockers[0]?.blockerCount, 1);
+});
