@@ -91,6 +91,49 @@ test('canvas hard-blocks when core authoring feeds degrade', () => {
   );
 });
 
+test('canvas hard-blocks when the live subject/module spine resolves empty', () => {
+  assert.match(
+    canvasPageSource,
+    /const hasEmptyLiveCanvasSpine = subjectsResult\.status === 'fulfilled'/,
+    'canvas should explicitly detect when the live subject feed fulfilled but came back empty',
+  );
+  assert.match(
+    canvasPageSource,
+    /&& modulesResult\.status === 'fulfilled'/,
+    'canvas should only call the spine hollow when the live modules feed also fulfilled',
+  );
+  assert.match(
+    canvasPageSource,
+    /&& subjects\.length === 0/,
+    'canvas should treat zero live subjects as part of the hollow-spine deployment failure',
+  );
+  assert.match(
+    canvasPageSource,
+    /&& modules\.length === 0;/,
+    'canvas should treat zero live modules as part of the hollow-spine deployment failure',
+  );
+  assert.match(
+    canvasPageSource,
+    /if \(hasEmptyLiveCanvasSpine\) \{/,
+    'canvas should hard-block instead of falling through to the generic empty state when the live curriculum spine is blank',
+  );
+  assert.match(
+    canvasPageSource,
+    /Deployment blocker: live curriculum graph is empty\./,
+    'canvas should explain that the live graph being empty is itself deployment-blocking',
+  );
+  assert.match(
+    canvasPageSource,
+    /The live subjects and modules feeds both resolved empty\./,
+    'canvas should explain why a blank live spine is not the same as a harmless authoring empty state',
+  );
+  assert.match(
+    canvasPageSource,
+    /Lesson creation stays blocked until live subject\/module context exists again/,
+    'canvas hollow-spine blocker should explicitly protect against unsafe lesson-creation handoffs',
+  );
+});
+
 test('canvas fallback create-lesson CTA preserves scoped blocker subject and module context', () => {
   assert.match(
     canvasPageSource,
