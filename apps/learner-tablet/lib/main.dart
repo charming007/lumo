@@ -1326,6 +1326,16 @@ bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
   return lesson.isAssignmentPlaceholder || lesson.steps.isEmpty;
 }
 
+String lessonSyncBlockerStatusLabel(LessonCardModel lesson) {
+  if (lesson.isAssignmentPlaceholder) {
+    return 'Waiting for sync';
+  }
+  if (lesson.steps.isEmpty) {
+    return 'Sync incomplete';
+  }
+  return 'Ready';
+}
+
 String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
   return lessonRequiresSyncBeforeStarting(lesson)
       ? 'Sync required before starting'
@@ -4047,7 +4057,9 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                   lessonRequiresSyncBeforeStarting(
                                                 lesson,
                                               )
-                                                      ? 'Sync first'
+                                                      ? lessonSyncBlockerStatusLabel(
+                                                          lesson,
+                                                        )
                                                       : matchesResumableSession
                                                           ? 'Resume ready'
                                                           : 'Ready',

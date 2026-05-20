@@ -111,17 +111,27 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter((value): value is string => Boolean(value));
+  const hasEmptyAuthoringGraph = subjectsResult.status === 'fulfilled'
+    && modulesResult.status === 'fulfilled'
+    && subjects.length === 0
+    && modules.length === 0;
 
-  if (criticalCanvasFailures.length) {
-    const blockerDetail = criticalCanvasFailures.length === 1
-      ? `The ${criticalCanvasFailures[0]} feed failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`
-      : `The ${criticalCanvasFailures.join(', ')} feeds failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`;
+  if (criticalCanvasFailures.length || hasEmptyAuthoringGraph) {
+    const blockerDetail = hasEmptyAuthoringGraph
+      ? 'The live subjects and modules feeds both resolved empty, so Canvas has no trustworthy authoring spine to map. Leaving the route interactive here would make a broken or hollow deployment look like “curriculum just needs filling in,” which is how people green-light a stack where learners still cannot launch real lessons.'
+      : criticalCanvasFailures.length === 1
+        ? `The ${criticalCanvasFailures[0]} feed failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`
+        : `The ${criticalCanvasFailures.join(', ')} feeds failed to load from the live API. Leaving Canvas interactive here would let operators edit modules, lessons, strands, or assessment gates against a partial curriculum graph.`;
 
     return (
       <DeploymentBlockerCard
         title="Curriculum Canvas"
-        subtitle="Canvas is a live authoring surface, not a decorative map. If the core curriculum feeds are down, the route should block instead of inviting blind edits."
-        blockerHeadline="Deployment blocker: curriculum authoring feeds are degraded."
+        subtitle={hasEmptyAuthoringGraph
+          ? 'Canvas is blocked because the live curriculum spine came back empty, so rescue-mode authoring would be bullshit deployment theatre.'
+          : 'Canvas is a live authoring surface, not a decorative map. If the core curriculum feeds are down, the route should block instead of inviting blind edits.'}
+        blockerHeadline={hasEmptyAuthoringGraph
+          ? 'Deployment blocker: live curriculum spine came back empty.'
+          : 'Deployment blocker: curriculum authoring feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length > criticalCanvasFailures.length
@@ -129,33 +139,63 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
               : ''}
           </>
         )}
-        whyBlocked={[
-          'Canvas exposes inline curriculum write actions. A polite warning banner is too weak when the lesson, module, strand, or gate graph is incomplete.',
-          'Partial curriculum context can make a broken deployment look like a harmless content gap, which is how people create the wrong lesson shells or wire assessments onto stale modules.',
-          'The fallback create-lesson CTA is only safe when the authoring feeds are healthy enough to trust the scoped context.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Curriculum graph',
-            expected: 'Subjects, strands, modules, lessons, and assessment gates load from the live API before any write surface appears',
-            failure: 'Canvas still shows editable graph controls while one of the core authoring feeds is missing',
-          },
-          {
-            surface: 'Inline authoring actions',
-            expected: 'Lesson, module, strand, and assessment quick actions only appear after the full authoring graph loads',
-            failure: 'Operators can create or edit curriculum nodes against stale or partial context',
-          },
-          {
-            surface: 'Authoring handoff',
-            expected: 'The route blocks until feeds recover, then scoped lesson-creation links reopen with trustworthy subject/module context',
-            failure: 'A fallback CTA launches authoring while the curriculum graph itself is degraded',
-          },
-        ]}
-        docs={[
-          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
-          { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Review blocker stack', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-        ]}
+        whyBlocked={hasEmptyAuthoringGraph
+          ? [
+              'An empty live subjects + modules spine is not a cute empty state. It means the deployment cannot prove any real curriculum lanes exist, so Canvas should stop cold.',
+              'If rescue mode or fallback lesson creation stays reachable here, operators can mistake a hollow backend for a normal authoring backlog and ship learner-facing dead ends.',
+              'The dashboard already blocks when release readiness goes empty. Canvas needs the same honesty for the authoring graph instead of pretending the absence of curriculum is just another workflow choice.',
+            ]
+          : [
+              'Canvas exposes inline curriculum write actions. A polite warning banner is too weak when the lesson, module, strand, or gate graph is incomplete.',
+              'Partial curriculum context can make a broken deployment look like a harmless content gap, which is how people create the wrong lesson shells or wire assessments onto stale modules.',
+              'The fallback create-lesson CTA is only safe when the authoring feeds are healthy enough to trust the scoped context.',
+            ]}
+        verificationItems={hasEmptyAuthoringGraph
+          ? [
+              {
+                surface: 'Live curriculum spine',
+                expected: 'Subjects and modules both return real data before Canvas exposes authoring or rescue-mode graph controls',
+                failure: 'Canvas falls through to a fake-empty map or lesson-create CTA while the live curriculum spine is blank',
+              },
+              {
+                surface: 'Deployment trust handoff',
+                expected: 'Operators see an explicit blocker explaining that empty live curriculum means deployment review is unsafe',
+                failure: 'The route implies authors merely need to create content instead of admitting the live LMS currently has no trustworthy curriculum graph',
+              },
+              {
+                surface: 'Scoped recovery flow',
+                expected: 'Reviewers return to the blocker stack or dashboard until the live curriculum feeds recover',
+                failure: 'Canvas offers rescue authoring shortcuts that can hide a hollow backend behind normal-looking workflow copy',
+              },
+            ]
+          : [
+              {
+                surface: 'Curriculum graph',
+                expected: 'Subjects, strands, modules, lessons, and assessment gates load from the live API before any write surface appears',
+                failure: 'Canvas still shows editable graph controls while one of the core authoring feeds is missing',
+              },
+              {
+                surface: 'Inline authoring actions',
+                expected: 'Lesson, module, strand, and assessment quick actions only appear after the full authoring graph loads',
+                failure: 'Operators can create or edit curriculum nodes against stale or partial context',
+              },
+              {
+                surface: 'Authoring handoff',
+                expected: 'The route blocks until feeds recover, then scoped lesson-creation links reopen with trustworthy subject/module context',
+                failure: 'A fallback CTA launches authoring while the curriculum graph itself is degraded',
+              },
+            ]}
+        docs={hasEmptyAuthoringGraph
+          ? [
+              { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+              { label: 'Content blocker stack', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Review scoped handoff', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+            ]
+          : [
+              { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+              { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+              { label: 'Review blocker stack', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+            ]}
       />
     );
   }

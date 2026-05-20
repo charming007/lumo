@@ -61,7 +61,7 @@ test('canvas hard-blocks when core authoring feeds degrade', () => {
   );
   assert.match(
     canvasPageSource,
-    /if \(criticalCanvasFailures\.length\) \{/,
+    /if \(criticalCanvasFailures\.length \|\| hasEmptyAuthoringGraph\) \{/,
     'canvas should stop rendering interactive authoring controls when core curriculum feeds fail',
   );
   assert.match(
@@ -91,35 +91,25 @@ test('canvas hard-blocks when core authoring feeds degrade', () => {
   );
 });
 
-test('canvas fallback create-lesson CTA preserves scoped blocker subject and module context', () => {
+test('canvas hard-blocks when the live subject and module spine resolves empty', () => {
   assert.match(
     canvasPageSource,
-    /const requestedSubjectId = normalizeRouteParam\(query\?\.subject\)\.trim\(\);/,
-    'canvas page should recover the scoped blocker subject from the incoming query before building fallback authoring links',
+    /const hasEmptyAuthoringGraph = subjectsResult\.status === 'fulfilled'[\s\S]*modulesResult\.status === 'fulfilled'[\s\S]*subjects\.length === 0[\s\S]*modules\.length === 0;/,
+    'canvas should detect the hollow live-curriculum case instead of treating it like a normal empty state',
   );
   assert.match(
     canvasPageSource,
-    /const requestedModuleId = normalizeRouteParam\(query\?\.module\)\.trim\(\);/,
-    'canvas page should recover the scoped blocker module from the incoming query before building fallback authoring links',
+    /if \(criticalCanvasFailures\.length \|\| hasEmptyAuthoringGraph\) \{/,
+    'canvas should block both degraded feeds and the empty live-authoring spine case before exposing rescue-mode authoring',
   );
   assert.match(
     canvasPageSource,
-    /const createLessonHref = `\/content\/lessons\/new\?\$\{new URLSearchParams\(\{/,
-    'canvas fallback should build the lesson-create handoff from structured params instead of a bare from= link',
+    /Deployment blocker: live curriculum spine came back empty\./,
+    'canvas should name the empty live-curriculum condition as a deployment blocker instead of a harmless fallback',
   );
   assert.match(
     canvasPageSource,
-    /subjectId: requestedSubjectId/,
-    'canvas fallback should preserve subjectId when reopening lesson studio from a scoped blocker flow',
-  );
-  assert.match(
-    canvasPageSource,
-    /moduleId: requestedModuleId/,
-    'canvas fallback should preserve moduleId when reopening lesson studio from a scoped blocker flow',
-  );
-  assert.match(
-    canvasPageSource,
-    /<Link href=\{createLessonHref\}/,
-    'canvas fallback create-lesson CTA should use the scoped handoff href',
+    /The live subjects and modules feeds both resolved empty, so Canvas has no trustworthy authoring spine to map\./,
+    'canvas should explain why an empty live graph is unsafe for deployment trust',
   );
 });
