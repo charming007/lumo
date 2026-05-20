@@ -12,11 +12,12 @@ test('assignments route hard-blocks when production API wiring is unsafe', () =>
   assert.match(assignmentsPageSource, /assignment operations are blocked instead of pretending delivery control still works/, 'assignments blocker should explain why silent fallback is unsafe');
 });
 
-test('assignments route blocks when core delivery feeds degrade instead of leaving write surfaces interactive', () => {
+test('assignments route blocks when core delivery feeds or assessment-gate evidence degrade instead of leaving write surfaces interactive', () => {
   assert.match(assignmentsPageSource, /const criticalAssignmentFailures = \[/, 'assignments should isolate the core delivery feeds that are too important to degrade into a polite warning');
+  assert.match(assignmentsPageSource, /assessmentsResult\.status === 'rejected' \? 'assessments' : null,/, 'assignments should treat a dead assessment-gate feed as deployment-blocking instead of optional garnish');
   assert.match(assignmentsPageSource, /if \(criticalAssignmentFailures\.length\)/, 'assignments should hard-block when the core delivery feeds are down');
   assert.match(assignmentsPageSource, /Deployment blocker: assignments delivery feeds are degraded\./, 'assignments should use an explicit degraded-delivery blocker headline');
-  assert.match(assignmentsPageSource, /Operators use this route to create, reassign, and triage live delivery windows\./, 'assignments blocker should explain why this route becomes dangerous when core feeds disappear');
-  assert.match(assignmentsPageSource, /Assessments and pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds are missing\./, 'assignments blocker should distinguish tolerable degradation from deployment-blocking control-surface blindness');
+  assert.match(assignmentsPageSource, /Operators use this route to create, reassign, and triage live delivery windows\. If assignments, cohorts, lessons, mallams, or assessment gates disappear, a polished UI becomes dangerous fiction fast\./, 'assignments blocker should explain why this route becomes dangerous when core feeds or gate evidence disappear');
+  assert.match(assignmentsPageSource, /Pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds or assessment-gate evidence are missing\./, 'assignments blocker should distinguish tolerable pod degradation from deployment-blocking control-surface blindness');
   assert.match(assignmentsPageSource, /Forms stay interactive while the core reference feeds are missing or stale/, 'assignments blocker should describe the unsafe write failure mode it prevents');
 });

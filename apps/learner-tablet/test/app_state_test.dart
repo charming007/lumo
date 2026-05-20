@@ -4273,6 +4273,134 @@ void main() {
       state.dispose();
     });
 
+    test(
+      'startLesson rejects lessons that are not launchable for the selected learner',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        state.selectLearner(learner);
+
+        const module = LearningModule(
+          id: 'progression-module-guard',
+          title: 'Progression Guard',
+          description: 'Test module',
+          voicePrompt: 'Open progression guard.',
+          readinessGoal: 'Protect lesson order.',
+          badge: '2 lessons',
+        );
+        const moduleLessons = [
+          LessonCardModel(
+            id: 'progression-guard-1',
+            moduleId: 'progression-module-guard',
+            title: 'Lesson One',
+            subject: 'Progression Guard',
+            durationMinutes: 8,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'First step',
+            scenario: 'Start here.',
+            steps: [
+              LessonStep(
+                id: 'progression-guard-step-1',
+                type: LessonStepType.intro,
+                title: 'Intro',
+                instruction: 'Start.',
+                expectedResponse: 'Start',
+                coachPrompt: 'Start.',
+                facilitatorTip: 'Guide the learner.',
+                realWorldCheck: 'Learner starts.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+          LessonCardModel(
+            id: 'progression-guard-2',
+            moduleId: 'progression-module-guard',
+            title: 'Lesson Two',
+            subject: 'Progression Guard',
+            durationMinutes: 9,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Second step',
+            scenario: 'Should stay locked until lesson one finishes.',
+            steps: [
+              LessonStep(
+                id: 'progression-guard-step-2',
+                type: LessonStepType.intro,
+                title: 'Continue',
+                instruction: 'Continue.',
+                expectedResponse: 'Continue',
+                coachPrompt: 'Continue.',
+                facilitatorTip: 'Guide the learner.',
+                realWorldCheck: 'Learner continues.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        ];
+
+        state.modules.add(module);
+        state.assignedLessons.addAll(moduleLessons);
+
+        expect(state.learnerCanOpenLesson(learner, moduleLessons[1]), isFalse);
+        expect(
+          () => state.startLesson(moduleLessons[1]),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('not currently learner-safe to launch'),
+            ),
+          ),
+        );
+        expect(state.activeSession, isNull);
+        state.dispose();
+      },
+    );
+
+    test('startLesson rejects mismatched resume sessions', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      state.currentLearner = learner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      final differentLesson = state.assignedLessons.firstWhere(
+        (item) => item.id != lesson.id,
+      );
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-mismatch',
+        sessionId: 'session-mismatch',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: differentLesson.id,
+        lessonTitle: differentLesson.title,
+        moduleId: differentLesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the saved learner session.',
+        currentStepIndex: 1,
+        stepsTotal: differentLesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      expect(
+        () => state.startLesson(lesson, resumeFrom: runtimeSession),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('belongs to a different lesson payload'),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
     test('step-less lessons are never launchable for learners', () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false

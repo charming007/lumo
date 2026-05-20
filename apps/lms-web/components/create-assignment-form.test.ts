@@ -16,4 +16,7 @@ test('assignment publishing only exposes lessons with launchable payloads', () =
   assert.match(createAssignmentFormSource, /import \{ isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
   assert.match(createAssignmentFormSource, /lessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)/);
   assert.match(createAssignmentFormSource, /launchable activity payload/);
+  assert.match(createAssignmentFormSource, /The assessment feed is healthy, but there is no live assessment gate available for the currently release-ready lessons yet\./);
+  assert.match(createAssignmentFormSource, /No release-ready lessons with launchable payloads/);
+  assert.doesNotMatch(createAssignmentFormSource, /Assessment gate data is unavailable right now, but assignment publishing still only exposes release-ready lessons with launchable activity payloads\./);
 });
