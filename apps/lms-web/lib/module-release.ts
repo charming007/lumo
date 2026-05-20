@@ -28,6 +28,7 @@ export function getModuleReleaseState({
   );
 
   const publishBlockers = [
+    module.status === 'draft' ? 'Move the module out of draft before publish.' : null,
     hasRecoverableSubjectContext ? null : 'Recover the module subject context before moving this lane forward.',
     missingReadyLessons === 0 ? null : `${missingReadyLessons} ready lesson${missingReadyLessons === 1 ? '' : 's'} still missing before publish.`,
     hasAssessmentGate ? null : 'Add the assessment gate before publish.',
