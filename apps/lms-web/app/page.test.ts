@@ -81,7 +81,7 @@ test('dashboard bulk blocker handoff copy matches the direct canvas launch', () 
   );
 });
 
-test('dashboard top blocker can create a missing assessment gate directly from the handoff card', () => {
+test('dashboard top blocker only inlines assessment-gate creation when subject context is trustworthy', () => {
   assert.match(
     dashboardPageSource,
     /import \{ CreateAssessmentForm \} from '\.\.\/components\/admin-forms';/,
@@ -94,6 +94,11 @@ test('dashboard top blocker can create a missing assessment gate directly from t
   );
   assert.match(
     dashboardPageSource,
+    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
+    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and scoped subjects',
+  );
+  assert.match(
+    dashboardPageSource,
     /Create the missing progression gate directly from the top dashboard blocker instead of bouncing back to the full content board first\./,
     'dashboard should explain why the direct gate action exists',
   );
@@ -101,6 +106,11 @@ test('dashboard top blocker can create a missing assessment gate directly from t
     dashboardPageSource,
     /<CreateAssessmentForm[\s\S]*returnPath="\/"/,
     'dashboard should wire the direct top-blocker gate action back to the dashboard after create',
+  );
+  assert.match(
+    dashboardPageSource,
+    /canInlineTopReleaseBlockerAssessmentCreate \? \([\s\S]*<ModalLauncher[\s\S]*\) : \([\s\S]*<Link href=\{topReleaseBlockerBoardHref\}/,
+    'dashboard should fall back to the scoped blocker board instead of opening the assessment modal when authoring context is degraded',
   );
 });
 
