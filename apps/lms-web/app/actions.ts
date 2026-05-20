@@ -5,6 +5,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
+import { getLessonStatusTransitionBlockers } from '../lib/lesson-release-readiness';
 import { getModuleReleaseState } from '../lib/module-release';
 import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
@@ -941,7 +942,26 @@ export async function quickUpdateLessonStatusAction(formData: FormData) {
   const status = String(formData.get('status') || 'draft');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
 
-  await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status });
+  try {
+    const lessons = await apiRead<Array<Record<string, unknown>>>('/api/v1/lessons');
+    const lesson = lessons.find((item) => item.id === lessonId) as any;
+    const blockers = lesson
+      ? getLessonStatusTransitionBlockers(status, lesson)
+      : [];
+
+    if (blockers.length) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Lesson update blocked: ${blockers.join(' ')}`,
+      }));
+    }
+
+    await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status });
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Lesson update failed: ${describeActionError(error, 'lesson status update could not be completed')}`,
+    }));
+  }
   revalidatePath('/canvas');
   revalidatePath('/content');
   revalidatePath(`/content/lessons/${lessonId}`);
@@ -1036,7 +1056,24 @@ export async function bulkUpdateCanvasModuleLessonsAction(formData: FormData) {
   const targetStatus = String(formData.get('status') || 'review');
   const lessonIds = Array.from(formData.getAll('lessonIds')).map((value) => String(value || '')).filter(Boolean);
 
-  await Promise.all(lessonIds.map((lessonId) => apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status: targetStatus })));
+  try {
+    const lessons = await apiRead<Array<Record<string, unknown>>>('/api/v1/lessons');
+    const selectedLessons = lessons.filter((lesson) => lessonIds.includes(String(lesson.id || ''))) as any[];
+    const blockedLessons = selectedLessons.filter((lesson) => getLessonStatusTransitionBlockers(targetStatus, lesson).length > 0);
+
+    if (blockedLessons.length) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Batch lesson update blocked: ${blockedLessons.length} lesson${blockedLessons.length === 1 ? '' : 's'} in ${moduleTitle} still need launchable activity payloads before they can move to ${targetStatus}.`,
+      }));
+    }
+
+    await Promise.all(lessonIds.map((lessonId) => apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status: targetStatus })));
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Batch lesson update failed: ${describeActionError(error, 'module lesson status update could not be completed')}`,
+    }));
+  }
 
   revalidatePath('/canvas');
   revalidatePath('/content');
@@ -1099,13 +1136,32 @@ export async function quickUpdateCanvasLessonAction(formData: FormData) {
   const order = Number(formData.get('order') || 0) || undefined;
   const durationMinutes = Number(formData.get('durationMinutes') || 0);
 
-  await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {
-    title,
-    status,
-    mode,
-    order,
-    durationMinutes,
-  });
+  try {
+    const lessons = await apiRead<Array<Record<string, unknown>>>('/api/v1/lessons');
+    const lesson = lessons.find((item) => item.id === lessonId) as any;
+    const blockers = lesson
+      ? getLessonStatusTransitionBlockers(status, lesson)
+      : [];
+
+    if (blockers.length) {
+      redirect(appendSearchParams(returnPath, {
+        message: `Lesson quick edit blocked: ${blockers.join(' ')}`,
+      }));
+    }
+
+    await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', {
+      title,
+      status,
+      mode,
+      order,
+      durationMinutes,
+    });
+  } catch (error) {
+    rethrowRedirectError(error);
+    redirect(appendSearchParams(returnPath, {
+      message: `Lesson quick edit failed: ${describeActionError(error, 'lesson quick edit could not be completed')}`,
+    }));
+  }
   revalidatePath('/canvas');
   revalidatePath('/content');
   revalidatePath(`/content/lessons/${lessonId}`);
