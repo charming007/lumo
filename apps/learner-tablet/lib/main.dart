@@ -4485,28 +4485,27 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                           lessonRequiresSyncBeforeStarting(
                                                             resumeLesson,
                                                           );
-                                                  final blockedLabel = resumeLesson ==
-                                                          null
-                                                      ? (session.lessonTitle
-                                                                  ?.trim()
-                                                                  .isNotEmpty ==
-                                                              true
-                                                          ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                          : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
-                                                      : resumeLesson
-                                                              .isAssignmentPlaceholder
-                                                          ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
-                                                          : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
+                                                  final blockedLabel =
+                                                      resumeLesson == null
+                                                          ? (session.lessonTitle
+                                                                          ?.trim()
+                                                                          .isNotEmpty ==
+                                                                      true
+                                                              ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                              : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
+                                                          : resumeLesson
+                                                                  .isAssignmentPlaceholder
+                                                              ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
+                                                              : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
                                                   return Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
+                                                        CrossAxisAlignment.start,
                                                     children: [
                                                       Align(
                                                         alignment: Alignment
                                                             .centerLeft,
-                                                        child: FilledButton
-                                                            .tonalIcon(
+                                                        child:
+                                                            FilledButton.tonalIcon(
                                                           onPressed:
                                                               resumeBlocked
                                                                   ? null
@@ -4541,19 +4540,18 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                       if (resumeBlocked)
                                                         Padding(
                                                           padding:
-                                                              const EdgeInsets
-                                                                  .only(
-                                                            top: 10,
-                                                          ),
+                                                              const EdgeInsets.only(
+                                                                top: 10,
+                                                              ),
                                                           child: Text(
                                                             blockedLabel,
                                                             style:
                                                                 const TextStyle(
-                                                              color: Color(
-                                                                0xFF92400E,
-                                                              ),
-                                                              height: 1.35,
-                                                            ),
+                                                                  color: Color(
+                                                                    0xFF92400E,
+                                                                  ),
+                                                                  height: 1.35,
+                                                                ),
                                                           ),
                                                         ),
                                                     ],
