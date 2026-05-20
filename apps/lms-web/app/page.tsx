@@ -10,6 +10,7 @@ import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { navigationItems } from '../lib/navigation';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
+import { findSubjectByContext } from '../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
@@ -446,10 +447,13 @@ export default async function HomePage() {
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const scopedAssessmentSubjects = topReleaseBlocker?.subjectId
-    ? subjects.filter((subject) => subject.id === topReleaseBlocker.subjectId)
-    : subjects;
-  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects.length ? scopedAssessmentSubjects : subjects;
+  const scopedAssessmentSubject = topReleaseBlocker
+    ? findSubjectByContext(subjects, {
+        subjectId: topReleaseBlocker.subjectId,
+        subjectName: topReleaseBlocker.subjectName,
+      })
+    : null;
+  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject ? [scopedAssessmentSubject] : subjects;
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate

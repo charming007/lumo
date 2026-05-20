@@ -89,8 +89,23 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
+    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
+    'dashboard should recover scoped assessment subjects through the shared normalized subject matcher',
+  );
+  assert.match(
+    dashboardPageSource,
     /buttonLabel="Add assessment gate"/,
     'dashboard should expose an explicit add-assessment-gate action on the top blocker card',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject \? \[scopedAssessmentSubject\] : subjects;/,
+    'dashboard should keep the top-blocker assessment modal pinned to one normalized recovered subject instead of falling back to an unscoped subject list when ids drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /findSubjectByContext\(subjects, \{[\s\S]*subjectId: topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlocker\.subjectName,[\s\S]*\}\)/,
+    'dashboard should recover the scoped assessment subject by normalized id-or-name context before deciding whether inline gate creation is safe',
   );
   assert.match(
     dashboardPageSource,
