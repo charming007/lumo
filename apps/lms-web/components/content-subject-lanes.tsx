@@ -23,6 +23,7 @@ import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-ass
 import { filterLessonsForModule } from '../lib/module-lesson-match';
 import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
 import { getModuleReleaseState } from '../lib/module-release';
+import { normalizeModuleLifecycleStatus } from '../lib/module-status';
 import { resolveModuleSubjectId, subjectMatchesContext, subjectsIncludeId } from '../lib/module-subject-match';
 import { Card, Pill } from '../lib/ui';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Strand, Subject } from '../lib/types';
@@ -322,7 +323,7 @@ export function ContentSubjectLanes({
         subjectNames: [assessment.subjectName],
       }));
       const subjectAssignments = assignments.filter((assignment) => subjectLessons.some((lesson) => lesson.title === assignment.lessonTitle));
-      const publishedModules = subjectModules.filter((module) => module.status === 'published').length;
+      const publishedModules = subjectModules.filter((module) => normalizeModuleLifecycleStatus(module.status) === 'published').length;
       const readyLessons = subjectLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
 
       return { subject, palette, subjectStrands, subjectModules, subjectLessons, subjectAssessments, subjectAssignments, publishedModules, readyLessons };
@@ -622,6 +623,7 @@ export function ContentSubjectLanes({
                             </div>
                           ) : null}
                           {orderedModules.length > 0 ? orderedModules.map((module) => {
+                            const normalizedModuleStatus = normalizeModuleLifecycleStatus(module.status);
                             const moduleLessons = filterLessonsForModule(subjectLessons, module);
                             const moduleAssessments = subjectAssessments.filter((assessment) => assessmentMatchesModule(module, assessment) && isLiveAssessmentGate(assessment));
                             const moduleAssignments = assignments.filter((assignment) => moduleLessons.some((lesson) => lesson.title === assignment.lessonTitle));
@@ -671,7 +673,7 @@ export function ContentSubjectLanes({
                                         : option.value === 'review'
                                           ? !releaseState.canReview
                                           : false;
-                                      const isActive = module.status === option.value;
+                                      const isActive = normalizedModuleStatus === option.value;
 
                                       return (
                                         <form key={`${module.id}-${option.value}`} action={quickUpdateCanvasModuleAction}>
@@ -769,9 +771,9 @@ export function ContentSubjectLanes({
                                     <div style={{ padding: 14, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>
                                       <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#64748b', marginBottom: 8 }}>Release note</div>
                                       <div style={{ color: '#334155', lineHeight: 1.6 }}>
-                                        {module.status === 'published'
+                                        {normalizedModuleStatus === 'published'
                                           ? 'Live in the deployment-ready lane for learner pods.'
-                                          : module.status === 'review'
+                                          : normalizedModuleStatus === 'review'
                                             ? 'Almost there — content is organised, but still needs ops sign-off.'
                                             : 'This lane exists, but it still needs authoring or approval.'}
                                       </div>
