@@ -104,6 +104,10 @@ void main() {
 
     expect(find.byType(LessonLaunchSetupPage), findsNothing);
     expect(find.text('Refresh sync before starting'), findsNothing);
+    expect(
+      find.text('1 assigned lesson is waiting for sync before launch.'),
+      findsOneWidget,
+    );
 
     await tester.pump(const Duration(milliseconds: 500));
     await state.flushPersistence();
