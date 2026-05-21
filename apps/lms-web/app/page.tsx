@@ -450,6 +450,7 @@ export default async function HomePage() {
     ? subjects.filter((subject) => subject.id === topReleaseBlocker.subjectId)
     : subjects;
   const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects.length ? scopedAssessmentSubjects : subjects;
+
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate
@@ -904,6 +905,7 @@ export default async function HomePage() {
                     {topReleaseBlockerPrimaryLabel}
                   </Link>
                   {!topReleaseBlocker.hasAssessmentGate
+
                     ? (canInlineTopReleaseBlockerAssessmentCreate ? (
                       <ModalLauncher
                         buttonLabel="Add assessment gate"

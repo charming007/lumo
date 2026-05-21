@@ -4966,6 +4966,14 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  String _normalizeDropdownValue(
+    String value,
+    List<String> allowedValues,
+    String fallback,
+  ) {
+    return allowedValues.contains(value) ? value : fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -4977,11 +4985,35 @@ class _RegisterPageState extends State<RegisterPage> {
     villageController = TextEditingController(text: draft.village);
     guardianPhoneController = TextEditingController(text: draft.guardianPhone);
     supportPlanController = TextEditingController(text: draft.supportPlan);
-    preferredLanguage = draft.preferredLanguage;
-    readinessLabel = draft.readinessLabel;
-    sex = draft.sex;
-    baselineLevel = draft.baselineLevel;
-    caregiverRelationship = draft.caregiverRelationship;
+    preferredLanguage = _normalizeDropdownValue(
+      draft.preferredLanguage,
+      const ['Hausa', 'Hausa + English', 'English'],
+      'Hausa',
+    );
+    readinessLabel = _normalizeDropdownValue(
+      draft.readinessLabel,
+      const [
+        'Voice-first beginner',
+        'Ready for guided practice',
+        'Confident responder',
+      ],
+      'Voice-first beginner',
+    );
+    sex = _normalizeDropdownValue(draft.sex, const ['Boy', 'Girl'], 'Boy');
+    baselineLevel = _normalizeDropdownValue(
+      draft.baselineLevel,
+      const [
+        'No prior exposure',
+        'Can repeat with support',
+        'Answers with short sentences',
+      ],
+      'No prior exposure',
+    );
+    caregiverRelationship = _normalizeDropdownValue(
+      draft.caregiverRelationship,
+      const ['Mother', 'Father', 'Aunt', 'Uncle', 'Guardian'],
+      'Mother',
+    );
     consentCaptured = draft.consentCaptured;
     selectedMallamId = draft.mallamId;
     profilePhotoBase64 = draft.profilePhotoBase64;

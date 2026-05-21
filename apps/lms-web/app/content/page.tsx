@@ -21,6 +21,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { getModuleReleaseState } from '../../lib/module-release';
+
 import { isDraftModuleLifecycleStatus } from '../../lib/module-status';
 import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
@@ -253,6 +254,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       assessments,
       subjects,
     });
+
     return releaseState.publishBlockers.length > 0 || isDraftModuleLifecycleStatus(module.status);
   });
 
@@ -434,6 +436,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         {[
           { label: 'Subjects', value: String(subjects.length), note: 'Visible lanes with direct lifecycle controls you can trust.' },
           { label: 'Modules', value: String(modules.length), note: 'Structured under strands, without making strand lifecycle another noisy operator job.' },
+
           { label: 'Lessons ready', value: String(lessons.filter((lesson) => isLessonReleaseReady(lesson)).length), note: 'Only lessons with release-safe status and launchable payloads count as ready.' },
           { label: 'Assessment gates', value: String(assessments.length), note: 'Every progression checkpoint stays visible and editable.' },
           { label: 'Live assignments', value: String(assignments.length), note: 'This curriculum board now points at learner-facing delivery, not placeholder curriculum rows.' },
@@ -511,6 +514,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
+
                   const isDraftModule = isDraftModuleLifecycleStatus(module.status);
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                   const hasAuthoringContext = Boolean(
@@ -674,6 +678,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);
+
                 const isDraftModule = isDraftModuleLifecycleStatus(module.status);
                 const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                 const hasAuthoringContext = Boolean(

@@ -81,7 +81,7 @@ export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Pro
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-        <strong>Lumo operator shell</strong> — {runtimeStatus.label}
+        <strong>Lumo admin shell</strong> — {runtimeStatus.label}
         {detail ? (
           <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
             {detail}

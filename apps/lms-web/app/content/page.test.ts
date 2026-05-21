@@ -78,6 +78,7 @@ test('content blockers reuse shared module release checks so subject-context fai
   );
   assert.match(
     contentPageSource,
+
     /return releaseState\.publishBlockers\.length > 0 \|\| isDraftModuleLifecycleStatus\(module\.status\);/,
     'content board should treat shared publish blockers as release blockers so broken subject context cannot disappear from the UI',
   );
@@ -87,6 +88,7 @@ test('content blockers reuse shared module release checks so subject-context fai
     'content blocker rows should tell operators plainly when subject context still blocks release',
   );
 });
+
 test('content board treats strand outages as critical release blockers', () => {
   assert.match(
     contentPageSource,
