@@ -611,6 +611,7 @@ export function CurriculumCanvas({
 
   const generatedLabel = formatGeneratedAt(generatedAt);
   const visibleModuleCount = filteredSummary.modules;
+  const hasTrustedLiveAuthoringContext = mode === 'live' || mode === 'blended';
   const modeLabel = mode === 'live'
     ? 'Live graph'
     : mode === 'blended'
@@ -672,6 +673,11 @@ export function CurriculumCanvas({
               Showing {visibleModuleCount} module{visibleModuleCount === 1 ? '' : 's'} across {filteredSummary.subjects} subject{filteredSummary.subjects === 1 ? '' : 's'}.
             </div>
           </div>
+          {!hasTrustedLiveAuthoringContext ? (
+            <div style={{ padding: '14px 16px', borderRadius: 18, background: 'rgba(127,29,29,0.18)', border: '1px solid rgba(248,113,113,0.28)', color: '#fecaca', lineHeight: 1.7 }}>
+              Canvas is running from rescue data only. Inline create/edit controls are disabled until the live curriculum graph comes back, because a tree snapshot can help you inspect blockers but it is not safe authority for production writes.
+            </div>
+          ) : null}
           {activeFilterPills.length ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {activeFilterPills.map((pill) => (
@@ -798,9 +804,11 @@ export function CurriculumCanvas({
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
                         <Pill label={`${subject.totals.readyLessons} ready lessons`} tone="#052e16" text="#86efac" />
                         <Pill label={`${subject.totals.gaps} release gaps`} tone={subject.totals.gaps ? '#3b2f0d' : '#1e1b4b'} text={subject.totals.gaps ? '#fcd34d' : '#c4b5fd'} />
-                        <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a strand directly from the canvas so modules land in the right lane." eyebrow="Create strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.16)', color: '#c7d2fe' }}>
-                          <CanvasCreateStrandForm subjects={subjectOptions} subjectId={subject.id} suggestedOrder={subject.strands.length + 1} returnPath={returnPath} createStrandAction={createStrandAction} />
-                        </ModalLauncher>
+                        {hasTrustedLiveAuthoringContext ? (
+                          <ModalLauncher buttonLabel="＋ Strand" title={`Create strand in ${subject.name}`} description="Add a strand directly from the canvas so modules land in the right lane." eyebrow="Create strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(79,70,229,0.16)', color: '#c7d2fe' }}>
+                            <CanvasCreateStrandForm subjects={subjectOptions} subjectId={subject.id} suggestedOrder={subject.strands.length + 1} returnPath={returnPath} createStrandAction={createStrandAction} />
+                          </ModalLauncher>
+                        ) : null}
                       </div>
                     </div>
 
@@ -813,7 +821,7 @@ export function CurriculumCanvas({
                               <span>{strand.name}</span>
                               <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
                               <span style={{ color: '#94a3b8', fontWeight: 600 }}>{strand.modules.length} module nodes</span>
-                              {strand.subjectId && !strand.id.startsWith('fallback-') && !strand.id.startsWith('rescue-') ? (
+                              {hasTrustedLiveAuthoringContext && strand.subjectId && !strand.id.startsWith('fallback-') && !strand.id.startsWith('rescue-') ? (
                                 <ModalLauncher buttonLabel="Edit strand" title={`Edit strand · ${strand.name}`} description="Update the strand name or ordering without leaving the canvas." eyebrow="Edit strand" triggerStyle={{ ...filterButtonStyle, background: 'rgba(20,184,166,0.16)', color: '#99f6e4' }}>
                                   <CanvasEditStrandForm strand={strand} subjects={subjectOptions} returnPath={returnPath} updateStrandAction={updateStrandAction} />
                                 </ModalLauncher>
@@ -937,9 +945,15 @@ export function CurriculumCanvas({
                     <Link href={`/content?subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                       Open module board
                     </Link>
-                    <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
-                      Add lesson in module
-                    </Link>
+                    {hasTrustedLiveAuthoringContext ? (
+                      <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(79,70,229,0.28)', border: '1px solid rgba(129,140,248,0.34)' }}>
+                        Add lesson in module
+                      </Link>
+                    ) : (
+                      <div style={{ ...quickActionButtonStyle, background: 'rgba(127,29,29,0.18)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.24)', cursor: 'not-allowed' }}>
+                        Lesson create locked on rescue data
+                      </div>
+                    )}
                     <Link href={`/content?view=blocked&subject=${selected.subject.id}&moduleId=${encodeURIComponent(selected.module.id)}&q=${encodeURIComponent(selected.module.title)}`} style={{ ...quickActionButtonStyle, textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'rgba(254,243,199,0.14)', color: '#fde68a', border: '1px solid rgba(252,211,77,0.24)' }}>
                       Clear this blocker stack
                     </Link>
@@ -1004,7 +1018,7 @@ export function CurriculumCanvas({
                       >
                         Inspect first gate · {firstAssessmentGate?.title}
                       </button>
-                    ) : (
+                    ) : hasTrustedLiveAuthoringContext ? (
                       <form action={createCanvasAssessmentQuickAction} style={{ display: 'contents' }}>
                         <input type="hidden" name="subjectId" value={selected.subject.id} />
                         <input type="hidden" name="moduleId" value={selected.module.id} />
@@ -1022,6 +1036,10 @@ export function CurriculumCanvas({
                           Create missing gate draft
                         </button>
                       </form>
+                    ) : (
+                      <div style={{ ...quickActionButtonStyle, background: 'rgba(127,29,29,0.18)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.24)', cursor: 'not-allowed' }}>
+                        Gate creation locked on rescue data
+                      </div>
                     )}
                     <button
                       type="button"
@@ -1145,10 +1163,14 @@ export function CurriculumCanvas({
                               <Pill label={gateLinked ? 'Gate linked' : 'Gate open'} tone={gateLinked ? '#052e16' : '#3b0764'} text={gateLinked ? '#86efac' : '#d8b4fe'} />
                             </div>
 
-                            {!lesson ? (
+                            {!lesson ? hasTrustedLiveAuthoringContext ? (
                               <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(selected.subject.id)}&moduleId=${encodeURIComponent(selected.module.id)}&from=${encodeURIComponent(selectedModuleUrl)}`} style={{ ...actionLinkStyle, background: accent.soft, color: '#f8fafc', border: `1px solid ${accent.glow}` }}>
                                 Fill this stop
                               </Link>
+                            ) : (
+                              <div style={{ ...actionLinkStyle, background: 'rgba(127,29,29,0.18)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.24)' }}>
+                                Rescue mode — write locked
+                              </div>
                             ) : (
                               <div style={{ color: isSelected ? '#e9d5ff' : '#cbd5e1', fontSize: 12, fontWeight: 700 }}>
                                 {isSelected ? 'Journey stop open now' : 'Open this stop'}
@@ -1176,6 +1198,7 @@ export function CurriculumCanvas({
                   </div>
                 </div>
 
+                {hasTrustedLiveAuthoringContext ? (
                 <details style={{ borderRadius: 20, border: '1px solid rgba(148,163,184,0.14)', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
                   <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '14px 16px', color: '#cbd5e1', fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Operator controls</span>
@@ -1294,6 +1317,11 @@ export function CurriculumCanvas({
                     </div>
                   </div>
                 </details>
+                ) : (
+                  <div style={{ padding: 16, borderRadius: 18, background: 'rgba(127,29,29,0.18)', border: '1px solid rgba(248,113,113,0.24)', color: '#fecaca', lineHeight: 1.7 }}>
+                    Operator controls are locked because this module is coming from rescue-only canvas data. Review blockers here, then fix the live curriculum feeds before using inline writes.
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gap: 12 }}>
                   <div>
@@ -1332,6 +1360,7 @@ export function CurriculumCanvas({
           quickUpdateLessonStatusAction={quickUpdateLessonStatusAction}
           quickUpdateCanvasLessonAction={quickUpdateCanvasLessonAction}
           quickLinkCanvasLessonAssessmentAction={quickLinkCanvasLessonAssessmentAction}
+          readOnly={!hasTrustedLiveAuthoringContext}
           onClose={() => setSelectedLessonId(null)}
         />
       ) : null}
@@ -1344,6 +1373,7 @@ export function CurriculumCanvas({
           returnPath={panelUrl(selectedModuleUrl, 'assessment', selectedAssessment.id)}
           quickUpdateAssessmentStatusAction={quickUpdateAssessmentStatusAction}
           quickUpdateCanvasAssessmentAction={quickUpdateCanvasAssessmentAction}
+          readOnly={!hasTrustedLiveAuthoringContext}
           onClose={() => setSelectedAssessmentId(null)}
         />
       ) : null}
@@ -1491,7 +1521,7 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
   );
 }
 
-function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, quickLinkCanvasLessonAssessmentAction, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; moduleAssessments: Assessment[]; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; quickLinkCanvasLessonAssessmentAction: (formData: FormData) => void; onClose: () => void }) {
+function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, returnPath, quickUpdateLessonStatusAction, quickUpdateCanvasLessonAction, quickLinkCanvasLessonAssessmentAction, readOnly = false, onClose }: { lesson: CurriculumCanvasLesson; subjectId: string; moduleId: string; moduleAssessments: Assessment[]; returnPath: string; quickUpdateLessonStatusAction: (formData: FormData) => void; quickUpdateCanvasLessonAction: (formData: FormData) => void; quickLinkCanvasLessonAssessmentAction: (formData: FormData) => void; readOnly?: boolean; onClose: () => void }) {
   const pill = statusTone(lesson.status);
   return (
     <ModalShell title={lesson.title} eyebrow="Lesson quick edit lane" onClose={onClose}>
@@ -1528,6 +1558,12 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         </div>
       </details>
 
+      {readOnly ? (
+        <div style={{ padding: 14, borderRadius: 18, background: 'rgba(127,29,29,0.18)', border: '1px solid rgba(248,113,113,0.24)', color: '#fecaca', lineHeight: 1.7 }}>
+          Rescue-only lesson context is inspectable, not writable. Reconnect the live curriculum graph before linking gates, changing status, or editing lesson metadata from canvas.
+        </div>
+      ) : null}
+
       <div style={{ display: 'grid', gap: 10, padding: 16, borderRadius: 18, background: 'rgba(8,47,73,0.18)', border: '1px solid rgba(103,232,249,0.18)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
@@ -1551,15 +1587,21 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
                     <Link href={assessmentBoardHref({ subjectId, query: assessment.title })} style={{ color: '#a5f3fc', fontWeight: 800, textDecoration: 'none' }}>
                       Open gate search →
                     </Link>
-                    <form action={quickLinkCanvasLessonAssessmentAction}>
-                      <input type="hidden" name="lessonId" value={lesson.id} />
-                      <input type="hidden" name="assessmentId" value={assessment.id} />
-                      <input type="hidden" name="assessmentTitle" value={assessment.title} />
-                      <input type="hidden" name="returnPath" value={returnPath} />
-                      <button type="submit" style={{ ...filterButtonStyle, background: linked ? 'rgba(22,101,52,0.28)' : 'rgba(79,70,229,0.18)', color: '#f8fafc', border: linked ? '1px solid rgba(134,239,172,0.34)' : '1px solid rgba(129,140,248,0.34)' }}>
-                        {linked ? 'Linked here' : 'Link this gate'}
-                      </button>
-                    </form>
+                    {readOnly ? (
+                      <span style={{ color: linked ? '#86efac' : '#fca5a5', fontWeight: 800, fontSize: 13 }}>
+                        {linked ? 'Linked here' : 'Gate linking locked in rescue mode'}
+                      </span>
+                    ) : (
+                      <form action={quickLinkCanvasLessonAssessmentAction}>
+                        <input type="hidden" name="lessonId" value={lesson.id} />
+                        <input type="hidden" name="assessmentId" value={assessment.id} />
+                        <input type="hidden" name="assessmentTitle" value={assessment.title} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <button type="submit" style={{ ...filterButtonStyle, background: linked ? 'rgba(22,101,52,0.28)' : 'rgba(79,70,229,0.18)', color: '#f8fafc', border: linked ? '1px solid rgba(134,239,172,0.34)' : '1px solid rgba(129,140,248,0.34)' }}>
+                          {linked ? 'Linked here' : 'Link this gate'}
+                        </button>
+                      </form>
+                    )}
                     {linked ? (
                       <span style={{ color: '#86efac', fontWeight: 800, fontSize: 13 }}>Currently the visible linked gate</span>
                     ) : null}
@@ -1572,7 +1614,7 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
           <div style={{ color: '#cbd5e1', lineHeight: 1.7 }}>There is nothing to link this lesson to yet. Create the draft gate from the module rail first, then come back and finish the lesson properly.</div>
         )}
 
-        {lesson.assessmentTitle ? (
+        {lesson.assessmentTitle && !readOnly ? (
           <form action={quickLinkCanvasLessonAssessmentAction} style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <input type="hidden" name="lessonId" value={lesson.id} />
             <input type="hidden" name="assessmentId" value="" />
@@ -1585,23 +1627,25 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         ) : null}
       </div>
 
-      <div style={{ display: 'grid', gap: 10 }}>
-        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline status ops</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['draft', 'review', 'approved'].map((nextStatus) => (
-            <form key={nextStatus} action={quickUpdateLessonStatusAction}>
-              <input type="hidden" name="lessonId" value={lesson.id} />
-              <input type="hidden" name="status" value={nextStatus} />
-              <input type="hidden" name="returnPath" value={returnPath} />
-              <button type="submit" style={{ ...filterButtonStyle, background: lesson.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
-                Mark {nextStatus}
-              </button>
-            </form>
-          ))}
-        </div>
-      </div>
+      {!readOnly ? (
+        <>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline status ops</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['draft', 'review', 'approved'].map((nextStatus) => (
+                <form key={nextStatus} action={quickUpdateLessonStatusAction}>
+                  <input type="hidden" name="lessonId" value={lesson.id} />
+                  <input type="hidden" name="status" value={nextStatus} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <button type="submit" style={{ ...filterButtonStyle, background: lesson.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
+                    Mark {nextStatus}
+                  </button>
+                </form>
+              ))}
+            </div>
+          </div>
 
-      <form action={quickUpdateCanvasLessonAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+          <form action={quickUpdateCanvasLessonAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
         <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Safe inline edit</div>
         <input type="hidden" name="lessonId" value={lesson.id} />
         <input type="hidden" name="returnPath" value={returnPath} />
@@ -1640,18 +1684,20 @@ function LessonInspectorModal({ lesson, subjectId, moduleId, moduleAssessments, 
         <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 13 }}>This only edits the safe metadata operators usually need mid-triage. If the actual lesson body is wrong, open the full editor and fix it properly.</div>
         <button type="submit" style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff', border: 0 }}>Save inline lesson edits</button>
       </form>
+        </>
+      ) : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <Link href={`/content/lessons/${lesson.id}?from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open lesson editor</Link>
-        <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link>
-        <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link>
+        {!readOnly ? <Link href={`/content/lessons/new?duplicate=${lesson.id}&subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6' }}>Duplicate into module</Link> : null}
+        {!readOnly ? <Link href={`/content/lessons/new?subjectId=${encodeURIComponent(subjectId)}&moduleId=${encodeURIComponent(moduleId)}&from=${encodeURIComponent(returnPath)}`} style={{ ...actionLinkStyle, background: '#4F46E5', color: '#ffffff' }}>Create sibling lesson</Link> : null}
         <Link href={assessmentBoardHref({ subjectId, query: lesson.assessmentTitle ?? lesson.title })} style={{ ...actionLinkStyle, background: '#FEF3C7', color: '#92400E' }}>{lesson.assessmentTitle ? 'Review linked gate' : 'Link a gate now'}</Link>
       </div>
     </ModalShell>
   );
 }
 
-function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPath, quickUpdateAssessmentStatusAction, quickUpdateCanvasAssessmentAction, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; returnPath: string; quickUpdateAssessmentStatusAction: (formData: FormData) => void; quickUpdateCanvasAssessmentAction: (formData: FormData) => void; onClose: () => void }) {
+function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPath, quickUpdateAssessmentStatusAction, quickUpdateCanvasAssessmentAction, readOnly = false, onClose }: { assessment: Assessment; subjectId: string; moduleTitle: string; returnPath: string; quickUpdateAssessmentStatusAction: (formData: FormData) => void; quickUpdateCanvasAssessmentAction: (formData: FormData) => void; readOnly?: boolean; onClose: () => void }) {
   const pill = statusTone(assessment.status);
   return (
     <ModalShell title={assessment.title} eyebrow="Assessment quick triage" onClose={onClose}>
@@ -1674,6 +1720,12 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
         ))}
       </div>
 
+      {readOnly ? (
+        <div style={{ padding: 14, borderRadius: 18, background: 'rgba(127,29,29,0.18)', border: '1px solid rgba(248,113,113,0.24)', color: '#fecaca', lineHeight: 1.7 }}>
+          Rescue-only gate context is inspectable, not writable. Reconnect the live curriculum graph before changing gate status or editing progression settings from canvas.
+        </div>
+      ) : null}
+
       <div style={{ padding: 14, borderRadius: 18, background: 'rgba(79,70,229,0.12)', border: '1px solid rgba(129,140,248,0.24)', display: 'grid', gap: 8 }}>
         <div style={{ color: '#c7d2fe', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Gate sanity check</div>
         <div style={{ color: '#e2e8f0', lineHeight: 1.7 }}>
@@ -1681,23 +1733,25 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 10 }}>
-        <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline gate ops</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['draft', 'review', 'active'].map((nextStatus) => (
-            <form key={nextStatus} action={quickUpdateAssessmentStatusAction}>
-              <input type="hidden" name="assessmentId" value={assessment.id} />
-              <input type="hidden" name="status" value={nextStatus} />
-              <input type="hidden" name="returnPath" value={returnPath} />
-              <button type="submit" style={{ ...filterButtonStyle, background: assessment.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
-                Mark {nextStatus}
-              </button>
-            </form>
-          ))}
-        </div>
-      </div>
+      {!readOnly ? (
+        <>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Inline gate ops</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['draft', 'review', 'active'].map((nextStatus) => (
+                <form key={nextStatus} action={quickUpdateAssessmentStatusAction}>
+                  <input type="hidden" name="assessmentId" value={assessment.id} />
+                  <input type="hidden" name="status" value={nextStatus} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <button type="submit" style={{ ...filterButtonStyle, background: assessment.status === nextStatus ? '#4F46E5' : 'rgba(255,255,255,0.04)', color: '#f8fafc' }}>
+                    Mark {nextStatus}
+                  </button>
+                </form>
+              ))}
+            </div>
+          </div>
 
-      <form action={quickUpdateCanvasAssessmentAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
+          <form action={quickUpdateCanvasAssessmentAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.14)' }}>
         <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>Safe inline gate edit</div>
         <input type="hidden" name="assessmentId" value={assessment.id} />
         <input type="hidden" name="returnPath" value={returnPath} />
@@ -1732,6 +1786,8 @@ function AssessmentInspectorModal({ assessment, subjectId, moduleTitle, returnPa
         <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 13 }}>This keeps common gate corrections inside the canvas. If trigger type or broader assessment logic needs surgery, use the full assessments board.</div>
         <button type="submit" style={{ ...actionLinkStyle, background: '#EDE9FE', color: '#5B21B6', border: 0 }}>Save inline gate edits</button>
       </form>
+        </>
+      ) : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <Link href={assessmentBoardHref({ subjectId, moduleId: assessment.moduleId ?? undefined, query: moduleTitle })} style={{ ...actionLinkStyle, background: '#ffffff', color: '#0f172a' }}>Open assessment board</Link>

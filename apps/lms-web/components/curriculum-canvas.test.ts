@@ -47,3 +47,18 @@ test('curriculum canvas triage quick action keeps payload-empty published lesson
     /const selectedModuleNotReadyLessons = selected \? selected\.module\.lessons\.filter\(\(lesson\) => !\['approved', 'published', 'active'\]\.includes\(normalize\(lesson\.status\)\)\) : \[];/,
   );
 });
+
+test('curriculum canvas disables inline write controls when only rescue data is available', () => {
+  assert.match(source, /const hasTrustedLiveAuthoringContext = mode === 'live' \|\| mode === 'blended';/);
+  assert.match(
+    source,
+    /Canvas is running from rescue data only\. Inline create\/edit controls are disabled until the live curriculum graph comes back, because a tree snapshot can help you inspect blockers but it is not safe authority for production writes\./,
+  );
+  assert.match(source, /\{hasTrustedLiveAuthoringContext \? \(/);
+  assert.match(source, /Lesson create locked on rescue data/);
+  assert.match(source, /Gate creation locked on rescue data/);
+  assert.match(source, /Operator controls are locked because this module is coming from rescue-only canvas data\./);
+  assert.match(source, /readOnly=\{!hasTrustedLiveAuthoringContext\}/);
+  assert.match(source, /Rescue-only lesson context is inspectable, not writable\./);
+  assert.match(source, /Rescue-only gate context is inspectable, not writable\./);
+});
