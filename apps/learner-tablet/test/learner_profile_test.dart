@@ -91,7 +91,7 @@ void main() {
       'Sync required before starting',
     );
     expect(syncRequiredButtons, findsNWidgets(2));
-    expect(find.text('Sync first'), findsOneWidget);
+    expect(find.text('Waiting for sync'), findsNWidgets(2));
     expect(find.text('Ready'), findsNothing);
     for (final button in tester.widgetList<FilledButton>(syncRequiredButtons)) {
       expect(button.onPressed, isNull);
@@ -173,7 +173,7 @@ void main() {
 
     final syncRequiredLabel = find.text('Sync required before starting');
     expect(syncRequiredLabel, findsNWidgets(2));
-    expect(find.text('Sync first'), findsOneWidget);
+    expect(find.text('Sync incomplete'), findsOneWidget);
     expect(find.text('Ready'), findsNothing);
     expect(find.text('Start assigned lesson'), findsNothing);
 

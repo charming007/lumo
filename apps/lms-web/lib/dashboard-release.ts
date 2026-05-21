@@ -1,4 +1,5 @@
 import { getModuleReleaseState } from './module-release.ts';
+import { isDraftModuleLifecycleStatus } from './module-status.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
 
 export type DashboardReleaseBlocker = {
@@ -30,7 +31,7 @@ export function getDashboardReleaseBlockers(params: {
       });
       const missingLessons = releaseState.missingReadyLessons;
       const hasAssessmentGate = releaseState.hasAssessmentGate;
-      const isDraftModule = module.status === 'draft';
+      const isDraftModule = isDraftModuleLifecycleStatus(module.status);
       const blockerCount = releaseState.publishBlockers.length;
       const recoveredSubject = params.subjects.find((subject) => subject.id === releaseState.recoveredSubjectId) ?? null;
 

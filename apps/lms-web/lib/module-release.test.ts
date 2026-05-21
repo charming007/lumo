@@ -81,6 +81,29 @@ test('getModuleReleaseState keeps draft modules out of publish-ready state even 
   assert.deepEqual(state.publishBlockers, ['Move the module out of draft before publish.']);
 });
 
+test('getModuleReleaseState still blocks publish when the backend sends draft status with casing or whitespace drift', () => {
+  const state = getModuleReleaseState({
+    module: {
+      id: 'module-draft-drift',
+      title: 'Draft drift lane',
+      subjectId: 'subject-readiness',
+      subjectName: 'Lumo Readiness',
+      lessonCount: 1,
+      status: ' Draft ',
+    } as any,
+    lessons: [
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-draft-drift', subjectId: 'subject-readiness', status: 'published', activitySteps: [{ id: 'step-1' }] },
+    ] as any,
+    assessments: [
+      { id: 'assessment-1', moduleId: 'module-draft-drift', moduleTitle: 'Draft drift lane', trigger: 'module-complete', status: 'active' },
+    ] as any,
+    subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }],
+  });
+
+  assert.equal(state.canPublish, false);
+  assert.deepEqual(state.publishBlockers, ['Move the module out of draft before publish.']);
+});
+
 test('getModuleReleaseState blocks review and publish when subject context cannot be recovered', () => {
   const state = getModuleReleaseState({
     module: {

@@ -142,3 +142,27 @@ test('dashboard release blockers keep fully-authored draft modules in the blocke
   assert.equal(blockers[0]?.hasAssessmentGate, true);
   assert.equal(blockers[0]?.blockerCount, 1);
 });
+
+test('dashboard release blockers still flag draft modules when backend status casing drifts', () => {
+  const blockers = getDashboardReleaseBlockers({
+    modules: [{
+      id: 'module-draft-drift',
+      title: 'Draft drift lane',
+      subjectId: 'subject-readiness',
+      subjectName: 'Lumo Readiness',
+      lessonCount: 1,
+      status: ' Draft ',
+    } as CurriculumModule],
+    lessons: [
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-draft-drift', subjectId: 'subject-readiness', status: 'published', activitySteps: [{ id: 'step-1' }] },
+    ] as Lesson[],
+    assessments: [
+      { id: 'assessment-1', moduleId: 'module-draft-drift', moduleTitle: 'Draft drift lane', trigger: 'module-complete', status: 'active' },
+    ] as Assessment[],
+    subjects: [{ id: 'subject-readiness', name: 'Lumo Readiness' }] as Subject[],
+  });
+
+  assert.equal(blockers.length, 1);
+  assert.equal(blockers[0]?.isDraftModule, true);
+  assert.equal(blockers[0]?.blockerCount, 1);
+});

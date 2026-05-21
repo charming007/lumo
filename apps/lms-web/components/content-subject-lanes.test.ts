@@ -30,3 +30,11 @@ test('content subject lanes count only payload-ready lessons in release chips', 
   assert.match(source, /const readyLessons = subjectLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/);
   assert.match(source, /const readyLessonCount = moduleLessons\.filter\(\(lesson\) => isLessonReleaseReady\(lesson\)\)\.length;/);
 });
+
+test('content subject lanes normalize legacy published module states before showing release-safe UI', () => {
+  assert.match(source, /import \{ normalizeModuleLifecycleStatus \} from '\.\.\/lib\/module-status';/);
+  assert.match(source, /const publishedModules = subjectModules\.filter\(\(module\) => normalizeModuleLifecycleStatus\(module\.status\) === 'published'\)\.length;/);
+  assert.match(source, /const normalizedModuleStatus = normalizeModuleLifecycleStatus\(module\.status\);/);
+  assert.match(source, /const isActive = normalizedModuleStatus === option\.value;/);
+  assert.match(source, /\{normalizedModuleStatus === 'published'/);
+});

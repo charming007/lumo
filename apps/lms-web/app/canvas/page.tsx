@@ -111,6 +111,10 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter((value): value is string => Boolean(value));
+  const hasEmptyLiveCanvasSpine = subjectsResult.status === 'fulfilled'
+    && modulesResult.status === 'fulfilled'
+    && subjects.length === 0
+    && modules.length === 0;
 
   if (criticalCanvasFailures.length) {
     const blockerDetail = criticalCanvasFailures.length === 1
@@ -149,6 +153,44 @@ export default async function CanvasPage({ searchParams }: { searchParams?: Prom
             surface: 'Authoring handoff',
             expected: 'The route blocks until feeds recover, then scoped lesson-creation links reopen with trustworthy subject/module context',
             failure: 'A fallback CTA launches authoring while the curriculum graph itself is degraded',
+          },
+        ]}
+        docs={[
+          { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
+          { label: 'Content library', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Review blocker stack', href: returnPath, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
+
+  if (hasEmptyLiveCanvasSpine) {
+    return (
+      <DeploymentBlockerCard
+        title="Curriculum Canvas"
+        subtitle="The live curriculum spine came back hollow, so Canvas is blocked instead of pretending operators should start authoring into the void."
+        blockerHeadline="Deployment blocker: live curriculum graph is empty."
+        blockerDetail="The live subjects and modules feeds both resolved empty. That is not a trustworthy authoring state — it usually means the deployment is pointed at the wrong environment, stale data, or a broken upstream curriculum seed."
+        whyBlocked={[
+          'Canvas is an editing surface. If the live subject/module spine is empty, the route should not degrade into a cheerful blank slate with create-first affordances.',
+          'An empty live graph can trick operators into thinking the fix is “start creating lessons,” when the real problem is that the deployed curriculum itself has disappeared or the LMS is pointed at the wrong backend.',
+          'Rescue-tree leftovers are not a safe substitute for a live spine during deployment review. Blocking loudly is safer than inviting edits against a hollow graph.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Live curriculum spine',
+            expected: 'Subjects and modules return real production curriculum nodes before Canvas renders authoring controls',
+            failure: 'Canvas falls through to an empty-state graph or creation CTA even though the live spine is blank',
+          },
+          {
+            surface: 'Dashboard/content cross-check',
+            expected: 'Canvas agrees with the dashboard/content blocker stack about whether live curriculum exists',
+            failure: 'Canvas looks like a recoverable empty board while other LMS surfaces are correctly signaling a deployment-grade data failure',
+          },
+          {
+            surface: 'Authoring handoff',
+            expected: 'Lesson creation stays blocked until live subject/module context exists again',
+            failure: 'Operators can start creating lessons against a blank deployment and mistake that for a safe recovery path',
           },
         ]}
         docs={[

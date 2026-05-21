@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import { LifecycleStatusField } from './lifecycle-status-field';
+import { normalizeModuleLifecycleStatus } from '../lib/module-status';
 import {
   createAssessmentAction,
   createLessonAction,
@@ -92,12 +93,15 @@ const SUBJECT_STRAND_LIFECYCLE_OPTIONS = [
   { value: 'published', label: 'Published', hint: 'This lane is considered release-visible and can anchor downstream content safely.', tone: '#ECFDF5', text: '#166534', border: '#86EFAC' },
 ] as const;
 
-const MODULE_LESSON_LIFECYCLE_OPTIONS = [
+const MODULE_LIFECYCLE_OPTIONS = [
   { value: 'draft', label: 'Draft', hint: 'Work-in-progress only. Safe for internal editing, not for learner-facing release.', tone: '#F8FAFC', text: '#334155', border: '#CBD5E1' },
   { value: 'review', label: 'In review', hint: 'Structured enough for QA or editorial checks, but still blocked from release.', tone: '#FFFBEB', text: '#92400E', border: '#FCD34D' },
-  { value: 'approved', label: 'Approved', hint: 'Content quality is accepted, but it is not live until you explicitly publish it.', tone: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
   { value: 'published', label: 'Published', hint: 'Live release state. This is the learner-ready lane.', tone: '#ECFDF5', text: '#166534', border: '#86EFAC' },
-  { value: 'active', label: 'Active', hint: 'Legacy live state kept for compatibility with older module records.', tone: '#F5F3FF', text: '#6D28D9', border: '#C4B5FD' },
+] as const;
+
+const LESSON_LIFECYCLE_OPTIONS = [
+  ...MODULE_LIFECYCLE_OPTIONS,
+  { value: 'approved', label: 'Approved', hint: 'Content quality is accepted, but it is not live until you explicitly publish it.', tone: '#EFF6FF', text: '#1D4ED8', border: '#93C5FD' },
 ] as const;
 
 function GeographyHint({ children }: { children: ReactNode }) {
@@ -548,7 +552,7 @@ export function CreateModuleForm({ strands, initialStrandId, initialTitle, initi
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(initialLessonCount ?? 6)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 3)} style={inputStyle} /></FieldLabel>
       </div>
-      <FieldLabel>Status<select name="status" defaultValue={initialStatus ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option><option value="published">Published</option><option value="active">Active</option></select></FieldLabel>
+      <LifecycleStatusField name="status" value={normalizeModuleLifecycleStatus(initialStatus)} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
       <ActionButton label="Create module" pendingLabel="Creating module…" style={buttonStyle} />
     </form>
   );
@@ -564,7 +568,7 @@ export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumM
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue={module?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <LifecycleStatusField name="status" value={module?.status ?? 'draft'} options={[...MODULE_LESSON_LIFECYCLE_OPTIONS]} entityLabel="module" />
+      <LifecycleStatusField name="status" value={normalizeModuleLifecycleStatus(module?.status)} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
       <div style={twoColumnGrid}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
@@ -614,7 +618,7 @@ export function UpdateLessonForm({ lessons, returnPath }: { lessons: Lesson[]; r
       <h2 style={{ margin: 0 }}>Update lesson</h2>
       <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
       <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
-      <LifecycleStatusField name="status" value={lesson?.status ?? 'draft'} options={MODULE_LESSON_LIFECYCLE_OPTIONS.filter((option) => option.value !== 'active')} entityLabel="lesson" />
+      <LifecycleStatusField name="status" value={lesson?.status ?? 'draft'} options={LESSON_LIFECYCLE_OPTIONS} entityLabel="lesson" />
       <div style={twoColumnGrid}>
         <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
