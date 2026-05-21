@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { findSubjectByContext, subjectMatchesContext } from '../lib/module-subject-match';
 import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
+import { normalizeModuleLifecycleStatus } from '../lib/module-status';
 import { Pill } from '../lib/ui';
 import { ModalLauncher } from './modal-launcher';
 import type { Assessment } from '../lib/types';
@@ -1221,11 +1222,10 @@ export function CurriculumCanvas({
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
                         <label style={{ display: 'grid', gap: 6 }}>
                           <span style={{ color: '#cbd5e1', fontSize: 13, fontWeight: 700 }}>Status</span>
-                          <select name="status" defaultValue={selected.module.status} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+                          <select name="status" defaultValue={normalizeModuleLifecycleStatus(selected.module.status)} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
                             <option value="draft">Draft</option>
                             <option value="review">Review</option>
                             <option value="published">Published</option>
-                            <option value="active">Active</option>
                           </select>
                         </label>
                         <label style={{ display: 'grid', gap: 6 }}>
