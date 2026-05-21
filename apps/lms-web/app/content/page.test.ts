@@ -47,6 +47,24 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
 });
 
+test('content board normalizes status filters so legacy live module states still stay visible', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ isDraftModuleLifecycleStatus, normalizeModuleLifecycleStatus \} from '\.\.\/\.\.\/lib\/module-status';/,
+    'content page should import the shared module lifecycle normalizer so the status filter does not drift from release-readiness logic',
+  );
+  assert.match(
+    contentPageSource,
+    /const normalizedModuleStatusFilter = statusFilter \? normalizeModuleLifecycleStatus\(statusFilter\) : '';/,
+    'content page should normalize the incoming status filter before comparing module lifecycle values',
+  );
+  assert.match(
+    contentPageSource,
+    /const statusMatches = !statusFilter \|\| normalizeModuleLifecycleStatus\(module\.status\) === normalizedModuleStatusFilter;/,
+    'content board should treat legacy module states like active\/approved as their release-safe lifecycle equivalent instead of hiding live modules from filtered blocker views',
+  );
+});
+
 test('content blockers count only payload-ready lessons toward release readiness', () => {
   assert.match(
     contentPageSource,

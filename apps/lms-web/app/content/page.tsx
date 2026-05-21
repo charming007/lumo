@@ -21,7 +21,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { getModuleReleaseState } from '../../lib/module-release';
-import { isDraftModuleLifecycleStatus } from '../../lib/module-status';
+import { isDraftModuleLifecycleStatus, normalizeModuleLifecycleStatus } from '../../lib/module-status';
 import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
@@ -194,6 +194,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
   const statusFilter = normalizeFilterValue(query?.status).trim();
+  const normalizedStatusFilter = statusFilter.toLowerCase();
+  const normalizedModuleStatusFilter = statusFilter ? normalizeModuleLifecycleStatus(statusFilter) : '';
   const viewFilter = normalizeFilterValue(query?.view).trim();
   const moduleIdFilter = normalizeFilterValue(query?.moduleId).trim();
   const normalizedModuleIdFilter = moduleIdFilter.toLowerCase();
@@ -211,7 +213,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectNames: [module.subjectName],
     });
     const moduleMatches = moduleIdMatches(module.id);
-    const statusMatches = !statusFilter || module.status === statusFilter;
+    const statusMatches = !statusFilter || normalizeModuleLifecycleStatus(module.status) === normalizedModuleStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
@@ -224,7 +226,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
     });
     const moduleMatches = moduleIdMatches(lesson.moduleId) || moduleIdMatches(moduleForLesson?.id);
-    const statusMatches = !statusFilter || lesson.status === statusFilter;
+    const statusMatches = !statusFilter || lesson.status.trim().toLowerCase() === normalizedStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
     const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
@@ -236,7 +238,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       subjectNames: [assessment.subjectName],
     });
     const moduleMatches = moduleIdMatches(assessment.moduleId);
-    const statusMatches = !statusFilter || assessment.status === statusFilter;
+    const statusMatches = !statusFilter || assessment.status.trim().toLowerCase() === normalizedStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
