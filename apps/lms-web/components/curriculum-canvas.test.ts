@@ -75,3 +75,11 @@ test('curriculum canvas normalizes active module lifecycle values into the publi
     /<select name="status" defaultValue=\{normalizeModuleLifecycleStatus\(selected\.module\.status\)\}[\s\S]*?<option value="draft">Draft<\/option>[\s\S]*?<option value="review">Review<\/option>[\s\S]*?<option value="published">Published<\/option>[\s\S]*?<\/select>/,
   );
 });
+
+test('curriculum canvas normalizes active module lifecycle values into the published quick-edit option', () => {
+  assert.match(source, /import \{ normalizeModuleLifecycleStatus \} from '\.\.\/lib\/module-status';/);
+  assert.match(
+    source,
+    /<select name="status" defaultValue=\{normalizeModuleLifecycleStatus\(selected\.module\.status\)\}[\s\S]*?<option value="draft">Draft<\/option>[\s\S]*?<option value="review">Review<\/option>[\s\S]*?<option value="published">Published<\/option>[\s\S]*?<\/select>/,
+  );
+});
