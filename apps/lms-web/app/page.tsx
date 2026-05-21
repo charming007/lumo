@@ -446,15 +446,17 @@ export default async function HomePage() {
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const scopedAssessmentSubjects = topReleaseBlocker?.subjectId
-    ? subjects.filter((subject) => subject.id === topReleaseBlocker.subjectId)
-    : subjects;
-  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects.length ? scopedAssessmentSubjects : subjects;
+  const topReleaseBlockerNormalizedSubjectId = topReleaseBlocker?.subjectId.trim() ?? '';
+  const scopedAssessmentSubjects = topReleaseBlockerNormalizedSubjectId
+    ? subjects.filter((subject) => subject.id === topReleaseBlockerNormalizedSubjectId)
+    : [];
+  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects;
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate
     && topReleaseBlocker.hasAuthoringContext
     && subjectsResult.status === 'fulfilled'
+    && topReleaseBlockerNormalizedSubjectId
     && topReleaseBlockerAssessmentSubjects.length,
   );
 
