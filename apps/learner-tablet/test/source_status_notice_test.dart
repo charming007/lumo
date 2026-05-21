@@ -621,22 +621,47 @@ void main() {
     );
   });
 
-  test('subject journey blocks sync-incomplete shell lessons before start affordances render', () {
-    final source = File('lib/main.dart').readAsStringSync();
+  test('subject journey keeps sync blockers learner-honest for placeholders and live shells', () {
+    const placeholderLesson = LessonCardModel(
+      id: 'assignment-placeholder:english-1',
+      moduleId: 'english',
+      title: 'Waiting lesson shell',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Placeholder before live payload syncs.',
+      steps: [],
+    );
+    const syncIncompleteLesson = LessonCardModel(
+      id: 'english-shell',
+      moduleId: 'english',
+      title: 'Greeting lesson shell',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Published lesson shell before steps sync.',
+      steps: [],
+    );
 
+    expect(lessonRequiresSyncBeforeStarting(placeholderLesson), isTrue);
+    expect(lessonSyncBlockerStatusLabel(placeholderLesson), 'Waiting for sync');
     expect(
-      source,
-      contains('lesson != null && !lessonRequiresSyncBeforeStarting(lesson)'),
+      lessonSyncBlockerCtaLabel(placeholderLesson),
+      'Sync required before starting',
     );
-    expect(source, contains('if (lessonRequiresSyncBeforeStarting(lesson)) return;'));
+
+    expect(lessonRequiresSyncBeforeStarting(syncIncompleteLesson), isTrue);
     expect(
-      source,
-      contains('!lessonRequiresSyncBeforeStarting(\n                                                      lesson,'),
+      lessonSyncBlockerStatusLabel(syncIncompleteLesson),
+      'Sync incomplete',
     );
-    expect(source, contains("final syncPending = lessonRequiresSyncBeforeStarting(lesson);"));
-    expect(source, contains("final syncPendingLabel = lesson.isAssignmentPlaceholder"));
-    expect(source, contains("? 'Waiting for sync'"));
-    expect(source, contains(": 'Sync incomplete';"));
-    expect(source, contains('blockedStatusLabel = syncPending\n        ? syncPendingLabel'));
+    expect(
+      lessonSyncBlockerCtaLabel(syncIncompleteLesson),
+      'Sync required before starting',
+    );
   });
 }
