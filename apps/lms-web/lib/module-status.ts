@@ -20,3 +20,7 @@ export function normalizeModuleLifecycleStatus(rawStatus: string | null | undefi
     ? (status as ModuleStatus)
     : 'draft';
 }
+
+export function isDraftModuleLifecycleStatus(rawStatus: string | null | undefined) {
+  return normalizeModuleLifecycleStatus(rawStatus) === 'draft';
+}

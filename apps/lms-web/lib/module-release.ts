@@ -2,6 +2,7 @@ import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessme
 import { isLessonReleaseReady } from './lesson-release-readiness.ts';
 import { filterLessonsForModule } from './module-lesson-match.ts';
 import { resolveModuleSubjectId, subjectsIncludeId } from './module-subject-match.ts';
+import { isDraftModuleLifecycleStatus } from './module-status.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
 
 type ModuleReleaseStateArgs = {
@@ -28,7 +29,7 @@ export function getModuleReleaseState({
   );
 
   const publishBlockers = [
-    module.status === 'draft' ? 'Move the module out of draft before publish.' : null,
+    isDraftModuleLifecycleStatus(module.status) ? 'Move the module out of draft before publish.' : null,
     hasRecoverableSubjectContext ? null : 'Recover the module subject context before moving this lane forward.',
     missingReadyLessons === 0 ? null : `${missingReadyLessons} ready lesson${missingReadyLessons === 1 ? '' : 's'} still missing before publish.`,
     hasAssessmentGate ? null : 'Add the assessment gate before publish.',

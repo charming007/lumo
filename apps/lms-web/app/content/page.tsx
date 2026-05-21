@@ -21,6 +21,7 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { getModuleReleaseState } from '../../lib/module-release';
+import { isDraftModuleLifecycleStatus } from '../../lib/module-status';
 import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
@@ -252,7 +253,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       assessments,
       subjects,
     });
-    return releaseState.publishBlockers.length > 0 || module.status === 'draft';
+    return releaseState.publishBlockers.length > 0 || isDraftModuleLifecycleStatus(module.status);
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
@@ -510,7 +511,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                   const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                   const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                   const hasAssessment = moduleHasAssessmentGate(module);
-                  const isDraftModule = module.status === 'draft';
+                  const isDraftModule = isDraftModuleLifecycleStatus(module.status);
                   const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                   const hasAuthoringContext = Boolean(
                     moduleSubjectId
@@ -673,7 +674,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                 const readyLessonCount = moduleLessons.filter((lesson) => isLessonReleaseReady(lesson)).length;
                 const missingLessons = Math.max(module.lessonCount - readyLessonCount, 0);
                 const hasAssessment = moduleHasAssessmentGate(module);
-                const isDraftModule = module.status === 'draft';
+                const isDraftModule = isDraftModuleLifecycleStatus(module.status);
                 const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                 const hasAuthoringContext = Boolean(
                   moduleSubjectId
