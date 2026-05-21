@@ -2478,6 +2478,60 @@ void main() {
       expect(summary, contains('assigned lesson'));
     });
 
+    test('assigned lesson summary does not advertise placeholder lessons as ready to start', () {
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..usingFallbackData = false;
+      const learner = LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina Bello',
+        age: 7,
+        cohort: 'Pod A',
+        podId: 'pod-a',
+        podLabel: 'Pod A',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+      );
+      const placeholderLesson = LessonCardModel(
+        id: 'assignment-placeholder:english-1',
+        moduleId: 'english',
+        title: 'English greeting lesson',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'assigned',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Lesson payload is still syncing to the tablet.',
+        steps: [],
+      );
+
+      state.learners.add(learner);
+      state.assignedLessons.add(placeholderLesson);
+      state.assignmentPacks.add(
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-1',
+          lessonId: placeholderLesson.id,
+          moduleId: placeholderLesson.moduleId,
+          lessonTitle: placeholderLesson.title,
+          eligibleLearnerIds: [learner.id],
+        ),
+      );
+
+      expect(state.nextAssignedLessonForLearner(learner), isNull);
+      expect(
+        state.assignedLessonSummaryForLearner(learner),
+        '1 assigned lesson is waiting for sync before launch.',
+      );
+      state.dispose();
+    });
+
     test('prefers backend assignment packs over heuristic lesson order', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       final lifeSkillsLesson = state.assignedLessons.firstWhere(
