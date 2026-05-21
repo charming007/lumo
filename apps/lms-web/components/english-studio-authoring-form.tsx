@@ -15,7 +15,7 @@ import {
   lessonStepTypeLabelMap,
 } from './lesson-step-authoring';
 import { getStepRuntimePreviewHints } from '../lib/lesson-runtime-preview';
-import { assessmentMatchesModule } from '../lib/module-assessment-match';
+import { assessmentMatchesModule, isLiveAssessmentGate } from '../lib/module-assessment-match';
 import type { Assessment, CurriculumModule, Subject } from '../lib/types';
 import { buildEnglishActivities, buildEnglishObjective, buildReadinessChecks, inferVocabulary } from '../lib/english-curriculum';
 
@@ -229,7 +229,7 @@ export function EnglishStudioAuthoringForm({
     moduleId && activeModule ? null : 'Pick a valid English module before creating a lesson.',
   ].filter(Boolean) as string[];
   const activeAssessment = activeModule
-    ? assessments.find((assessment) => assessmentMatchesModule(activeModule, assessment)) ?? null
+    ? assessments.find((assessment) => assessmentMatchesModule(activeModule, assessment) && isLiveAssessmentGate(assessment)) ?? null
     : null;
   const objective = buildEnglishObjective(title);
   const vocabulary = inferVocabulary(title);
