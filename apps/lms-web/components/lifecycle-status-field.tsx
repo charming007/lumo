@@ -42,7 +42,7 @@ export function LifecycleStatusField({
 }: {
   name: string;
   value: string;
-  options: LifecycleOption[];
+  options: readonly LifecycleOption[];
   entityLabel: string;
 }) {
   const fallbackValue = options[0]?.value ?? 'draft';
