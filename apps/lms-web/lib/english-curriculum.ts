@@ -1,5 +1,7 @@
 import { assessmentMatchesModule, isLiveAssessmentGate } from './module-assessment-match';
+import { isLessonReleaseReady } from './lesson-release-readiness';
 import { filterLessonsForModule, findModuleForLesson, lessonMatchesModule } from './module-lesson-match';
+import { normalizeModuleLifecycleStatus } from './module-status';
 import { findSubjectByContext, filterModulesForSubject } from './module-subject-match';
 import type { Assessment, Assignment, CurriculumModule, Lesson, Subject } from './types';
 
@@ -52,10 +54,25 @@ export function inferVocabulary(title: string) {
   return [...words, 'sentence frame', 'speaking turn'].slice(0, 3);
 }
 
+function normalizeLessonLifecycleStatus(status: string | null | undefined) {
+  return String(status || 'draft').trim().toLowerCase();
+}
+
 function releaseMeta(status: string) {
-  if (status === 'published') return { releaseRisk: 'Ready for pod release right now.', releaseLabel: 'pod-ready' };
-  if (status === 'approved') return { releaseRisk: 'Content is signed off but not pushed live yet.', releaseLabel: 'queued' };
-  if (status === 'review') return { releaseRisk: 'Needs editorial sign-off before it touches learner pods.', releaseLabel: 'review' };
+  const normalizedStatus = normalizeLessonLifecycleStatus(status);
+
+  if (normalizedStatus === 'published' || normalizedStatus === 'active') {
+    return { releaseRisk: 'Ready for pod release right now.', releaseLabel: 'pod-ready' };
+  }
+
+  if (normalizedStatus === 'approved') {
+    return { releaseRisk: 'Content is signed off but not pushed live yet.', releaseLabel: 'queued' };
+  }
+
+  if (normalizedStatus === 'review' || normalizedStatus === 'scheduled') {
+    return { releaseRisk: 'Needs editorial sign-off before it touches learner pods.', releaseLabel: 'review' };
+  }
+
   return { releaseRisk: 'Still rough. Authoring is ahead of release.', releaseLabel: 'draft' };
 }
 
@@ -132,12 +149,15 @@ export function buildReadinessChecks({
   lessonTitle: string;
   durationMinutes: number;
 }) {
+  const normalizedLessonStatus = normalizeLessonLifecycleStatus(status);
+  const normalizedModuleStatus = normalizeModuleLifecycleStatus(moduleStatus);
+
   const checks = [
     { label: 'Lesson title is specific enough to map to a real speaking task', passed: toTopic(lessonTitle).trim().length >= 8 },
     { label: 'Duration is long enough for modelling, practice, and exit evidence', passed: durationMinutes >= 8 },
-    { label: 'Module lane is not stuck in draft', passed: moduleStatus === 'review' || moduleStatus === 'approved' || moduleStatus === 'published' },
+    { label: 'Module lane is not stuck in draft', passed: normalizedModuleStatus === 'review' || normalizedModuleStatus === 'published' },
     { label: 'Assessment gate exists for the module', passed: hasAssessment },
-    { label: 'Lesson status matches publish intent', passed: status === 'approved' || status === 'published' },
+    { label: 'Lesson status matches publish intent', passed: normalizedLessonStatus === 'approved' || normalizedLessonStatus === 'published' || normalizedLessonStatus === 'active' },
   ];
 
   const readinessScore = checks.filter((check) => check.passed).length;
@@ -250,13 +270,13 @@ export function buildEnglishOpsSummary({
   return {
     moduleCount: englishModules.length,
     lessonCount: englishLessons.length,
-    publishedLessons: englishLessons.filter((lesson) => ['approved', 'published'].includes(lesson.status)).length,
+    publishedLessons: englishLessons.filter((lesson) => isLessonReleaseReady(lesson)).length,
     liveAssignments: englishAssignments.length,
     modulesMissingLessons: englishModules.filter((module) => {
       const count = filterLessonsForModule(englishLessons, module).length;
       return count < module.lessonCount;
     }).length,
-    lessonsInReview: englishLessons.filter((lesson) => lesson.status === 'review').length,
+    lessonsInReview: englishLessons.filter((lesson) => normalizeLessonLifecycleStatus(lesson.status) === 'review').length,
     moduleTitles,
   };
 }

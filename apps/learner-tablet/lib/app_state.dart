@@ -5167,8 +5167,35 @@ class LumoAppState {
   String assignedLessonSummaryForLearner(LearnerProfile? learner) {
     final lessons = lessonsForLearner(learner);
     if (lessons.isEmpty) return 'No assigned lessons yet.';
-    final nextLesson = lessons.first;
-    return '${lessons.length} assigned lesson(s) • start with ${nextLesson.title}';
+
+    final nextLesson = nextAssignedLessonForLearner(learner);
+    if (nextLesson != null) {
+      return '${lessons.length} assigned lesson(s) • start with ${nextLesson.title}';
+    }
+
+    final waitingForSyncCount = lessons
+        .where((lesson) => lesson.isAssignmentPlaceholder)
+        .length;
+    if (waitingForSyncCount > 0) {
+      return waitingForSyncCount == lessons.length
+          ? waitingForSyncCount == 1
+              ? '1 assigned lesson is waiting for sync before launch.'
+              : '$waitingForSyncCount assigned lessons are waiting for sync before launch.'
+          : '${lessons.length} assigned lesson(s) • $waitingForSyncCount waiting for sync before launch.';
+    }
+
+    final syncIncompleteCount = lessons
+        .where((lesson) => !lesson.isAssignmentPlaceholder && lesson.steps.isEmpty)
+        .length;
+    if (syncIncompleteCount > 0) {
+      return syncIncompleteCount == lessons.length
+          ? syncIncompleteCount == 1
+              ? '1 assigned lesson is sync-incomplete and cannot launch yet.'
+              : '$syncIncompleteCount assigned lessons are sync-incomplete and cannot launch yet.'
+          : '${lessons.length} assigned lesson(s) • $syncIncompleteCount sync-incomplete before launch.';
+    }
+
+    return '${lessons.length} assigned lesson(s) are currently blocked on this tablet.';
   }
 
   LearningModule recommendedModuleForLearner(LearnerProfile learner) {
