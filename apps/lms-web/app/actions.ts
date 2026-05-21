@@ -123,6 +123,16 @@ function appendSearchParams(path: string, params: Record<string, string>) {
   return `${path}${path.includes('?') ? '&' : '?'}${searchParams.toString()}`;
 }
 
+const MODULE_STATUS_ALLOWLIST = ['draft', 'review', 'published'] as const;
+type ModuleStatus = typeof MODULE_STATUS_ALLOWLIST[number];
+
+function parseModuleStatus(rawStatus: FormDataEntryValue | null): ModuleStatus | null {
+  const status = String(rawStatus || 'draft').trim().toLowerCase();
+  return MODULE_STATUS_ALLOWLIST.includes(status as ModuleStatus)
+    ? (status as ModuleStatus)
+    : null;
+}
+
 function rethrowRedirectError(error: unknown) {
   if (isRedirectError(error)) {
     throw error;
@@ -624,13 +634,27 @@ export async function deleteStrandAction(formData: FormData) {
 
 export async function createModuleAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
+  const status = parseModuleStatus(formData.get('status'));
+
+  if (!status) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Module creation blocked: choose draft, review, or published only.',
+    }));
+  }
+
+  if (status === 'published') {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Module creation blocked: new modules cannot start published. Create the lane as draft or review, then add ready lessons and an assessment gate before publish.',
+    }));
+  }
+
   const payload = {
     strandId: String(formData.get('strandId') || ''),
     title: String(formData.get('title') || ''),
     level: String(formData.get('level') || 'beginner'),
     lessonCount: Number(formData.get('lessonCount') || 0),
     order: Number(formData.get('order') || 0),
-    status: String(formData.get('status') || 'draft'),
+    status,
   };
 
   await apiWrite('/api/v1/curriculum/modules', 'POST', payload);
@@ -644,9 +668,17 @@ export async function createModuleAction(formData: FormData) {
 export async function updateModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
+  const status = parseModuleStatus(formData.get('status'));
+
+  if (!status) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Module update blocked: choose draft, review, or published only.',
+    }));
+  }
+
   const payload = {
     title: String(formData.get('title') || '').trim(),
-    status: String(formData.get('status') || ''),
+    status,
     lessonCount: Number(formData.get('lessonCount') || 0),
     level: String(formData.get('level') || ''),
   };
