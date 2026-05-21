@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 
 import { API_BASE } from '../lib/config';
 import { getModuleReleaseState } from '../lib/module-release';
+import { parseModuleStatus } from '../lib/module-status.ts';
 import { buildSubjectMutationPayload } from '../lib/subject-lifecycle';
 
 function getAdminApiKey() {
@@ -121,16 +122,6 @@ function appendSearchParams(path: string, params: Record<string, string>) {
   }
 
   return `${path}${path.includes('?') ? '&' : '?'}${searchParams.toString()}`;
-}
-
-const MODULE_STATUS_ALLOWLIST = ['draft', 'review', 'published'] as const;
-type ModuleStatus = typeof MODULE_STATUS_ALLOWLIST[number];
-
-function parseModuleStatus(rawStatus: FormDataEntryValue | null): ModuleStatus | null {
-  const status = String(rawStatus || 'draft').trim().toLowerCase();
-  return MODULE_STATUS_ALLOWLIST.includes(status as ModuleStatus)
-    ? (status as ModuleStatus)
-    : null;
 }
 
 function rethrowRedirectError(error: unknown) {

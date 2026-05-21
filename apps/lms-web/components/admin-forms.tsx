@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { DeleteConfirmSubmit } from './delete-confirm-submit';
 import { LifecycleStatusField } from './lifecycle-status-field';
+import { normalizeModuleLifecycleStatus } from '../lib/module-status';
 import {
   createAssessmentAction,
   createLessonAction,
@@ -551,7 +552,7 @@ export function CreateModuleForm({ strands, initialStrandId, initialTitle, initi
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(initialLessonCount ?? 6)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Order<input name="order" type="number" min="1" defaultValue={String(initialOrder ?? 3)} style={inputStyle} /></FieldLabel>
       </div>
-      <LifecycleStatusField name="status" value={initialStatus ?? 'draft'} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
+      <LifecycleStatusField name="status" value={normalizeModuleLifecycleStatus(initialStatus)} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
       <ActionButton label="Create module" pendingLabel="Creating module…" style={buttonStyle} />
     </form>
   );
@@ -567,7 +568,7 @@ export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumM
       <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
       <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
       <FieldLabel>Title<input name="title" defaultValue={module?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <LifecycleStatusField name="status" value={module?.status ?? 'draft'} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
+      <LifecycleStatusField name="status" value={normalizeModuleLifecycleStatus(module?.status)} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
       <div style={twoColumnGrid}>
         <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
         <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
