@@ -22,7 +22,7 @@ import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { getModuleReleaseState } from '../../lib/module-release';
 import { isDraftModuleLifecycleStatus, normalizeModuleLifecycleStatus } from '../../lib/module-status';
-import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
+import { findSubjectByContext, matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
 import { isLessonReleaseReady } from '../../lib/lesson-release-readiness';
@@ -207,8 +207,17 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const focusedModule = normalizedModuleIdFilter
     ? modules.find((module) => module.id.trim().toLowerCase() === normalizedModuleIdFilter) ?? null
     : null;
+  const focusedModuleSubject = focusedModule
+    ? findSubjectByContext(subjects, {
+        subjectId: focusedModule.subjectId,
+        subjectName: focusedModule.subjectName,
+      })
+    : null;
+  const scopedSubjectFilter = moduleIdFilter && focusedModuleSubject?.id
+    ? focusedModuleSubject.id
+    : subjectFilter;
   const filteredModules = modules.filter((module) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });
@@ -221,7 +230,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
   const filteredLessons = lessons.filter((lesson) => {
     const moduleForLesson = findModuleForLesson(modules, lesson);
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [lesson.subjectId, moduleForLesson?.subjectId],
       subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
     });
@@ -233,7 +242,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredAssessments = assessments.filter((assessment) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [assessment.subjectId],
       subjectNames: [assessment.subjectName],
     });
@@ -259,7 +268,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });

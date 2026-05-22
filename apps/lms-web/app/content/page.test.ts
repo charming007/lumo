@@ -22,6 +22,21 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
   assert.match(
     contentPageSource,
+    /import \{ findSubjectByContext, matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId \} from '\.\.\/\.\.\/lib\/module-subject-match';/,
+    'content page should reuse the shared subject matcher so focused dashboard handoffs survive subject-id drift',
+  );
+  assert.match(
+    contentPageSource,
+    /const focusedModuleSubject = focusedModule[\s\S]*\? findSubjectByContext\(subjects, \{[\s\S]*subjectId: focusedModule\.subjectId,[\s\S]*subjectName: focusedModule\.subjectName,[\s\S]*\}\)[\s\S]*: null;/,
+    'content page should recover the focused module subject through the shared matcher before applying scoped filters',
+  );
+  assert.match(
+    contentPageSource,
+    /const scopedSubjectFilter = moduleIdFilter && focusedModuleSubject\?\.id[\s\S]*\? focusedModuleSubject\.id[\s\S]*: subjectFilter;/,
+    'content page should override a stale dashboard subject filter with the recovered focused-module subject id when exact module scope is present',
+  );
+  assert.match(
+    contentPageSource,
     /const moduleIdFilter = normalizeFilterValue\(query\?\.moduleId\)\.trim\(\);/,
     'content page should normalize the incoming moduleId filter',
   );
@@ -29,6 +44,11 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     contentPageSource,
     /const moduleMatches = moduleIdMatches\(module\.id\);/,
     'blocked module rows should be narrowed by exact module id when present',
+  );
+  assert.match(
+    contentPageSource,
+    /const subjectMatches = matchesSubjectFilter\(scopedSubjectFilter, subjects, \{/,
+    'focused dashboard handoffs should filter against the recovered scoped subject instead of a stale raw query value',
   );
   assert.match(
     contentPageSource,
