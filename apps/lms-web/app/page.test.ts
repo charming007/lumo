@@ -81,6 +81,34 @@ test('dashboard bulk blocker handoff copy matches the direct canvas launch', () 
   );
 });
 
+test('dashboard normalizes progression status before building the priority queue', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone \} from '\.\.\/lib\/progression-status';/,
+    'dashboard should import shared progression-status helpers so queue routing survives backend casing drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const readyLearners = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'ready'\);/,
+    'dashboard should normalize ready-state matching before constructing the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const watchLearners = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'watch'\);/,
+    'dashboard should normalize watch-state matching before constructing the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Pill label=\{formatProgressionStatusLabel\(item\.progressionStatus\)\} tone=\{tone\.tone\} text=\{tone\.text\} \/>/,
+    'dashboard priority queue should render the normalized progression label instead of leaking raw backend casing',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /const readyLearners = workboard\.filter\(\(item\) => item\.progressionStatus === 'ready'\);|const watchLearners = workboard\.filter\(\(item\) => item\.progressionStatus === 'watch'\);/,
+    'dashboard should stop trusting raw progressionStatus equality in the priority queue',
+  );
+});
+
 test('dashboard top blocker only inlines assessment-gate creation when subject context is trustworthy', () => {
   assert.match(
     dashboardPageSource,

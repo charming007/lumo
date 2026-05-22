@@ -27,3 +27,12 @@ test('progress page uses subject-drift-safe filtering', () => {
   );
   assert.doesNotMatch(source, /item\.subjectId === subjectFilter/);
 });
+
+test('progress page normalizes progression status before filtering and badge tone rendering', () => {
+  assert.match(source, /import \{ formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone \} from '\.\.\/\.\.\/lib\/progression-status';/);
+  assert.match(source, /const statusMatches = !statusFilter \|\| normalizeProgressionStatus\(item\.progressionStatus\) === statusFilter;/);
+  assert.match(source, /label=\{formatProgressionStatusLabel\(item\.progressionStatus\)\}/);
+  assert.match(source, /tone=\{progressionStatusTone\(item\.progressionStatus\)\.tone\}/);
+  assert.match(source, /text=\{progressionStatusTone\(item\.progressionStatus\)\.text\}/);
+  assert.doesNotMatch(source, /item\.progressionStatus === statusFilter/);
+});
