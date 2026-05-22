@@ -9,8 +9,8 @@ const dashboardPageSource = readFileSync(fileURLToPath(new URL('../page.tsx', im
 test('dashboard exact blocker CTA carries a module id into the content board', () => {
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlocker\);/,
-    'dashboard blocker CTA should build the scoped blocker-board href through the shared helper so the exact module id survives normalization',
+    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlockerWithRecoveredSubject\);/,
+    'dashboard blocker CTA should build the scoped blocker-board href through the recovered subject scope so the exact module id survives normalization and subject-id drift',
   );
 });
 
