@@ -447,13 +447,13 @@ export default async function HomePage() {
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const topReleaseBlockerNormalizedSubjectId = topReleaseBlocker?.subjectId.trim() ?? '';
   const topReleaseBlockerAssessmentSubject = topReleaseBlocker
     ? findSubjectByContext(subjects, {
         subjectId: topReleaseBlocker.subjectId,
         subjectName: topReleaseBlocker.subjectName,
       })
     : null;
+  const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerAssessmentSubject?.id.trim() ?? '';
   const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject
     ? [topReleaseBlockerAssessmentSubject]
     : [];
@@ -462,7 +462,7 @@ export default async function HomePage() {
     && !topReleaseBlocker.hasAssessmentGate
     && topReleaseBlocker.hasAuthoringContext
     && subjectsResult.status === 'fulfilled'
-    && topReleaseBlockerNormalizedSubjectId
+    && topReleaseBlockerAssessmentSubjectId
     && topReleaseBlockerAssessmentSubjects.length,
   );
 
