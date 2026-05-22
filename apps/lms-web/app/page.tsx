@@ -17,6 +17,7 @@ import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '.
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
 import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
+import { findSubjectByContext } from '../lib/module-subject-match';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -447,10 +448,15 @@ export default async function HomePage() {
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
   const topReleaseBlockerNormalizedSubjectId = topReleaseBlocker?.subjectId.trim() ?? '';
-  const scopedAssessmentSubjects = topReleaseBlockerNormalizedSubjectId
-    ? subjects.filter((subject) => subject.id === topReleaseBlockerNormalizedSubjectId)
+  const topReleaseBlockerAssessmentSubject = topReleaseBlocker
+    ? findSubjectByContext(subjects, {
+        subjectId: topReleaseBlocker.subjectId,
+        subjectName: topReleaseBlocker.subjectName,
+      })
+    : null;
+  const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject
+    ? [topReleaseBlockerAssessmentSubject]
     : [];
-  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects;
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate

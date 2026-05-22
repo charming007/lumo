@@ -99,8 +99,18 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const scopedAssessmentSubjects = topReleaseBlockerNormalizedSubjectId[\s\S]*\? subjects\.filter\(\(subject\) => subject\.id === topReleaseBlockerNormalizedSubjectId\)[\s\S]*: \[\];/,
-    'dashboard should refuse to fall back to the full subject list for inline assessment creation when the blocker lacks a stable subject id',
+    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
+    'dashboard should reuse the shared normalized subject matcher before offering inline assessment creation',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubject = topReleaseBlocker[\s\S]*\? findSubjectByContext\(subjects, \{[\s\S]*subjectId: topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlocker\.subjectName,[\s\S]*\}\)[\s\S]*: null;/,
+    'dashboard should recover the top blocker subject through the shared matcher so inline gate creation survives subject-id drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject[\s\S]*\? \[topReleaseBlockerAssessmentSubject\][\s\S]*: \[\];/,
+    'dashboard should only pass the single normalized matched subject into inline assessment creation instead of the full subject list',
   );
   assert.match(
     dashboardPageSource,
