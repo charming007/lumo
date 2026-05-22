@@ -4502,6 +4502,37 @@ void main() {
     );
 
     test(
+      'nextAssignedLessonForLearner skips lessons already marked absent today',
+      () async {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        final firstLesson = state.nextAssignedLessonForLearner(learner);
+        expect(firstLesson, isNotNull);
+
+        final fallbackLesson = state
+            .lessonsForLearner(learner)
+            .where(
+              (lesson) =>
+                  lesson.id != firstLesson!.id &&
+                  state.learnerCanOpenLesson(learner, lesson),
+            )
+            .first;
+
+        await state.markLearnerAbsentForLesson(learner, firstLesson!);
+
+        expect(state.learnerCanOpenLesson(learner, firstLesson), isFalse);
+        expect(
+          state.terminalRuntimeSessionForLearnerAndLesson(learner, firstLesson)
+              ?.completionState,
+          'absent',
+        );
+        expect(state.nextAssignedLessonForLearner(learner)?.id, fallbackLesson.id);
+
+        state.dispose();
+      },
+    );
+
+    test(
       'restore keeps orphaned active sessions pending until learner returns',
       () async {
         SharedPreferences.setMockInitialValues({

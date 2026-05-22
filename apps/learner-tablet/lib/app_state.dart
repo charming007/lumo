@@ -1781,6 +1781,9 @@ class LumoAppState {
     if (lessonCompletedForLearner(learner, lesson)) {
       return false;
     }
+    if (terminalRuntimeSessionForLearnerAndLesson(learner, lesson) != null) {
+      return false;
+    }
     if (!_isPublishedLearnerLesson(lesson)) return false;
     if (!learnerMatchesTabletPod(learner)) return false;
 
