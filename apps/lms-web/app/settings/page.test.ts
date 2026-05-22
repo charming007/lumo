@@ -19,3 +19,12 @@ test('settings route blocks when core storage audit feeds degrade instead of lea
   assert.match(settingsPageSource, /A nice degraded banner is bullshit here\./, 'settings blocker should call out why a warning-only fallback is not acceptable');
   assert.match(settingsPageSource, /storage control surface should stop cold when the storage audit feeds disappear\./, 'settings blocker should distinguish critical storage blindness from tolerable secondary degradation');
 });
+
+test('settings route normalizes progression status before computing ops counts and reward-surface badges', () => {
+  assert.match(settingsPageSource, /import \{ formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone \} from '\.\.\/\.\.\/lib\/progression-status';/);
+  assert.match(settingsPageSource, /const ready = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'ready'\)\.length;/);
+  assert.match(settingsPageSource, /const watch = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'watch'\)\.length;/);
+  assert.match(settingsPageSource, /const progressionStatus = matchingWorkboard\?\.progressionStatus \?\? 'on-track';/);
+  assert.match(settingsPageSource, /<Pill key=\{item\.learnerId\} label=\{formatProgressionStatusLabel\(progressionStatus\)\} tone=\{pillTone\} text=\{pillText\} \/>/);
+  assert.doesNotMatch(settingsPageSource, /workboard\.filter\(\(item\) => item\.progressionStatus === 'ready'\)|workboard\.filter\(\(item\) => item\.progressionStatus === 'watch'\)/);
+});
