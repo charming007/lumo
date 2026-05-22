@@ -137,8 +137,18 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerAssessmentSubject\?\.id\.trim\(\) \?\? '';/,
-    'dashboard should gate the inline assessment action on the recovered subject id instead of the raw blocker payload',
+    /const topReleaseBlockerRecoveredSubjectId = topReleaseBlockerAssessmentSubject\?\.id\.trim\(\) \?\? '';/,
+    'dashboard should centralize the recovered top-blocker subject id so every CTA can reuse the same normalized scope',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerWithRecoveredSubject = topReleaseBlocker[\s\S]*subjectId: topReleaseBlockerRecoveredSubjectId \|\| topReleaseBlocker\.subjectId,[\s\S]*: null;/,
+    'dashboard should replace drifted blocker subject ids with the recovered subject scope before building dashboard CTAs',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;/,
+    'dashboard should gate the inline assessment action on the shared recovered subject id instead of the raw blocker payload',
   );
   assert.match(
     dashboardPageSource,
@@ -170,8 +180,13 @@ test('dashboard reuses the normalized blocker-board href helper instead of hand-
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlocker\);/,
-    'dashboard should build the scoped blocker-board CTA through the shared helper so subject/module normalization stays in one place',
+    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlockerWithRecoveredSubject\);/,
+    'dashboard should build the scoped blocker-board CTA through the recovered blocker context so subject drift does not poison the shared helper input',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref\(\{[\s\S]*blocker: topReleaseBlockerWithRecoveredSubject,[\s\S]*\}\);/,
+    'dashboard should pass the recovered blocker subject scope into the primary CTA helper so lesson-studio and canvas launches survive subject-id drift',
   );
   assert.doesNotMatch(
     dashboardPageSource,

@@ -422,7 +422,20 @@ export default async function HomePage() {
   const missingLessonGapCount = releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
-  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlocker);
+  const topReleaseBlockerAssessmentSubject = topReleaseBlocker
+    ? findSubjectByContext(subjects, {
+        subjectId: topReleaseBlocker.subjectId,
+        subjectName: topReleaseBlocker.subjectName,
+      })
+    : null;
+  const topReleaseBlockerRecoveredSubjectId = topReleaseBlockerAssessmentSubject?.id.trim() ?? '';
+  const topReleaseBlockerWithRecoveredSubject = topReleaseBlocker
+    ? {
+        ...topReleaseBlocker,
+        subjectId: topReleaseBlockerRecoveredSubjectId || topReleaseBlocker.subjectId,
+      }
+    : null;
+  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlockerWithRecoveredSubject);
   const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons
     && !topReleaseBlocker.hasAuthoringContext
@@ -437,18 +450,12 @@ export default async function HomePage() {
     : null;
   const canLaunchTopReleaseLessonCreate = Boolean(topReleaseBlockerCta?.canLaunchLessonStudio && topReleaseBlocker);
   const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref({
-    blocker: topReleaseBlocker,
+    blocker: topReleaseBlockerWithRecoveredSubject,
     boardHref: topReleaseBlockerBoardHref,
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const topReleaseBlockerAssessmentSubject = topReleaseBlocker
-    ? findSubjectByContext(subjects, {
-        subjectId: topReleaseBlocker.subjectId,
-        subjectName: topReleaseBlocker.subjectName,
-      })
-    : null;
-  const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerAssessmentSubject?.id.trim() ?? '';
+  const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;
   const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject
     ? [topReleaseBlockerAssessmentSubject]
     : [];
