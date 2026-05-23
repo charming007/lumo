@@ -68,6 +68,7 @@ function loadProjectEnvFiles() {
 loadProjectEnvFiles();
 
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+const configuredAdminApiKey = process.env.LUMO_ADMIN_API_KEY?.trim();
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
   Boolean(process.env.VERCEL_ENV) ||
@@ -79,6 +80,7 @@ const isProductionDeployment =
   process.env.CONTEXT === 'production';
 const isBuildCommand = lifecycleEvent === 'build';
 const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
+const shouldBlockForAdminApiKey = isHostedDeployment || isProductionDeployment;
 
 function invalidProductionApiReason(value) {
   try {
@@ -109,16 +111,46 @@ function invalidProductionApiReason(value) {
 const missingApiBaseReason = configuredApiBase
   ? null
   : 'NEXT_PUBLIC_API_BASE_URL is missing.';
-const invalidReason = missingApiBaseReason ?? invalidProductionApiReason(configuredApiBase);
+const invalidApiBaseReason = missingApiBaseReason ?? invalidProductionApiReason(configuredApiBase);
+
+function invalidAdminApiKeyReason(value) {
+  if (!value) {
+    return 'LUMO_ADMIN_API_KEY is missing.';
+  }
+
+  const normalized = value.toLowerCase();
+  if (
+    normalized === 'replace-with-api-admin-key'
+    || normalized === 'your-local-admin-key'
+    || normalized === 'changeme'
+    || normalized === 'change-me'
+    || normalized === 'example'
+    || normalized === 'test'
+  ) {
+    return 'LUMO_ADMIN_API_KEY still looks like a placeholder value.';
+  }
+
+  return null;
+}
+
+const invalidAdminKeyReason = shouldBlockForAdminApiKey
+  ? invalidAdminApiKeyReason(configuredAdminApiKey)
+  : null;
+const invalidReason = invalidApiBaseReason ?? invalidAdminKeyReason;
 
 if (invalidReason) {
+  const adminKeyIssue = invalidReason.includes('LUMO_ADMIN_API_KEY');
   const lines = [
     '',
     shouldBlockBuild ? 'Lumo LMS deployment build blocker.' : 'Lumo LMS build warning.',
     invalidReason,
-    shouldBlockBuild
-      ? 'Hosted builds must stop here instead of deploying a dashboard that points at a guessed or unsafe backend.'
-      : 'Set it in Vercel or your build environment before shipping to production.',
+    adminKeyIssue
+      ? (shouldBlockBuild
+        ? 'Hosted builds must stop here instead of shipping a dashboard/settings shell that hard-blocks at runtime because protected admin audit feeds cannot authenticate.'
+        : 'Set the same admin key the API expects before shipping to production, otherwise dashboard/settings/asset-library will block at runtime.')
+      : (shouldBlockBuild
+        ? 'Hosted builds must stop here instead of deploying a dashboard that points at a guessed or unsafe backend.'
+        : 'Set it in Vercel or your build environment before shipping to production.'),
     '',
   ];
 

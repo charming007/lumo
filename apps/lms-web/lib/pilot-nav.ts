@@ -20,7 +20,13 @@ export const PILOT_OFF_SHELL_ROUTE_LABELS = Object.freeze(
   PILOT_OFF_SHELL_ROUTES.map((route) => route.label),
 );
 
-export const PILOT_BLOCKED_ROUTES = Object.freeze([] as Array<{ id: string; label: string }>);
+export const PILOT_BLOCKED_ROUTES = Object.freeze([
+  { id: 'canvas', label: 'Curriculum Canvas' },
+  { id: 'english', label: 'English Studio' },
+  { id: 'rewards', label: 'Rewards' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'guide', label: 'Guide' },
+] as Array<{ id: string; label: string }>);
 
 export const PILOT_BLOCKED_ROUTE_IDS = Object.freeze(
   PILOT_BLOCKED_ROUTES.map((route) => route.id),
