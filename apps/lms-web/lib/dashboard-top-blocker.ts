@@ -16,7 +16,7 @@ export function resolveTopReleaseBlockerCta(params: {
   if (params.missingLessons > 1 && params.hasAuthoringContext) {
     return {
       canLaunchLessonStudio: false,
-      label: `Open bulk lesson shell flow (${params.missingLessons})`,
+      label: `Open scoped blocker flow (${params.missingLessons})`,
     } as const;
   }
 

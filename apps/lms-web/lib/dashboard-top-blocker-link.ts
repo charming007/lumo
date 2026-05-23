@@ -43,14 +43,7 @@ export function resolveTopReleaseBlockerPrimaryHref(params: {
   }
 
   if (blocker.missingLessons > 1 && blocker.hasAuthoringContext) {
-    const params = new URLSearchParams();
-    if (normalizedSubjectId) {
-      params.set('subject', normalizedSubjectId);
-    }
-    params.set('module', blocker.id);
-    params.set('readiness', 'blocked');
-    params.set('q', blocker.title);
-    return `/canvas?${params.toString()}`;
+    return boardHref;
   }
 
   return boardHref;

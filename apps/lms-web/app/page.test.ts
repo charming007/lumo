@@ -68,16 +68,16 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   );
 });
 
-test('dashboard bulk blocker handoff copy matches the direct canvas launch', () => {
+test('dashboard bulk blocker handoff copy tells the truth about the pilot-blocked canvas detour', () => {
   assert.match(
     dashboardPageSource,
-    /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
-    'dashboard should describe the real direct bulk-flow launch instead of the old blocker-board detour',
+    /dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas\./,
+    'dashboard should explain that multi-lesson blockers stay on the content blocker flow because canvas is not a valid pilot action surface',
   );
   assert.doesNotMatch(
     dashboardPageSource,
-    /dashboard sends them back to the blocker board where the bulk shell flow already exists\./,
-    'dashboard should not keep shipping the stale blocker-board detour copy once the direct CTA exists',
+    /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
+    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the pilot blocker fix lands',
   );
 });
 

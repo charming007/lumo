@@ -904,7 +904,7 @@ export default async function HomePage() {
                   {canLaunchTopReleaseLessonCreate
                     ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
                     : topReleaseBlocker.missingLessons > 1 && topReleaseBlocker.hasAuthoringContext
-                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough.'
+                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas.'
                       : topReleaseBlockerSubjectMetadataMissing
                         ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
                         : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
