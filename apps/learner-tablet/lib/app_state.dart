@@ -1023,6 +1023,25 @@ class LumoAppState {
       return;
     }
 
+    final hadUsableOfflineSnapshot = hasUsableOfflineSnapshot;
+    final preservedLearners = hadUsableOfflineSnapshot
+        ? List<LearnerProfile>.from(learners)
+        : const <LearnerProfile>[];
+    final preservedModules = hadUsableOfflineSnapshot
+        ? List<LearningModule>.from(modules)
+        : const <LearningModule>[];
+    final preservedLessons = hadUsableOfflineSnapshot
+        ? List<LessonCardModel>.from(assignedLessons)
+        : const <LessonCardModel>[];
+    final preservedAssignmentPacks = hadUsableOfflineSnapshot
+        ? List<LearnerAssignmentPack>.from(assignmentPacks)
+        : const <LearnerAssignmentPack>[];
+    final preservedRegistrationContext = registrationContext;
+    final preservedCurrentLearnerId =
+        hadUsableOfflineSnapshot ? currentLearner?.id : null;
+    final preservedSelectedModuleId =
+        hadUsableOfflineSnapshot ? selectedModule?.id : null;
+
     try {
       final data = await _apiClient.fetchBootstrap();
       registrationContext = data.registrationContext;
@@ -1141,8 +1160,40 @@ class LumoAppState {
           assignmentCount: data.assignmentCount,
         ),
       );
+      final restoringTrustedOfflineSnapshot =
+          liveBootstrapRuntimeBlocker != null && hadUsableOfflineSnapshot;
+      if (restoringTrustedOfflineSnapshot) {
+        learners
+          ..clear()
+          ..addAll(preservedLearners);
+        modules
+          ..clear()
+          ..addAll(preservedModules);
+        assignedLessons
+          ..clear()
+          ..addAll(preservedLessons);
+        assignmentPacks
+          ..clear()
+          ..addAll(preservedAssignmentPacks);
+        registrationContext = preservedRegistrationContext;
+        currentLearner = preservedCurrentLearnerId == null
+            ? null
+            : learners
+                    .where((learner) => learner.id == preservedCurrentLearnerId)
+                    .firstOrNull ??
+                learners.firstOrNull;
+        selectedModule = preservedSelectedModuleId == null
+            ? null
+            : modules
+                    .where((module) => module.id == preservedSelectedModuleId)
+                    .firstOrNull ??
+                modules.firstOrNull;
+      }
+
       usingFallbackData = liveBootstrapRuntimeBlocker != null;
-      deploymentBlockerReason = liveBootstrapRuntimeBlocker;
+      deploymentBlockerReason = restoringTrustedOfflineSnapshot
+          ? null
+          : liveBootstrapRuntimeBlocker;
       backendError = liveBootstrapRuntimeBlocker;
       if (liveBootstrapRuntimeBlocker == null) {
         lastSyncedAt = bootstrapRecordedAt;

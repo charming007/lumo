@@ -19,6 +19,71 @@ class _FakeBundledContentLoader extends BundledContentLoader {
   Future<BundledContentLibrary> load() async => library;
 }
 
+class _BootstrapShellOnlyLessonsApiClient extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap({
+    String? overrideDeviceIdentifier,
+  }) async {
+    return const LumoBootstrap(
+      learners: [
+        LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina Bello',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        ),
+      ],
+      modules: [
+        LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Foundational English',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        ),
+      ],
+      lessons: [
+        LessonCardModel(
+          id: 'english-shell',
+          moduleId: 'english',
+          title: 'Greeting lesson shell',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Published before steps synced.',
+          steps: [],
+        ),
+      ],
+      assignmentPacks: [],
+      registrationContext: RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          deviceIdentifier: 'tablet-pod-a-001',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+        ),
+      ),
+      generatedAt: '2026-05-23T17:00:00.000Z',
+      contractVersion: '2026-05-23',
+    );
+  }
+}
+
 class _BootstrapWithBundledFundamentalsApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -8408,6 +8473,104 @@ void main() {
           ).map((card) => card.id).toList(),
           equals(['basic-mathematics', 'english', 'life-skills']),
         );
+        state.dispose();
+      },
+    );
+
+    test(
+      'bootstrap keeps the last trusted offline roster when live bootstrap regresses into a dead-end payload',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: _BootstrapShellOnlyLessonsApiClient(),
+        );
+        final trustedLearner = const LearnerProfile(
+          id: 'trusted-learner',
+          name: 'Safiya Musa',
+          age: 8,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 2,
+          guardianName: 'Kande',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000002',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'SAF-001',
+        );
+        final trustedModule = const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Trusted cached module',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        );
+        final trustedLesson = const LessonCardModel(
+          id: 'trusted-english-1',
+          moduleId: 'english',
+          title: 'Trusted greeting lesson',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Trusted cached lesson.',
+          steps: [
+            LessonStep(
+              id: 'trusted-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model the greeting once.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners
+          ..clear()
+          ..add(trustedLearner);
+        state.modules
+          ..clear()
+          ..add(trustedModule);
+        state.assignedLessons
+          ..clear()
+          ..add(trustedLesson);
+        state.currentLearner = trustedLearner;
+        state.selectedModule = trustedModule;
+        state.snapshotTrustedFromLiveBootstrap = true;
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+        state.snapshotSavedAt = DateTime.now();
+        state.lastSyncedAt = DateTime.now();
+        state.snapshotContractVersion = '2026-05-23';
+        state.backendContractVersion = '2026-05-23';
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isTrue);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(
+          state.backendError,
+          'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.',
+        );
+        expect(
+          state.learners.map((learner) => learner.id).toList(),
+          equals(['trusted-learner']),
+        );
+        expect(
+          state.assignedLessons.map((lesson) => lesson.id).toList(),
+          equals(['trusted-english-1']),
+        );
+        expect(state.currentLearner?.id, 'trusted-learner');
+        expect(state.selectedModule?.id, 'english');
         state.dispose();
       },
     );
