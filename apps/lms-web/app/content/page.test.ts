@@ -138,6 +138,24 @@ test('content board treats strand outages as critical release blockers', () => {
   );
 });
 
+test('content board does not hard-block on subject metadata degradation alone', () => {
+  assert.doesNotMatch(
+    contentPageSource,
+    /const criticalReleaseFailures = \[[\s\S]*subjectsResult\.status === 'rejected' \? 'subjects' : null,[\s\S]*\]\.filter\(Boolean\);/,
+    'content board should stop treating subject metadata degradation alone as a hard release blocker',
+  );
+  assert.match(
+    contentPageSource,
+    /const subjectFeedAvailable = subjectsResult\.status === 'fulfilled';/,
+    'content board should still track subject feed availability for warning copy and guarded write flows',
+  );
+  assert.match(
+    contentPageSource,
+    /Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane\./,
+    'content board should warn about degraded subject metadata instead of blocking the whole release workflow',
+  );
+});
+
 test('content blocker actions keep multi-lesson gaps on the bulk blocker flow instead of single-lesson studio', () => {
   assert.match(
     contentPageSource,

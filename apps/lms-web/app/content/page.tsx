@@ -136,7 +136,6 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const criticalReleaseFailures = [
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
     strandsResult.status === 'rejected' ? 'strands' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean);
@@ -365,8 +364,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       <FeedbackBanner message={query?.message} />
 
       {failedSources.length ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Content library degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+          <div style={{ padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+            Content library degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+          </div>
+          {!subjectFeedAvailable ? (
+            <div style={{ padding: '14px 16px', borderRadius: 16, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', lineHeight: 1.6, fontWeight: 700 }}>
+              Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane. If a scoped subject filter looks wrong, clear it and trust the exact module handoff first.
+            </div>
+          ) : null}
         </div>
       ) : null}
 
