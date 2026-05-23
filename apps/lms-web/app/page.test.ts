@@ -58,13 +58,18 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   );
   assert.match(
     dashboardPageSource,
-    /No pilot routes are intentionally blocked right now\. If that changes, say it here instead of making operators infer it from missing nav links\./,
-    'dashboard should say plainly when no pilot routes are intentionally blocked instead of implying there is still a blocked surface',
+    /These routes are intentionally hard-blocked for pilot go-live\./,
+    'dashboard should say plainly that blocked pilot routes are intentionally deferred instead of pretending nothing is blocked',
+  );
+  assert.match(
+    dashboardPageSource,
+    /PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard should enumerate the blocked pilot surfaces instead of collapsing the section into generic copy',
   );
   assert.doesNotMatch(
     dashboardPageSource,
-    /The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
-    'dashboard should stop implying the full LMS nav is the live deployment target',
+    /No pilot routes are intentionally blocked right now\.|The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
+    'dashboard should stop pretending there are zero blocked pilot surfaces or that the full LMS nav is the live deployment target',
   );
 });
 
