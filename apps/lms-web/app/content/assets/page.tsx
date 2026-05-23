@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AssetLibraryFilters, AssetLibraryTable, AssetRegisterForm, AssetUploadForm } from '../../../components/asset-library-forms';
 import { DeploymentBlockerCard } from '../../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../../components/feedback-banner';
-import { ApiRequestError, fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus } from '../../../lib/api';
+import { ApiRequestError, fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus, isProtectedEndpointAuthFailure } from '../../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../../lib/config';
 import { sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
 import { PageShell } from '../../../lib/ui';
@@ -196,6 +196,10 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const storageStatus = storageStatusResult.status === 'fulfilled' ? storageStatusResult.value : null;
   const configAudit = configAuditResult.status === 'fulfilled' ? configAuditResult.value : null;
   const assetRuntime = assetRuntimeResult.status === 'fulfilled' ? assetRuntimeResult.value : null;
+  const storageStatusAuthBlocked = storageStatusResult.status === 'rejected' && isProtectedEndpointAuthFailure(storageStatusResult.reason);
+  const configAuditAuthBlocked = configAuditResult.status === 'rejected' && isProtectedEndpointAuthFailure(configAuditResult.reason);
+  const assetRuntimeAuthBlocked = assetRuntimeResult.status === 'rejected' && isProtectedEndpointAuthFailure(assetRuntimeResult.reason);
+  const assetAuditAuthBlocked = storageStatusAuthBlocked || configAuditAuthBlocked || assetRuntimeAuthBlocked;
   const failedSources = [
     subjectsResult.status === 'rejected' ? 'subjects' : null,
     modulesResult.status === 'rejected' ? 'modules' : null,
@@ -222,6 +226,59 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
   const storageStatusEndpoint = `${API_BASE}/api/v1/admin/storage/status`;
   const apiTargetSourceLabel = describeApiSource(API_BASE_SOURCE);
   const storageUploadsBlocked = assetUploadsReady === false;
+
+  if (assetAuditAuthBlocked) {
+    const blockedFeeds = [
+      storageStatusAuthBlocked ? 'storage status' : null,
+      configAuditAuthBlocked ? 'config audit' : null,
+      assetRuntimeAuthBlocked ? 'asset runtime' : null,
+    ].filter(Boolean) as string[];
+
+    return (
+      <DeploymentBlockerCard
+        title="Asset Library"
+        subtitle="This route is blocked until the LMS can authenticate to the protected asset audit feeds that prove uploads, storage, and runtime media integrity are actually safe."
+        blockerHeadline="Deployment blocker: LMS admin API key cannot unlock asset audit feeds."
+        blockerDetail={(
+          <>
+            Protected asset audit feed{blockedFeeds.length === 1 ? '' : 's'} failed authentication: {blockedFeeds.join(', ')}. The LMS cannot prove upload readiness, storage integrity, or managed lesson-media health until <code style={{ color: 'white', fontWeight: 900 }}>LUMO_ADMIN_API_KEY</code> is set correctly in the LMS deployment.
+          </>
+        )}
+        whyBlocked={[
+          'Asset Library is an operational write surface. If the protected audit feeds are 401ing, this route should not bluff its way into looking usable.',
+          'A missing or wrong admin API key can make uploads look “mostly fine” while storage checks, runtime integrity, and managed media audits are completely blind.',
+          'Blocking loudly here keeps asset review, upload, and edit workflows aligned with the dashboard and settings routes already treating audit-auth failures as deployment blockers.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Protected asset audit feeds',
+            expected: 'Config audit, storage status, and asset runtime endpoints answer successfully with LMS admin auth',
+            failure: '401 or auth-blocked responses while the page still pretends asset operations are trustworthy',
+          },
+          {
+            surface: 'Upload readiness',
+            expected: 'The route can prove upload storage, registry health, and managed media integrity before operators submit changes',
+            failure: 'Forms remain reachable even though the LMS cannot verify the asset pipeline behind them',
+          },
+          {
+            surface: 'Cross-check routes',
+            expected: '/settings and the dashboard asset-readiness panel recover as soon as the admin key is fixed',
+            failure: 'Asset Library still blocks after audit auth is restored, or the dashboard/settings disagree about readiness',
+          },
+        ]}
+        fixItems={[
+          { label: 'Current API target', value: API_BASE },
+          { label: 'Blocked feeds', value: blockedFeeds.join(', ') },
+          { label: 'Operator action', value: 'Set the correct LUMO_ADMIN_API_KEY in the LMS deployment, redeploy, then re-check /content/assets and /settings' },
+        ]}
+        docs={[
+          { label: 'Open settings + config audit', href: '/settings', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Dashboard asset readiness', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+        ]}
+      />
+    );
+  }
   const configAuditReady = configAudit?.summary?.ready ?? null;
   const configAuditStatusLabel = configAuditReady === null ? 'Config audit unavailable' : configAuditReady ? 'Config audit passed' : 'Config audit degraded';
   const runtimeOnlyRegistryOutage = assetFeedFailed && !missingCoreLibraryFeeds.length;

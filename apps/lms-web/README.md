@@ -49,4 +49,6 @@ Deploy to Vercel with root directory set to `apps/lms-web`.
 
 Hosted deployments must set `NEXT_PUBLIC_API_BASE_URL` explicitly.
 
-Use a real HTTPS production host such as `https://lumo-api-production-303a.up.railway.app`. Hosted and production builds now fail fast when the env var is missing, malformed, non-HTTPS, placeholder, or local-only, because a dashboard/admin shell pointed at a guessed or unsafe backend is still a bad release.
+Hosted deployments must also set `LUMO_ADMIN_API_KEY` to the same admin key the API expects. The dashboard, settings, and asset library now rely on protected audit feeds; shipping without that key just produces a polished admin shell that blocks itself at runtime.
+
+Use a real HTTPS production host such as `https://lumo-api-production-303a.up.railway.app`. Hosted and production builds now fail fast when `NEXT_PUBLIC_API_BASE_URL` is missing, malformed, non-HTTPS, placeholder, or local-only, or when `LUMO_ADMIN_API_KEY` is missing / obviously placeholder, because a dashboard/admin shell pointed at a guessed backend or locked out of its protected audit feeds is still a bad release.

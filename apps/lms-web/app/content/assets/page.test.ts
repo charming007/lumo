@@ -18,6 +18,29 @@ test('asset library hard-blocks when production API wiring is unsafe', () => {
   );
 });
 
+test('asset library hard-blocks when protected audit feeds cannot authenticate', () => {
+  assert.match(
+    assetLibraryPageSource,
+    /isProtectedEndpointAuthFailure/,
+    'asset library should detect protected audit auth failures instead of treating them like soft degradation',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /const assetAuditAuthBlocked = storageStatusAuthBlocked \|\| configAuditAuthBlocked \|\| assetRuntimeAuthBlocked;/,
+    'asset library should combine auth failures across the protected asset audit feeds',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /Deployment blocker: LMS admin API key cannot unlock asset audit feeds\./,
+    'asset library should escalate a missing or wrong LMS admin API key into an explicit deployment blocker',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /LUMO_ADMIN_API_KEY/,
+    'asset library blocker should name the exact LMS deployment secret operators need to fix',
+  );
+});
+
 test('asset library blocks writes when the live registry feed is failing', () => {
   assert.match(
     assetLibraryPageSource,

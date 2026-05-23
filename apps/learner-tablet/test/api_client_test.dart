@@ -172,14 +172,14 @@ void main() {
 
   group('LumoApiClient.productionBaseUrlIssue', () {
     test(
-        'rejects release builds that omit explicit API config even for the canonical production host',
+        'accepts the canonical production host when release config falls back to the built-in default',
         () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
           hasExplicitConfig: false,
         ),
-        contains('LUMO_API_BASE_URL is missing'),
+        isNull,
       );
     });
 

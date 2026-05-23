@@ -3,25 +3,25 @@ import assert from 'node:assert/strict';
 
 import { resolveTopReleaseBlockerCta } from './dashboard-top-blocker.ts';
 
-test('keeps multi-slot blockers on the bulk shell flow instead of dumping operators into single-lesson studio', () => {
+test('keeps multi-slot blockers on the scoped blocker flow instead of dumping operators into single-lesson studio', () => {
   assert.deepEqual(resolveTopReleaseBlockerCta({
     missingLessons: 2,
     hasAuthoringContext: true,
     subjectMetadataDegraded: false,
   }), {
     canLaunchLessonStudio: false,
-    label: 'Open bulk lesson shell flow (2)',
+    label: 'Open scoped blocker flow (2)',
   });
 });
 
-test('still keeps multi-slot blockers on the bulk shell flow even when module subject context is recoverable', () => {
+test('still keeps multi-slot blockers on the scoped blocker flow even when module subject context is recoverable', () => {
   assert.deepEqual(resolveTopReleaseBlockerCta({
     missingLessons: 2,
     hasAuthoringContext: true,
     subjectMetadataDegraded: true,
   }), {
     canLaunchLessonStudio: false,
-    label: 'Open bulk lesson shell flow (2)',
+    label: 'Open scoped blocker flow (2)',
   });
 });
 

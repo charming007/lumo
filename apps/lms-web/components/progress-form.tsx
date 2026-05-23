@@ -1,5 +1,6 @@
 import { createProgressAction, updateProgressAction } from '../app/actions';
 import { ActionButton } from './action-button';
+import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../lib/progression-status';
 import type { CurriculumModule, ProgressRecord, Student, Subject } from '../lib/types';
 import { responsiveGrid } from '../lib/ui';
 
@@ -47,6 +48,8 @@ export function ProgressUpdateForm({ progress, modules }: { progress: ProgressRe
     <div style={{ display: 'grid', gap: 12 }}>
       {progress.map((item) => {
         const recommendedModuleId = item.recommendedNextModuleId ?? modules[0]?.id;
+        const normalizedProgressionStatus = normalizeProgressionStatus(item.progressionStatus);
+        const progressionTone = progressionStatusTone(item.progressionStatus);
 
         return (
           <form key={item.id} action={updateProgressAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 12, border: '1px solid #eef2f7' }}>
@@ -60,20 +63,20 @@ export function ProgressUpdateForm({ progress, modules }: { progress: ProgressRe
                   {item.override?.updatedAt ? ` · Last override ${new Date(item.override.updatedAt).toLocaleString()}` : ''}
                 </div>
               </div>
-              <div style={{ padding: '8px 12px', borderRadius: 999, background: item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF', color: item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3', fontWeight: 700 }}>
-                {item.progressionStatus}
+              <div style={{ padding: '8px 12px', borderRadius: 999, background: progressionTone.tone, color: progressionTone.text, fontWeight: 700 }}>
+                {formatProgressionStatusLabel(item.progressionStatus)}
               </div>
             </div>
             <div style={{ ...responsiveGrid(180), gap: 12 }}>
               <input name="mastery" type="number" min="0" max="1" step="0.01" defaultValue={String(item.mastery ?? 0)} style={inputStyle} />
               <input name="lessonsCompleted" type="number" min="0" defaultValue={String(item.lessonsCompleted ?? 0)} style={inputStyle} />
-              <select name="progressionStatus" defaultValue={item.progressionStatus} style={inputStyle}><option value="on-track">On track</option><option value="watch">Watch</option><option value="ready">Ready</option></select>
+              <select name="progressionStatus" defaultValue={normalizedProgressionStatus} style={inputStyle}><option value="on-track">On track</option><option value="watch">Watch</option><option value="ready">Ready</option></select>
             </div>
             <select name="recommendedNextModuleId" defaultValue={recommendedModuleId} style={inputStyle}>{modules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}</select>
             <textarea name="overrideReason" defaultValue={item.override?.reason ?? ''} style={{ ...inputStyle, minHeight: 96, resize: 'vertical' }} placeholder="Explain the override so the next operator is not stuck guessing." />
             {item.override?.actorName || item.override?.reason ? (
               <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
-                Last override: {item.override?.status ?? item.progressionStatus}
+                Last override: {formatProgressionStatusLabel(item.override?.status ?? item.progressionStatus)}
                 {item.override?.actorName ? ` by ${item.override.actorName}` : ''}
                 {item.override?.reason ? ` · ${item.override.reason}` : ''}
               </div>

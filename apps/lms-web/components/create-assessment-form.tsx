@@ -52,9 +52,8 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function resolveAssessmentStatusDefault(moduleStatus?: string | null) {
-  if (moduleStatus === 'draft') return 'draft';
-  if (moduleStatus === 'published' || moduleStatus === 'active') return 'published';
-  return 'review';
+  if (moduleStatus === 'published' || moduleStatus === 'active') return 'active';
+  return 'draft';
 }
 
 export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { modules: CurriculumModule[]; subjects: Subject[]; returnPath?: string }) {
@@ -135,8 +134,7 @@ export function CreateAssessmentFormClient({ modules, subjects, returnPath }: { 
           Status
           <select name="status" defaultValue={defaultStatus} style={inputStyle} key={selectedModule?.id ?? 'no-module'}>
             <option value="draft">Draft</option>
-            <option value="review">In review</option>
-            <option value="published">Published</option>
+            <option value="active">Active</option>
           </select>
         </FieldLabel>
       </div>

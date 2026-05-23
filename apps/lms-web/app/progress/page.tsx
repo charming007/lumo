@@ -5,6 +5,7 @@ import { ProgressCaptureForm, ProgressUpdateForm } from '../../components/progre
 import { fetchCohorts, fetchCurriculumModules, fetchMallams, fetchPods, fetchProgress, fetchStudents, fetchSubjects } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { matchesSubjectFilter } from '../../lib/module-subject-match';
+import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../../lib/progression-status';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
@@ -173,7 +174,7 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       subjectIds: [item.subjectId],
       subjectNames: [item.subjectName],
     });
-    const statusMatches = !statusFilter || item.progressionStatus === statusFilter;
+    const statusMatches = !statusFilter || normalizeProgressionStatus(item.progressionStatus) === statusFilter;
     const queryMatches = matchesQuery([
       item.studentName,
       item.subjectName,
@@ -252,7 +253,7 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
               item.moduleTitle ?? '—',
               `${Math.round(item.mastery * 100)}%`,
               String(item.lessonsCompleted),
-              <Pill key={item.id} label={item.progressionStatus} tone={item.progressionStatus === 'ready' ? '#DCFCE7' : item.progressionStatus === 'watch' ? '#FEF3C7' : '#E0E7FF'} text={item.progressionStatus === 'ready' ? '#166534' : item.progressionStatus === 'watch' ? '#92400E' : '#3730A3'} />,
+              <Pill key={item.id} label={formatProgressionStatusLabel(item.progressionStatus)} tone={progressionStatusTone(item.progressionStatus).tone} text={progressionStatusTone(item.progressionStatus).text} />,
               item.recommendedNextModuleTitle ?? '—',
             ]) : emptyProgressRows(filtersActive ? 'No progress records match the current filters.' : 'Progress data is unavailable right now.')}
           />

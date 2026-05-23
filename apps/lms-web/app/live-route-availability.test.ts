@@ -7,46 +7,11 @@ function routeSource(route: 'canvas' | 'english' | 'guide' | 'reports' | 'reward
   return readFileSync(fileURLToPath(new URL(`./${route}/page.tsx`, import.meta.url)), 'utf8');
 }
 
-test('canvas route renders the live curriculum canvas instead of the pilot blocker', () => {
-  const source = routeSource('canvas');
-  assert.doesNotMatch(source, /PilotScopeBlocker/);
-  assert.match(source, /CurriculumCanvas/);
-  assert.match(source, /buildCurriculumCanvasData/);
-  assert.match(source, /fetchCurriculumCanvasTree/);
-});
-
-test('rewards route renders live rewards admin surfaces instead of the pilot blocker', () => {
-  const source = routeSource('rewards');
-  assert.doesNotMatch(source, /PilotScopeBlocker/);
-  assert.match(source, /RewardsAdminForm/);
-  assert.match(source, /RewardRequestQueuePanel/);
-  assert.match(source, /fetchRewardRequests/);
-});
-
-test('reports route renders live reports data instead of the pilot blocker', () => {
-  const source = routeSource('reports');
-  assert.doesNotMatch(source, /PilotScopeBlocker/);
-  assert.match(source, /fetchReportsOverview/);
-  assert.match(source, /fetchRewardsReport/);
-  assert.match(source, /fetchOperationsReport/);
-});
-
-test('english route renders the live English authoring lane instead of the pilot blocker', () => {
-  const source = routeSource('english');
-  assert.doesNotMatch(source, /PilotScopeBlocker/);
-  assert.match(source, /EnglishStudioAuthoringForm/);
-  assert.match(source, /createLessonAction/);
-  assert.match(source, /fetchSubjects/);
-  assert.match(source, /fetchCurriculumModules/);
-  assert.match(source, /buildEnglishLessonBlueprints/);
-});
-
-test('guide route exposes shipped guide assets instead of the pilot blocker', () => {
-  const source = routeSource('guide');
-  assert.doesNotMatch(source, /PilotScopeBlocker/);
-  assert.match(source, /LMS_DASHBOARD_GUIDE\.html/);
-  assert.match(source, /DEPLOY_VERIFICATION_CHECKLIST\.html/);
-  assert.match(source, /Live guide surfaces/);
-  assert.match(source, /github\.com\/charming007\/lumo\/blob\/main\/docs\/OPERATOR_RUNBOOK\.md/);
-  assert.doesNotMatch(source, /github\.com\/charmingdata\/lumo/);
+test('deferred specialist routes now share the pilot blocker instead of pretending they are live go-live surfaces', () => {
+  for (const route of ['canvas', 'english', 'guide', 'reports', 'rewards'] as const) {
+    const source = routeSource(route);
+    assert.match(source, /PilotScopeBlocker/);
+    assert.match(source, /Dashboard blocker stack/);
+    assert.match(source, /Settings trust center/);
+  }
 });

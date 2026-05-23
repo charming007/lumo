@@ -25,7 +25,7 @@ test('create assessment form recovers its subject context through the shared sub
   );
 });
 
-test('create assessment form only offers supported release statuses and defaults from module state', () => {
+test('create assessment form only offers supported assessment statuses and defaults from module state', () => {
   assert.match(
     source,
     /function resolveAssessmentStatusDefault\(moduleStatus\?: string \| null\)/,
@@ -34,19 +34,19 @@ test('create assessment form only offers supported release statuses and defaults
 
   assert.match(
     source,
-    /moduleStatus === 'published' \|\| moduleStatus === 'active'\) return 'published';/,
-    'assessment gate should treat legacy active modules as published when seeding the gate status',
+    /moduleStatus === 'published' \|\| moduleStatus === 'active'\) return 'active';/,
+    'assessment gate should default live-ready modules to an active assessment gate instead of writing a fake published status',
   );
 
   assert.match(
     source,
-    /<select name="status" defaultValue=\{defaultStatus\} style=\{inputStyle\} key=\{selectedModule\?\.id \?\? 'no-module'\}>[\s\S]*<option value="draft">Draft<\/option>[\s\S]*<option value="review">In review<\/option>[\s\S]*<option value="published">Published<\/option>/,
-    'assessment gate should expose the supported draft/review/published lifecycle options and re-seed when the module changes',
+    /<select name="status" defaultValue=\{defaultStatus\} style=\{inputStyle\} key=\{selectedModule\?\.id \?\? 'no-module'\}>[\s\S]*<option value="draft">Draft<\/option>[\s\S]*<option value="active">Active<\/option>/,
+    'assessment gate should expose the supported draft/active assessment statuses and re-seed when the module changes',
   );
 
   assert.doesNotMatch(
     source,
-    /<option value="active">Active<\/option>|<option value="retired">Retired<\/option>/,
-    'assessment gate should not offer stale assessment statuses that do not belong in the release flow',
+    /<option value="review">In review<\/option>|<option value="published">Published<\/option>|<option value="retired">Retired<\/option>/,
+    'assessment gate should not offer module lifecycle labels that create non-functional assessment statuses',
   );
 });
