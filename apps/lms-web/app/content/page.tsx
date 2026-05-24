@@ -215,6 +215,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const scopedSubjectFilter = moduleIdFilter && focusedModuleSubject?.id
     ? focusedModuleSubject.id
     : subjectFilter;
+  const openLessonStudioHref = focusedModule && focusedModuleSubject?.id
+    ? buildScopedLessonCreateHref({
+        subjectId: focusedModuleSubject.id,
+        moduleId: focusedModule.id,
+        returnPath,
+      })
+    : scopedSubjectFilter && subjectsIncludeId(subjects, scopedSubjectFilter)
+      ? `/content/lessons/new?subjectId=${encodeURIComponent(scopedSubjectFilter)}&from=${encodeURIComponent(returnPath)}`
+      : `/content/lessons/new?from=${encodeURIComponent(returnPath)}`;
   const filteredModules = modules.filter((module) => {
     const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [module.subjectId],
@@ -343,7 +352,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           <ModalLauncher buttonLabel="Create Module" title="Create module" description="Add a module to the right strand without leaving the content board.">
             <CreateModuleForm strands={strands} returnPath={returnPath} />
           </ModalLauncher>
-          <Link href="/content/lessons/new" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
+          <Link href={openLessonStudioHref} style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' }}>
             Open lesson studio
           </Link>
           <Link href="/content/assets" style={{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#ECFDF5', color: '#166534', textDecoration: 'none', border: '1px solid #BBF7D0' }}>

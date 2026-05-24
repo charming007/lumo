@@ -302,7 +302,9 @@ class LumoAppState {
   bool get requiresHardDeploymentBlocker =>
       deploymentBlockerReason != null &&
       usingFallbackData &&
-      (hasInvalidProductionBaseUrl || !hasUsableOfflineSnapshot);
+      (hasInvalidProductionBaseUrl ||
+          !hasUsableOfflineSnapshot ||
+          deploymentBlockerReason != offlineSnapshotTrustProblem);
 
   bool get shouldBlockProductionDeployment =>
       kReleaseBuild && requiresHardDeploymentBlocker;

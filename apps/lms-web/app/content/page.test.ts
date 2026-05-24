@@ -205,6 +205,19 @@ test('content blocker handoff copy stays inside pilot-safe routes', () => {
   );
 });
 
+test('content board primary lesson-studio CTA keeps the active pilot-safe blocker scope', () => {
+  assert.match(
+    contentPageSource,
+    /const openLessonStudioHref = focusedModule && focusedModuleSubject\?\.id[\s\S]*buildScopedLessonCreateHref\([\s\S]*returnPath,[\s\S]*\)[\s\S]*: scopedSubjectFilter && subjectsIncludeId\(subjects, scopedSubjectFilter\)[\s\S]*\/content\/lessons\/new\?subjectId=\$\{encodeURIComponent\(scopedSubjectFilter\)\}&from=\$\{encodeURIComponent\(returnPath\)\}[\s\S]*: `\/content\/lessons\/new\?from=\$\{encodeURIComponent\(returnPath\)\}`;/,
+    'content board should preserve exact module or subject scope when the primary lesson-studio CTA launches from a filtered pilot-safe blocker flow',
+  );
+  assert.match(
+    contentPageSource,
+    /<Link href=\{openLessonStudioHref\} style=\{\{ borderRadius: 16, padding: '12px 14px', fontWeight: 700, background: '#4F46E5', color: 'white', textDecoration: 'none' \}\}>\s*Open lesson studio\s*<\/Link>/,
+    'content board should route the primary lesson-studio CTA through the scoped href instead of dropping operators onto a generic create page',
+  );
+});
+
 test('content board assessment create modal keeps the exact scoped blocker return path', () => {
   assert.match(
     contentPageSource,

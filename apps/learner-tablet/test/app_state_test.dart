@@ -8561,6 +8561,84 @@ void main() {
     );
 
     test(
+      'trusted offline snapshot still requires a hard deployment blocker when live bootstrap trust is broken',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false);
+
+        state.learners
+          ..clear()
+          ..add(const LearnerProfile(
+            id: 'trusted-learner',
+            name: 'Safiya Musa',
+            age: 8,
+            cohort: 'Pod A',
+            podId: 'pod-a',
+            podLabel: 'Pod A',
+            streakDays: 2,
+            guardianName: 'Kande',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Voice-first beginner',
+            village: 'Kawo',
+            guardianPhone: '0800000002',
+            sex: 'Girl',
+            baselineLevel: 'No prior exposure',
+            consentCaptured: true,
+            learnerCode: 'SAF-001',
+          ));
+        state.modules
+          ..clear()
+          ..add(const LearningModule(
+            id: 'english',
+            title: 'English',
+            description: 'Trusted cached module',
+            voicePrompt: 'Open English.',
+            readinessGoal: 'Greeting flow',
+            badge: '1 lesson',
+          ));
+        state.assignedLessons
+          ..clear()
+          ..add(const LessonCardModel(
+            id: 'trusted-english-1',
+            moduleId: 'english',
+            title: 'Trusted greeting lesson',
+            subject: 'English',
+            durationMinutes: 8,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Greeting flow',
+            scenario: 'Trusted cached lesson.',
+            steps: [
+              LessonStep(
+                id: 'trusted-step-1',
+                type: LessonStepType.practice,
+                title: 'Say hello',
+                instruction: 'Say hello.',
+                expectedResponse: 'Hello',
+                coachPrompt: 'Say hello.',
+                facilitatorTip: 'Model the greeting once.',
+                realWorldCheck: 'Learner says hello.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ));
+        state.snapshotTrustedFromLiveBootstrap = true;
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+        state.snapshotSavedAt = DateTime.now();
+        state.lastSyncedAt = DateTime.now();
+        state.snapshotContractVersion = '2026-05-23';
+        state.backendContractVersion = '2026-05-23';
+        state.usingFallbackData = true;
+        state.deploymentBlockerReason =
+            'Production bootstrap returned curriculum content for this tablet, but zero synced learners in the scoped roster. The learner app would open without any valid learner handoff, so deployment trust is broken.';
+
+        expect(state.hasUsableOfflineSnapshot, isTrue);
+        expect(state.requiresHardDeploymentBlocker, isTrue);
+
+        state.dispose();
+      },
+    );
+
+    test(
       'bootstrap keeps the last trusted offline roster when live bootstrap regresses into a dead-end payload',
       () async {
         final state = LumoAppState(
