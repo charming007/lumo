@@ -68,6 +68,11 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   );
   assert.doesNotMatch(
     dashboardPageSource,
+    /PILOT_OFF_SHELL_ROUTE_LABELS.*Curriculum Canvas|PILOT_OFF_SHELL_ROUTE_LABELS.*English Studio|PILOT_OFF_SHELL_ROUTE_LABELS.*Rewards|PILOT_OFF_SHELL_ROUTE_LABELS.*Reports|PILOT_OFF_SHELL_ROUTE_LABELS.*Guide/s,
+    'dashboard should not advertise blocked routes as if they are merely off-shell specialist surfaces',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
     /No pilot routes are intentionally blocked right now\.|The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
     'dashboard should stop pretending there are zero blocked pilot surfaces or that the full LMS nav is the live deployment target',
   );
