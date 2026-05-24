@@ -93,9 +93,14 @@ test('asset library normalizes array-shaped search params before building filter
     /q: normalizeRouteParam\(query\.q\),[\s\S]*kind: normalizeRouteParam\(query\.kind\),[\s\S]*status: normalizeRouteParam\(query\.status\),[\s\S]*tag: normalizeRouteParam\(query\.tag\),[\s\S]*subjectId: normalizeRouteParam\(query\.subjectId\),[\s\S]*moduleId: normalizeRouteParam\(query\.moduleId\),[\s\S]*lessonId: normalizeRouteParam\(query\.lessonId\),[\s\S]*includeArchived: normalizeRouteParam\(query\.includeArchived\),/,
     'asset library should normalize every operator-facing filter param before reusing it in fetches and self-links',
   );
+  assert.match(
+    assetLibraryPageSource,
+    /const feedbackMessage = normalizeRouteParam\(query\.message\);[\s\S]*<FeedbackBanner message=\{feedbackMessage\} \/>/,
+    'asset library should normalize banner feedback params too, so redirected success/error messages cannot crash when duplicate query keys arrive as arrays',
+  );
   assert.doesNotMatch(
     assetLibraryPageSource,
-    /q: query\.q \|\| ''|kind: query\.kind \|\| ''|status: query\.status \|\| ''|tag: query\.tag \|\| ''|subjectId: query\.subjectId \|\| ''|moduleId: query\.moduleId \|\| ''|lessonId: query\.lessonId \|\| ''|includeArchived: query\.includeArchived \|\| ''/,
+    /q: query\.q \|\| ''|kind: query\.kind \|\| ''|status: query\.status \|\| ''|tag: query\.tag \|\| ''|subjectId: query\.subjectId \|\| ''|moduleId: query\.moduleId \|\| ''|lessonId: query\.lessonId \|\| ''|includeArchived: query\.includeArchived \|\| ''|<FeedbackBanner message=\{query\?\.message\} \/>/,
     'asset library should stop trusting raw searchParams values because duplicate query keys can arrive as arrays',
   );
 });

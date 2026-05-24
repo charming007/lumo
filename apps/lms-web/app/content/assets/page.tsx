@@ -125,6 +125,7 @@ export default async function AssetLibraryPage({
     includeArchived: normalizeRouteParam(query.includeArchived),
   };
   const from = sanitizeInternalReturnPath(query.from, '');
+  const feedbackMessage = normalizeRouteParam(query.message);
   const assetLibraryHref = buildRouteWithQuery('/content/assets', {
     ...filters,
     from,
@@ -361,7 +362,7 @@ export default async function AssetLibraryPage({
       <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>Back to content</Link>
     </div>}
   >
-    <FeedbackBanner message={query?.message} />
+    <FeedbackBanner message={feedbackMessage} />
     {failedSources.length ? (
       <div style={{ marginBottom: 16, padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700, display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gap: 6 }}>
