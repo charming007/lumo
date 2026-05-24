@@ -204,3 +204,11 @@ test('content blocker handoff copy stays inside pilot-safe routes', () => {
     'content blocker docs should stop advertising the pilot-blocked canvas route as a recovery target',
   );
 });
+
+test('content board assessment create modal keeps the exact scoped blocker return path', () => {
+  assert.match(
+    contentPageSource,
+    /<CreateAssessmentForm modules=\{modules\} subjects=\{subjects\} returnPath=\{returnPath\} \/>/,
+    'content board should send assessment creation back to the same scoped blocker flow instead of dropping operators onto the generic board',
+  );
+});

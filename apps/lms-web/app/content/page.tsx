@@ -356,7 +356,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
             <DynamicLessonCreateForm modules={modules} subjects={subjects} action={createLessonAction} returnPath={returnPath} />
           </ModalLauncher>
           <ModalLauncher buttonLabel="Create Assessment" title="Create assessment gate" description="Attach a progression gate to a module from the same board.">
-            <CreateAssessmentForm modules={modules} subjects={subjects} />
+            <CreateAssessmentForm modules={modules} subjects={subjects} returnPath={returnPath} />
           </ModalLauncher>
         </div>
       }
