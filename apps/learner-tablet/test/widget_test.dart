@@ -907,6 +907,103 @@ void main() {
   );
 
   testWidgets(
+    'deployment blocker page stays honest when a trusted offline snapshot exists',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      addTearDown(state.dispose);
+      state.learners
+        ..clear()
+        ..add(
+          const LearnerProfile(
+            id: 'learner-1',
+            name: 'Amina Bello',
+            age: 8,
+            cohort: 'Pod A',
+            streakDays: 2,
+            guardianName: 'Hauwa Bello',
+            preferredLanguage: 'Hausa',
+            readinessLabel: 'Ready for guided practice',
+            village: 'Pod A',
+            guardianPhone: '+2348000000000',
+            sex: 'female',
+            baselineLevel: 'guided',
+            consentCaptured: true,
+            learnerCode: 'L-001',
+          ),
+        );
+      state.modules
+        ..clear()
+        ..add(
+          const LearningModule(
+            id: 'english',
+            title: 'English',
+            description: 'Reading practice',
+            voicePrompt: 'Open English',
+            readinessGoal: 'Learner practice',
+            badge: '1 lesson',
+          ),
+        );
+      state.assignedLessons
+        ..clear()
+        ..add(
+          const LessonCardModel(
+            id: 'english-live-1',
+            moduleId: 'english',
+            title: 'Sound warm-up',
+            subject: 'English',
+            durationMinutes: 10,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Practice a short sound drill.',
+            scenario: 'Trusted offline snapshot lesson.',
+            steps: [
+              LessonStep(
+                id: 'step-1',
+                type: LessonStepType.practice,
+                title: 'Say /a/',
+                instruction: 'Say /a/.',
+                expectedResponse: 'a',
+                coachPrompt: 'Say /a/.',
+                facilitatorTip: 'Listen for the vowel sound.',
+                realWorldCheck: 'Learner says the target sound clearly.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        );
+      state.usingFallbackData = true;
+      state.lastSyncedAt = DateTime.now();
+      state.snapshotSavedAt = DateTime.now();
+      state.snapshotSourceBaseUrl = state.backendBaseUrl;
+      state.snapshotTrustedFromLiveBootstrap = true;
+      state.deploymentBlockerReason =
+          'LUMO_API_BASE_URL still points at the placeholder host.';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.textContaining('A trusted offline snapshot exists'),
+          findsOneWidget);
+      expect(
+        find.textContaining(
+            'there is no trusted offline snapshot on this device'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'deployment blocker page exposes copy actions for backend target, bootstrap probe, tablet identifier, and the full verification bundle',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

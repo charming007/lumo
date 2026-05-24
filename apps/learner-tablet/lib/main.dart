@@ -321,6 +321,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final blockerNeedsDeviceIdentity =
         blockerReason.toLowerCase().contains('device identifier') ||
             blockerReason.toLowerCase().contains('tablet registration');
+    final hasTrustedOfflineSnapshot = state.hasUsableOfflineSnapshot;
     final deploymentVerificationBundle = [
       'Lumo learner deployment blocker',
       'Backend target: $configuredBackend',
@@ -379,7 +380,9 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.',
+                          hasTrustedOfflineSnapshot
+                              ? 'This release build is still blocked because the live learner deployment contract is broken on this tablet. A trusted offline snapshot exists, but shipping with bad release wiring would still send operators chasing the wrong failure.'
+                              : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.92),
                             height: 1.5,
