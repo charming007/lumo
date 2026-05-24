@@ -8652,6 +8652,13 @@ void main() {
           state.assignedLessons.map((lesson) => lesson.id).toList(),
           equals(['trusted-english-1']),
         );
+        expect(state.lessonOriginFor(state.assignedLessons.first), ContentOrigin.localCache);
+        expect(state.moduleOriginFor(state.modules.first), ContentOrigin.localCache);
+        expect(state.curriculumSourceLabel, 'Cached curriculum');
+        expect(
+          state.curriculumTruthWarning,
+          'The tablet is teaching from local cached curriculum, not a fresh live backend fetch.',
+        );
         expect(state.currentLearner?.id, 'trusted-learner');
         expect(state.selectedModule?.id, 'english');
         state.dispose();
