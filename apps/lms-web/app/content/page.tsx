@@ -312,8 +312,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
           },
           {
             surface: 'Cross-check routes',
-            expected: 'Dashboard, content board, and canvas all agree on the same module once the handoff is repaired',
-            failure: 'One route shows the module while another route acts like it never existed',
+            expected: 'Dashboard, content board, and assessments agree on the same module once the handoff is repaired',
+            failure: 'One pilot-safe route shows the module while another route acts like it never existed',
           },
         ]}
         fixItems={[
@@ -324,7 +324,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
         docs={[
           { label: 'Dashboard blocker', href: '/', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
           { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
-          { label: 'Open canvas', href: '/canvas', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+          { label: 'Open assessments', href: '/assessments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
           { label: 'Settings blocker', href: '/settings', background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0' },
         ]}
       />

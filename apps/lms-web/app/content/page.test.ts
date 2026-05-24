@@ -186,3 +186,21 @@ test('content blocker review-gate CTA keeps exact module scope instead of a fuzz
     'content blocker review-gate CTA should carry the exact module id into the assessments board so operators review the intended gate',
   );
 });
+
+test('content blocker handoff copy stays inside pilot-safe routes', () => {
+  assert.match(
+    contentPageSource,
+    /Dashboard, content board, and assessments agree on the same module once the handoff is repaired/,
+    'content blocker verification copy should cross-check against assessments instead of the pilot-blocked canvas route',
+  );
+  assert.match(
+    contentPageSource,
+    /\{ label: 'Open assessments', href: '\/assessments'/,
+    'content blocker docs should point operators at assessments instead of the pilot-blocked canvas route',
+  );
+  assert.doesNotMatch(
+    contentPageSource,
+    /\{ label: 'Open canvas', href: '\/canvas'/,
+    'content blocker docs should stop advertising the pilot-blocked canvas route as a recovery target',
+  );
+});
