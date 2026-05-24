@@ -12,10 +12,17 @@ test('devices page hard-blocks when production API wiring is unsafe', () => {
 });
 
 test('devices page hard-blocks when the registry or pod feeds degrade', () => {
-  assert.match(devicesPageSource, /if \(failedSources\.length\)/, 'devices page should stop rendering the write surface when core rollout feeds fail');
+  assert.match(devicesPageSource, /if \(failedSources\.length \|\| missingPodRegistry\)/, 'devices page should stop rendering the write surface when core rollout feeds fail or the pod registry is empty');
   assert.match(devicesPageSource, /Deployment blocker: device rollout feeds are degraded\./, 'devices page should call out degraded rollout feeds as a deployment blocker');
   assert.match(devicesPageSource, /Leaving registration and reassignment controls interactive here would let operators move tablets, trust stale ownership, or create duplicates without seeing the real fleet state\./, 'devices page should explain the unsafe write failure mode it prevents');
   assert.match(devicesPageSource, /Pod linkage is the source of truth for tablet ownership and rollout geography\./, 'devices page should explain why missing pod data is deployment-blocking');
+});
+
+test('devices page also blocks when the live pod registry is empty', () => {
+  assert.match(devicesPageSource, /const missingPodRegistry = podsResult\.status === 'fulfilled' && pods\.length === 0;/, 'devices page should treat an empty live pod registry as unsafe for rollout writes');
+  assert.match(devicesPageSource, /Deployment blocker: device pod registry is empty\./, 'devices page should call out the empty pod registry blocker explicitly');
+  assert.match(devicesPageSource, /The live <strong>pods<\/strong> feed returned zero rows\./, 'devices page should explain why an empty pod feed cannot safely back device writes');
+  assert.match(devicesPageSource, /while the live pod registry is empty, so ownership and geography are effectively undefined/, 'devices page should name the empty-registry failure mode in deployment review copy');
 });
 
 test('devices page still keeps an honest empty-state warning once feeds recover', () => {

@@ -20,3 +20,14 @@ test('assignments route blocks when core delivery feeds degrade instead of leavi
   assert.match(assignmentsPageSource, /Assessments and pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds are missing\./, 'assignments blocker should distinguish tolerable degradation from deployment-blocking control-surface blindness');
   assert.match(assignmentsPageSource, /Forms stay interactive while the core reference feeds are missing or stale/, 'assignments blocker should describe the unsafe write failure mode it prevents');
 });
+
+test('assignments route normalizes backend status drift before filtering, counting, and rendering triage badges', () => {
+  assert.match(assignmentsPageSource, /function normalizeAssignmentStatus\(status: string \| null \| undefined\) \{/);
+  assert.match(assignmentsPageSource, /const statusFilter = normalizeAssignmentStatus\(normalizeFilterValue\(query\?\.status\)\);/);
+  assert.match(assignmentsPageSource, /const statusMatches = !statusFilter \|\| normalizeAssignmentStatus\(item\.status\) === statusFilter;/);
+  assert.match(assignmentsPageSource, /const activeCount = filteredAssignments\.filter\(\(item\) => normalizeAssignmentStatus\(item\.status\) === 'active'\)\.length;/);
+  assert.match(assignmentsPageSource, /const scheduledCount = filteredAssignments\.filter\(\(item\) => normalizeAssignmentStatus\(item\.status\) === 'scheduled'\)\.length;/);
+  assert.match(assignmentsPageSource, /normalizeAssignmentStatus\(item\.status\) !== 'completed'/);
+  assert.match(assignmentsPageSource, /<Pill key=\{item\.id\} label=\{formatAssignmentStatusLabel\(item\.status\)\} tone=\{tone\.tone\} text=\{tone\.text\} \/>/);
+  assert.doesNotMatch(assignmentsPageSource, /const statusMatches = !statusFilter \|\| item\.status === statusFilter;|const activeCount = filteredAssignments\.filter\(\(item\) => item\.status === 'active'\)\.length;|const scheduledCount = filteredAssignments\.filter\(\(item\) => item\.status === 'scheduled'\)\.length;|item\.status !== 'completed'/);
+});

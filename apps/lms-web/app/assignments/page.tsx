@@ -23,15 +23,26 @@ function matchesQuery(values: Array<string | null | undefined>, query: string) {
   return haystack.includes(query);
 }
 
+function normalizeAssignmentStatus(status: string | null | undefined) {
+  return status?.trim().toLowerCase() ?? '';
+}
+
+function formatAssignmentStatusLabel(status: string | null | undefined) {
+  const normalizedStatus = normalizeAssignmentStatus(status);
+  if (!normalizedStatus) return 'Unknown';
+  return normalizedStatus.replace(/-/g, ' ');
+}
+
 function statusTone(status: string) {
-  if (status === 'active') return { tone: '#DCFCE7', text: '#166534' };
-  if (status === 'scheduled') return { tone: '#E0E7FF', text: '#3730A3' };
-  if (status === 'completed') return { tone: '#E5E7EB', text: '#334155' };
+  const normalizedStatus = normalizeAssignmentStatus(status);
+  if (normalizedStatus === 'active') return { tone: '#DCFCE7', text: '#166534' };
+  if (normalizedStatus === 'scheduled') return { tone: '#E0E7FF', text: '#3730A3' };
+  if (normalizedStatus === 'completed') return { tone: '#E5E7EB', text: '#334155' };
   return { tone: '#FEF3C7', text: '#92400E' };
 }
 
 function dueTone(value: string, status: string) {
-  if (status === 'completed') return { label: 'Completed', tone: '#E5E7EB', text: '#334155' };
+  if (normalizeAssignmentStatus(status) === 'completed') return { label: 'Completed', tone: '#E5E7EB', text: '#334155' };
 
   const dueDate = startOfDay(new Date(value));
   if (Number.isNaN(dueDate.getTime())) return { label: 'Date unverified', tone: '#E5E7EB', text: '#475569' };
@@ -184,7 +195,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const canCreateAssignment = cohorts.length > 0 && lessons.length > 0 && mallams.length > 0;
 
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
-  const statusFilter = normalizeFilterValue(query?.status).trim();
+  const statusFilter = normalizeAssignmentStatus(normalizeFilterValue(query?.status));
   const cohortFilter = normalizeFilterValue(query?.cohort).trim();
   const mallamFilter = normalizeFilterValue(query?.mallam).trim();
   const podFilter = normalizeFilterValue(query?.pod).trim();
@@ -194,7 +205,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
     const matchedMallam = mallams.find((mallam) => mallam.displayName === item.teacherName || mallam.name === item.teacherName);
     const matchedPod = pods.find((pod) => pod.label === (item.podLabel ?? ''));
 
-    const statusMatches = !statusFilter || item.status === statusFilter;
+    const statusMatches = !statusFilter || normalizeAssignmentStatus(item.status) === statusFilter;
     const cohortMatches = !cohortFilter || item.cohortName === cohortFilter || matchedCohort?.id === cohortFilter;
     const mallamMatches = !mallamFilter || item.teacherName === mallamFilter || matchedMallam?.id === mallamFilter;
     const podMatches = !podFilter || (item.podLabel ?? 'Unassigned') === podFilter || matchedPod?.id === podFilter;
@@ -210,15 +221,15 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const dueSoonCount = filteredAssignments.filter((item) => {
     const dueDate = startOfDay(new Date(item.dueDate));
     if (Number.isNaN(dueDate.getTime())) return false;
-    return dueDate >= today && dueDate <= sevenDaysFromNow && item.status !== 'completed';
+    return dueDate >= today && dueDate <= sevenDaysFromNow && normalizeAssignmentStatus(item.status) !== 'completed';
   }).length;
   const overdueCount = filteredAssignments.filter((item) => {
     const dueDate = startOfDay(new Date(item.dueDate));
     if (Number.isNaN(dueDate.getTime())) return false;
-    return dueDate < today && item.status !== 'completed';
+    return dueDate < today && normalizeAssignmentStatus(item.status) !== 'completed';
   }).length;
-  const activeCount = filteredAssignments.filter((item) => item.status === 'active').length;
-  const scheduledCount = filteredAssignments.filter((item) => item.status === 'scheduled').length;
+  const activeCount = filteredAssignments.filter((item) => normalizeAssignmentStatus(item.status) === 'active').length;
+  const scheduledCount = filteredAssignments.filter((item) => normalizeAssignmentStatus(item.status) === 'scheduled').length;
 
   const workload = filteredAssignments.reduce<Record<string, number>>((acc, item) => {
     const key = item.teacherName || 'Unassigned';
@@ -240,7 +251,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const overdueAssignments = filteredAssignments
     .filter((item) => {
       const dueDate = startOfDay(new Date(item.dueDate));
-      return !Number.isNaN(dueDate.getTime()) && dueDate < today && item.status !== 'completed';
+      return !Number.isNaN(dueDate.getTime()) && dueDate < today && normalizeAssignmentStatus(item.status) !== 'completed';
     })
     .slice()
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
@@ -248,7 +259,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   const dueTodayAssignments = filteredAssignments
     .filter((item) => {
       const dueDate = startOfDay(new Date(item.dueDate));
-      return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime() && item.status !== 'completed';
+      return !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime() && normalizeAssignmentStatus(item.status) !== 'completed';
     })
     .slice(0, 4);
   const loadByMallam = mallams.map((mallam) => {
@@ -443,7 +454,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
                   <span>{formatDueLabel(item.dueDate)}</span>
                   <Pill label={due.label} tone={due.tone} text={due.text} />
                 </div>,
-                <Pill key={item.id} label={item.status} tone={tone.tone} text={tone.text} />,
+                <Pill key={item.id} label={formatAssignmentStatusLabel(item.status)} tone={tone.tone} text={tone.text} />,
               ];
             }) : emptyAssignmentRows(filtersActive ? 'No assignments match the current filters.' : 'Assignments are unavailable right now.')}
           />

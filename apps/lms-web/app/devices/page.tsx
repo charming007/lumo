@@ -92,21 +92,35 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
     registrationsResult.status === 'rejected' ? 'device registrations' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
   ].filter(Boolean);
+  const missingPodRegistry = podsResult.status === 'fulfilled' && pods.length === 0;
 
-  if (failedSources.length) {
+  if (failedSources.length || missingPodRegistry) {
+    const blockerHeadline = missingPodRegistry
+      ? 'Deployment blocker: device pod registry is empty.'
+      : 'Deployment blocker: device rollout feeds are degraded.';
+    const blockerDetail = missingPodRegistry
+      ? (
+        <>
+          The live <strong>pods</strong> feed returned zero rows. Pod selection is the deployment source of truth for tablet geography, facilitator ownership, and duplicate-device checks, so leaving registration and reassignment controls interactive here would let operators write blind rollout state against an empty ownership graph.
+        </>
+      )
+      : (
+        <>
+          The live <strong>{failedSources.join(' + ')}</strong> {failedSources.length === 1 ? 'feed has' : 'feeds have'} failed to load. Leaving registration and reassignment controls interactive here would let operators move tablets, trust stale ownership, or create duplicates without seeing the real fleet state.
+        </>
+      );
+
     return (
       <DeploymentBlockerCard
         title="Devices"
-        subtitle="Tablet rollout control should stop cold when the registry or pod feed goes blind."
-        blockerHeadline="Deployment blocker: device rollout feeds are degraded."
-        blockerDetail={(
-          <>
-            The live <strong>{failedSources.join(' + ')}</strong> {failedSources.length === 1 ? 'feed has' : 'feeds have'} failed to load. Leaving registration and reassignment controls interactive here would let operators move tablets, trust stale ownership, or create duplicates without seeing the real fleet state.
-          </>
-        )}
+        subtitle={missingPodRegistry
+          ? 'Tablet rollout control should stop cold when the pod registry has no live ownership rows.'
+          : 'Tablet rollout control should stop cold when the registry or pod feed goes blind.'}
+        blockerHeadline={blockerHeadline}
+        blockerDetail={blockerDetail}
         whyBlocked={[
           'Devices is an operational write surface. If the registry is down, a calm-looking table or empty state becomes dangerous fiction.',
-          'Pod linkage is the source of truth for tablet ownership and rollout geography. If that feed is missing, reassignment is guesswork with a nice button.',
+          'Pod linkage is the source of truth for tablet ownership and rollout geography. If that feed is missing or empty, reassignment is guesswork with a nice button.',
           'This route should behave like the other hardened admin surfaces: block loudly when the control plane is blind instead of inviting unsafe writes.',
         ]}
         verificationItems={[
@@ -118,7 +132,9 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
           {
             surface: 'Pod ownership feed',
             expected: 'Pod selectors and derived geography load from the live backend before a tablet move is allowed',
-            failure: 'Operators can submit a tablet change while pod ownership is missing or out of date',
+            failure: missingPodRegistry
+              ? 'Operators can submit a tablet change while the live pod registry is empty, so ownership and geography are effectively undefined'
+              : 'Operators can submit a tablet change while pod ownership is missing or out of date',
           },
           {
             surface: 'Rollout trust',
