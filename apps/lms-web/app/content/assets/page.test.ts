@@ -76,3 +76,26 @@ test('asset library calls out wrong-backend 404 evidence instead of claiming the
     'asset library should preserve the strongest repo-vs-runtime deployment mismatch guidance',
   );
 });
+
+test('asset library normalizes array-shaped search params before building filters and return links', () => {
+  assert.match(
+    assetLibraryPageSource,
+    /import \{ normalizeRouteParam, sanitizeInternalReturnPath \} from '\.\.\/\.\.\/\.\.\/lib\/safe-return-path';/,
+    'asset library should import the shared query-param normalizer alongside return-path sanitizing',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /searchParams\?: Promise<Record<string, string \| string\[\] \| undefined>>;/,
+    'asset library should accept the real Next.js string-or-array search-param shape',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /q: normalizeRouteParam\(query\.q\),[\s\S]*kind: normalizeRouteParam\(query\.kind\),[\s\S]*status: normalizeRouteParam\(query\.status\),[\s\S]*tag: normalizeRouteParam\(query\.tag\),[\s\S]*subjectId: normalizeRouteParam\(query\.subjectId\),[\s\S]*moduleId: normalizeRouteParam\(query\.moduleId\),[\s\S]*lessonId: normalizeRouteParam\(query\.lessonId\),[\s\S]*includeArchived: normalizeRouteParam\(query\.includeArchived\),/,
+    'asset library should normalize every operator-facing filter param before reusing it in fetches and self-links',
+  );
+  assert.doesNotMatch(
+    assetLibraryPageSource,
+    /q: query\.q \|\| ''|kind: query\.kind \|\| ''|status: query\.status \|\| ''|tag: query\.tag \|\| ''|subjectId: query\.subjectId \|\| ''|moduleId: query\.moduleId \|\| ''|lessonId: query\.lessonId \|\| ''|includeArchived: query\.includeArchived \|\| ''/,
+    'asset library should stop trusting raw searchParams values because duplicate query keys can arrive as arrays',
+  );
+});

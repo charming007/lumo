@@ -4,7 +4,7 @@ import { DeploymentBlockerCard } from '../../../components/deployment-blocker-ca
 import { FeedbackBanner } from '../../../components/feedback-banner';
 import { ApiRequestError, fetchAssetRuntime, fetchConfigAudit, fetchCurriculumModules, fetchLessonAssets, fetchLessons, fetchSubjects, fetchStorageStatus, isProtectedEndpointAuthFailure } from '../../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../../lib/config';
-import { sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
+import { normalizeRouteParam, sanitizeInternalReturnPath } from '../../../lib/safe-return-path';
 import { PageShell } from '../../../lib/ui';
 
 function statusCounts(items: Awaited<ReturnType<typeof fetchLessonAssets>>) {
@@ -108,17 +108,21 @@ function describeAssetRegistryFailure(error: unknown) {
   };
 }
 
-export default async function AssetLibraryPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
+export default async function AssetLibraryPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const query = (await searchParams) || {};
   const filters = {
-    q: query.q || '',
-    kind: query.kind || '',
-    status: query.status || '',
-    tag: query.tag || '',
-    subjectId: query.subjectId || '',
-    moduleId: query.moduleId || '',
-    lessonId: query.lessonId || '',
-    includeArchived: query.includeArchived || '',
+    q: normalizeRouteParam(query.q),
+    kind: normalizeRouteParam(query.kind),
+    status: normalizeRouteParam(query.status),
+    tag: normalizeRouteParam(query.tag),
+    subjectId: normalizeRouteParam(query.subjectId),
+    moduleId: normalizeRouteParam(query.moduleId),
+    lessonId: normalizeRouteParam(query.lessonId),
+    includeArchived: normalizeRouteParam(query.includeArchived),
   };
   const from = sanitizeInternalReturnPath(query.from, '');
   const assetLibraryHref = buildRouteWithQuery('/content/assets', {
