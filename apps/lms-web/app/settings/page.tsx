@@ -341,7 +341,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
         docs={[
           { label: 'Verify dashboard', href: '/', background: '#fff7ed', color: '#9a3412' },
           { label: 'Open content', href: '/content', background: '#0f172a', color: 'white' },
-          { label: 'Open reports', href: '/reports', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Open asset library', href: '/content/assets', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
         ]}
       />
     );

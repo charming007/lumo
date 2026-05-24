@@ -18,6 +18,8 @@ test('settings route blocks when core storage audit feeds degrade instead of lea
   assert.match(settingsPageSource, /This page can create checkpoints, run integrity repair, restore backups, and delete backups\./, 'settings blocker should explain which live controls become unsafe');
   assert.match(settingsPageSource, /A nice degraded banner is bullshit here\./, 'settings blocker should call out why a warning-only fallback is not acceptable');
   assert.match(settingsPageSource, /storage control surface should stop cold when the storage audit feeds disappear\./, 'settings blocker should distinguish critical storage blindness from tolerable secondary degradation');
+  assert.match(settingsPageSource, /label: 'Open asset library', href: '\/content\/assets'/, 'settings blocker should route operators to the pilot-safe asset library instead of the blocked reports surface');
+  assert.doesNotMatch(settingsPageSource, /label: 'Open reports', href: '\/reports'/, 'settings blocker should not point deployment review at the blocked reports route');
 });
 
 test('settings route normalizes progression status before computing ops counts and reward-surface badges', () => {
