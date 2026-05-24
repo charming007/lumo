@@ -8666,6 +8666,97 @@ void main() {
     );
 
     test(
+      'trusted offline fallback clears stale live origin badges after a dead-end bootstrap regression',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: _BootstrapShellOnlyLessonsApiClient(),
+        );
+        final trustedLearner = const LearnerProfile(
+          id: 'trusted-learner',
+          name: 'Safiya Musa',
+          age: 8,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 2,
+          guardianName: 'Kande',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000002',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'SAF-001',
+        );
+        final trustedModule = const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Trusted cached module',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        );
+        final trustedLesson = const LessonCardModel(
+          id: 'trusted-english-1',
+          moduleId: 'english',
+          title: 'Trusted greeting lesson',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Trusted cached lesson.',
+          steps: [
+            LessonStep(
+              id: 'trusted-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model the greeting once.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners
+          ..clear()
+          ..add(trustedLearner);
+        state.modules
+          ..clear()
+          ..add(trustedModule);
+        state.assignedLessons
+          ..clear()
+          ..add(trustedLesson);
+        state.usingFallbackData = false;
+        expect(state.moduleOriginFor(trustedModule), ContentOrigin.liveBackend);
+        expect(state.lessonOriginFor(trustedLesson), ContentOrigin.liveBackend);
+
+        state.currentLearner = trustedLearner;
+        state.selectedModule = trustedModule;
+        state.snapshotTrustedFromLiveBootstrap = true;
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+        state.snapshotSavedAt = DateTime.now();
+        state.lastSyncedAt = DateTime.now();
+        state.snapshotContractVersion = '2026-05-23';
+        state.backendContractVersion = '2026-05-23';
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isTrue);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(state.moduleOriginFor(state.modules.first), ContentOrigin.localCache);
+        expect(state.lessonOriginFor(state.assignedLessons.first), ContentOrigin.localCache);
+        expect(state.curriculumSourceLabel, 'Cached curriculum');
+        state.dispose();
+      },
+    );
+
+    test(
       'healthy live bootstrap does not report bundled fundamentals as curriculum mixed',
       () async {
         final bundledLesson = LessonCardModel(

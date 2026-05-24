@@ -1181,11 +1181,9 @@ class LumoAppState {
           ..clear()
           ..addAll(preservedAssignmentPacks);
         registrationContext = preservedRegistrationContext;
-        _moduleContentOrigins
-          ..clear();
+        _moduleContentOrigins.clear();
         _setModuleOrigins(modules, ContentOrigin.localCache);
-        _lessonContentOrigins
-          ..clear();
+        _lessonContentOrigins.clear();
         _setLessonOrigins(assignedLessons, ContentOrigin.localCache);
         currentLearner = preservedCurrentLearnerId == null
             ? null
