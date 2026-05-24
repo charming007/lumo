@@ -671,6 +671,46 @@ void main() {
   );
 
   testWidgets(
+    'recovered sessions stay blocked when deployment trust is broken even with a trusted offline snapshot',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      state.restoredFromPersistence = true;
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'LUMO_API_BASE_URL still points at the placeholder host.';
+      state.snapshotTrustedFromLiveBootstrap = true;
+      state.lastSyncedAt = DateTime.now();
+      state.snapshotSavedAt = DateTime.now();
+      state.snapshotSourceBaseUrl = state.backendBaseUrl;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: () {}),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Back'), findsNothing);
+      expect(find.text('Student list'), findsOneWidget);
+      expect(find.text('A sake jin Mallam'), findsOneWidget);
+      expect(state.hasUsableOfflineSnapshot, isTrue);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'reopens the completion page when a finished lesson is restored',
     (tester) async {
       tester.view.physicalSize = const Size(1600, 1500);
