@@ -18,3 +18,29 @@ test('quick lesson shell reconciles stale subject and module state when subject 
   assert.match(contentOpsFormSource, /const nextModuleId = filteredModules\.some\(\(module\) => module\.id === moduleId\)/);
   assert.match(contentOpsFormSource, /setModuleId\(nextModuleId\);/);
 });
+
+test('quick lesson shell blocks approved or published lesson creation while the selected module is still draft', () => {
+  assert.match(
+    contentOpsFormSource,
+    /const \[lessonStatus, setLessonStatus\] = useState<'draft' \| 'approved' \| 'published'>\('draft'\);/,
+    'quick lesson shell should track the requested lesson lifecycle state before submit',
+  );
+
+  assert.match(
+    contentOpsFormSource,
+    /activeModule\?\.status !== 'draft' \|\| lessonStatus === 'draft'[\s\S]*approved or published lessons are blocked until the lane is release-safe\./,
+    'quick lesson shell should surface an explicit release blocker when a draft module is asked to host an approved or published lesson',
+  );
+
+  assert.match(
+    contentOpsFormSource,
+    /<FieldLabel>Status<select name="status" value=\{lessonStatus\} onChange=\{\(event\) => setLessonStatus\(event\.target\.value as 'draft' \| 'approved' \| 'published'\)\} style=\{inputStyle\}>[\s\S]*<option value="draft">Draft<\/option>[\s\S]*<option value="approved">Approved<\/option>[\s\S]*<option value="published">Published<\/option>/,
+    'quick lesson shell should keep the status picker controlled so the release blocker reacts before submit',
+  );
+
+  assert.match(
+    contentOpsFormSource,
+    /disabled=\{formBlockers\.length > 0\}/,
+    'quick lesson shell submit should be disabled when release blockers are present, not just missing dependencies',
+  );
+});

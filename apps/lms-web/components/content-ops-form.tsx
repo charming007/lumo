@@ -79,12 +79,19 @@ export function DynamicLessonCreateForm({
   }, [filteredModules, moduleId]);
 
   const activeModule = filteredModules.find((item) => item.id === moduleId) ?? filteredModules[0];
+  const [lessonStatus, setLessonStatus] = useState<'draft' | 'approved' | 'published'>('draft');
+  const releaseBlockers = [
+    activeModule?.status !== 'draft' || lessonStatus === 'draft'
+      ? null
+      : 'This module is still draft, so approved or published lessons are blocked until the lane is release-safe.',
+  ].filter(Boolean) as string[];
   const dependencyBlockers = [
     subjects.length > 0 ? null : 'Create or reload a subject before creating a lesson.',
     subjectId ? null : 'Pick a subject before creating a lesson.',
     filteredModules.length > 0 ? null : 'Create or reload a module in this subject before creating a lesson.',
     moduleId && activeModule ? null : 'Pick a valid module before creating a lesson.',
   ].filter(Boolean) as string[];
+  const formBlockers = [...dependencyBlockers, ...releaseBlockers];
 
   return (
     <form action={action} style={cardStyle}>
@@ -115,18 +122,18 @@ export function DynamicLessonCreateForm({
         <div style={{ background: '#f8fafc', borderRadius: 14, padding: 14, border: '1px solid #e2e8f0' }}><strong>{activeModule?.level ?? '—'}</strong><div style={{ color: '#64748b', marginTop: 4 }}>Target level</div></div>
         <div style={{ background: '#f8fafc', borderRadius: 14, padding: 14, border: '1px solid #e2e8f0' }}><strong>{activeModule?.status ?? '—'}</strong><div style={{ color: '#64748b', marginTop: 4 }}>Module state</div></div>
       </div>
-      {dependencyBlockers.length ? (
+      {formBlockers.length ? (
         <div style={{ padding: 14, borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', lineHeight: 1.6, display: 'grid', gap: 8 }}>
-          {dependencyBlockers.map((blocker) => <div key={blocker}>{blocker}</div>)}
+          {formBlockers.map((blocker) => <div key={blocker}>{blocker}</div>)}
         </div>
       ) : null}
       <FieldLabel>Title<input name="title" defaultValue="Who helps in our community?" style={inputStyle} /></FieldLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
         <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue="8" style={inputStyle} /></FieldLabel>
         <FieldLabel>Mode<select name="mode" defaultValue="guided" style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option></select></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue="draft" style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
+        <FieldLabel>Status<select name="status" value={lessonStatus} onChange={(event) => setLessonStatus(event.target.value as 'draft' | 'approved' | 'published')} style={inputStyle}><option value="draft">Draft</option><option value="approved">Approved</option><option value="published">Published</option></select></FieldLabel>
       </div>
-      <ActionButton label={dependencyBlockers.length ? 'Load subject and module data first' : 'Create lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={dependencyBlockers.length > 0} />
+      <ActionButton label={dependencyBlockers.length ? 'Load subject and module data first' : releaseBlockers.length ? 'Fix release blockers first' : 'Create lesson'} pendingLabel="Creating lesson…" style={buttonStyle} disabled={formBlockers.length > 0} />
     </form>
   );
 }
