@@ -321,6 +321,14 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final blockerNeedsDeviceIdentity =
         blockerReason.toLowerCase().contains('device identifier') ||
             blockerReason.toLowerCase().contains('tablet registration');
+    final deploymentVerificationBundle = [
+      'Lumo learner deployment blocker',
+      'Backend target: $configuredBackend',
+      if (bootstrapProbeUrl != null) 'Bootstrap probe: $bootstrapProbeUrl',
+      'Tablet identifier: $deviceIdentifierLabel',
+      'Offline snapshot trusted: ${state.hasUsableOfflineSnapshot ? 'yes' : 'no'}',
+      'Blocker reason: $blockerReason',
+    ].join('\n');
 
     return Scaffold(
       body: SafeArea(
@@ -624,6 +632,57 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Deployment verification bundle',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Copy the backend target, bootstrap probe, tablet identifier, and blocker reason in one shot so whoever is fixing the rollout is not stitching evidence together from screenshots.',
+                                style: TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () async {
+                                  await ClipboardBridge.copy(
+                                    deploymentVerificationBundle,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Copied deployment verification bundle.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text(
+                                  'Copy deployment verification bundle',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 18),
                         Wrap(
                           spacing: 12,
@@ -1327,7 +1386,9 @@ bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
 }
 
 String lessonSyncBlockerStatusLabel(LessonCardModel lesson) {
-  return lesson.isAssignmentPlaceholder ? 'Waiting for sync' : 'Sync incomplete';
+  return lesson.isAssignmentPlaceholder
+      ? 'Waiting for sync'
+      : 'Sync incomplete';
 }
 
 String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
@@ -1517,11 +1578,12 @@ class HomePage extends StatelessWidget {
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
-    final forceTrustBannerOnUltraShort = state.deploymentBlockerReason != null ||
-        state.backendError != null ||
-        state.hasPendingRecoveredSession ||
-        state.pendingSyncEvents.isNotEmpty ||
-        state.lastSyncedAt != null;
+    final forceTrustBannerOnUltraShort =
+        state.deploymentBlockerReason != null ||
+            state.backendError != null ||
+            state.hasPendingRecoveredSession ||
+            state.pendingSyncEvents.isNotEmpty ||
+            state.lastSyncedAt != null;
     final showTrustBanner =
         hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
@@ -4013,16 +4075,15 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             ),
                                             const SizedBox(width: 12),
                                             StatusPill(
-                                              text:
-                                                  lessonRequiresSyncBeforeStarting(
+                                              text: lessonRequiresSyncBeforeStarting(
                                                 lesson,
                                               )
-                                                      ? lessonSyncBlockerStatusLabel(
-                                                          lesson,
-                                                        )
-                                                      : matchesResumableSession
-                                                          ? 'Resume ready'
-                                                          : 'Ready',
+                                                  ? lessonSyncBlockerStatusLabel(
+                                                      lesson,
+                                                    )
+                                                  : matchesResumableSession
+                                                      ? 'Resume ready'
+                                                      : 'Ready',
                                               color:
                                                   lessonRequiresSyncBeforeStarting(
                                                 lesson,

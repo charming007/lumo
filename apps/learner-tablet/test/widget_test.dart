@@ -907,7 +907,7 @@ void main() {
   );
 
   testWidgets(
-    'deployment blocker page exposes copy actions for backend target, bootstrap probe, and tablet identifier',
+    'deployment blocker page exposes copy actions for backend target, bootstrap probe, tablet identifier, and the full verification bundle',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       tester.view.physicalSize = const Size(1400, 1000);
@@ -938,6 +938,10 @@ void main() {
       expect(find.text('Copy backend target'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
+      expect(
+        find.text('Copy deployment verification bundle'),
+        findsOneWidget,
+      );
     },
   );
 
