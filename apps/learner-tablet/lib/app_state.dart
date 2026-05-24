@@ -296,11 +296,16 @@ class LumoAppState {
   bool get hasUsableOfflineSnapshot =>
       hasOfflineSnapshotPayload && offlineSnapshotTrustProblem == null;
 
-  bool get shouldBlockProductionDeployment =>
-      kReleaseBuild &&
+  bool get hasInvalidProductionBaseUrl =>
+      _apiClient.invalidProductionBaseUrlReason != null;
+
+  bool get requiresHardDeploymentBlocker =>
       deploymentBlockerReason != null &&
-      !hasUsableOfflineSnapshot &&
-      usingFallbackData;
+      usingFallbackData &&
+      (hasInvalidProductionBaseUrl || !hasUsableOfflineSnapshot);
+
+  bool get shouldBlockProductionDeployment =>
+      kReleaseBuild && requiresHardDeploymentBlocker;
 
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
     if (_includeSeedDemoContent) return null;
