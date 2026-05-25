@@ -5149,7 +5149,7 @@ class LumoAppState {
       final normalized = error.toLowerCase();
       if (normalized.contains('unknown learner for sync event') ||
           normalized.contains('unknown learner')) {
-        return 'Runtime sync is blocked because the backend rejected at least one learner event as unknown. Do not trust queued progress until that learner record is reconciled.';
+        return 'Runtime sync is blocked because the backend rejected at least one learner event as unknown. Do not trust queued progress until that learner record is reconciled. Treat local-only registration as incomplete, keep the backend reachable, and reconcile the learner before counting this tablet as pilot-ready again.';
       }
     }
 
@@ -5162,7 +5162,7 @@ class LumoAppState {
         return 'Runtime sync receipts show learner events the backend could not apply. Keep teaching if needed, but do not treat backend progress as trustworthy until ops clears the bad receipt.';
       }
       if (normalized.contains('unknown learner')) {
-        return 'Runtime sync receipts show an unknown learner mismatch. Reconcile the learner record before trusting new backend progress from this tablet.';
+        return 'Runtime sync receipts show an unknown learner mismatch. Reconcile the learner record before trusting new backend progress from this tablet, and avoid treating local-only registration as a completed deployment path.';
       }
     }
 
@@ -5195,15 +5195,28 @@ class LumoAppState {
         'Keep teaching from cached lessons. Registration, learner audio, and response events will stay on-device until the backend returns.',
       );
     }
+    if (hasPendingLocalFallbackRegistration) {
+      actions.add(
+        'Do not treat locally saved learners as fully deployed yet. Keep the backend reachable and let registration sync land before trusting roster or progress for those learners.',
+      );
+    }
     if (pendingSyncEvents.isNotEmpty) {
       actions.add(
         'Avoid duplicate taps while the queue drains; Lumo will replay the pending learner events safely on the next sync.',
       );
     }
     if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
-      actions.add(
-        'Retry backend sync after connectivity improves, but do not stop the lesson — the learner evidence is already preserved locally.',
-      );
+      final normalizedError = lastSyncError!.toLowerCase();
+      if (normalizedError.contains('unknown learner for sync event') ||
+          normalizedError.contains('unknown learner')) {
+        actions.add(
+          'An unknown learner sync failure usually means local-only registration never reconciled. Reconcile that learner before trusting new backend progress from this tablet.',
+        );
+      } else {
+        actions.add(
+          'Retry backend sync after connectivity improves, but do not stop the lesson — the learner evidence is already preserved locally.',
+        );
+      }
     }
     if (lastSyncWarnings.isNotEmpty) {
       actions.add(

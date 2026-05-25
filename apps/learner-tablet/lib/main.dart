@@ -13712,7 +13712,7 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
           ? '1 learner still needs backend registration'
           : '$count learners still need backend registration',
       detail:
-          'This tablet saved learner intake locally, but the live roster is not trustworthy until that registration sync lands. Keep the backend reachable before treating those learners as safely deployed.',
+          'This tablet saved learner intake locally, but the live roster is not trustworthy until that registration sync lands. Do not treat local-only registration as pilot-ready progress yet: keep the backend reachable and reconcile those learners before trusting roster, sync, or lesson evidence.',
       icon: Icons.person_add_alt_1_rounded,
       color: const Color(0xFF9A3412),
       backgroundColor: const Color(0xFFFFF7ED),

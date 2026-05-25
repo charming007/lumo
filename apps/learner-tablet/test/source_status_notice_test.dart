@@ -570,6 +570,7 @@ void main() {
     expect(signal.id, 'runtime-pending-registration-1');
     expect(signal.label, '1 learner still needs backend registration');
     expect(signal.detail, contains('live roster is not trustworthy'));
+    expect(signal.detail, contains('Do not treat local-only registration as pilot-ready progress yet'));
   });
 
   testWidgets(
@@ -600,6 +601,15 @@ void main() {
     expect(
       find.textContaining(
           'backend rejected at least one learner event as unknown'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('local-only registration as incomplete'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+          'An unknown learner sync failure usually means local-only registration never reconciled.'),
       findsOneWidget,
     );
   });
