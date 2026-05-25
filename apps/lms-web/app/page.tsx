@@ -1075,7 +1075,7 @@ export default async function HomePage() {
                 ))}
               </div>
               <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live.
+                This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live. Content-owned subflows like the asset library and lesson studio stay inside that Content Library lane instead of pretending to be separate pilot surfaces.
               </div>
             </div>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>

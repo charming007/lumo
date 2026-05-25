@@ -48,6 +48,11 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   );
   assert.match(
     dashboardPageSource,
+    /Content-owned subflows like the asset library and lesson studio stay inside that Content Library lane instead of pretending to be separate pilot surfaces\./,
+    'dashboard route map should explain why trusted content subflows are still in scope without masquerading as separate top-level pilot routes',
+  );
+  assert.match(
+    dashboardPageSource,
     /“Not in nav” is not the same thing as “blocked\.”/,
     'dashboard should explain the difference between off-shell and blocked routes',
   );
