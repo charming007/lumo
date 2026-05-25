@@ -2553,6 +2553,44 @@ void main() {
   );
 
   testWidgets(
+    'registration success page resolves the freshest learner record instead of a stale route snapshot',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      addTearDown(state.dispose);
+      final staleLearner = state.learners.first;
+      final refreshedLearner = staleLearner.copyWith(
+        name: 'Amina Bello',
+        preferredLanguage: 'English',
+        readinessLabel: 'Confident starter',
+        learnerCode: 'AMI-777',
+      );
+      state.learners[0] = refreshedLearner;
+      state.currentLearner = refreshedLearner;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: staleLearner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Amina Bello is ready for Lumo.'), findsOneWidget);
+      expect(find.text('Confident starter'), findsOneWidget);
+      expect(find.text('AMI-777'), findsOneWidget);
+      expect(find.text('${staleLearner.name} is ready for Lumo.'), findsNothing);
+      expect(find.text(staleLearner.learnerCode), findsNothing);
+    },
+  );
+
+  testWidgets(
     'registration success page falls back to the subject board when the assigned lesson shell is still incomplete',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

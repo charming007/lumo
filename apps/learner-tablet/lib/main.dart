@@ -6238,9 +6238,22 @@ class RegistrationSuccessPage extends StatelessWidget {
     required this.onChanged,
   });
 
+  LearnerProfile _resolveLearner() {
+    for (final entry in state.learners) {
+      if (entry.id == learner.id) return entry;
+    }
+    if (state.currentLearner?.id == learner.id) {
+      return state.currentLearner!;
+    }
+    return learner;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final recommendedModule = state.recommendedModuleForLearner(learner);
+    final resolvedLearner = _resolveLearner();
+    final recommendedModule = state.recommendedModuleForLearner(
+      resolvedLearner,
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -6264,7 +6277,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      '${learner.name} is ready for Lumo.',
+                      '${resolvedLearner.name} is ready for Lumo.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 28,
@@ -6281,10 +6294,10 @@ class RegistrationSuccessPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     LabelValueWrap(
                       items: [
-                        ('Learner', learner.name),
-                        ('Language', learner.preferredLanguage),
-                        ('Readiness', learner.readinessLabel),
-                        ('Learner code', learner.learnerCode),
+                        ('Learner', resolvedLearner.name),
+                        ('Language', resolvedLearner.preferredLanguage),
+                        ('Readiness', resolvedLearner.readinessLabel),
+                        ('Learner code', resolvedLearner.learnerCode),
                         ('Recommended start', recommendedModule.title),
                       ],
                     ),
@@ -6293,9 +6306,9 @@ class RegistrationSuccessPage extends StatelessWidget {
                       primary: FilledButton(
                         onPressed: () {
                           final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
+                            resolvedLearner,
                           );
-                          state.selectLearner(learner);
+                          state.selectLearner(resolvedLearner);
                           state.selectModule(recommendedModule);
                           onChanged();
                           if (nextLesson != null &&
@@ -6324,7 +6337,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                         },
                         child: Text(() {
                           final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
+                            resolvedLearner,
                           );
                           if (nextLesson == null) {
                             return 'Open subject';
