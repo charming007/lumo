@@ -63,6 +63,7 @@ export function RewardRequestQueuePanel({ queue }: { queue: RewardRequestQueue }
           </div>
 
           <form action={expireStaleRewardRequestsAction} style={{ display: 'grid', gap: 12, padding: 16, borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa' }}>
+            <input type="hidden" name="returnPath" value="/settings" />
             <div>
               <div style={{ fontWeight: 800, marginBottom: 6 }}>Bulk expire stale requests</div>
               <div style={{ color: '#9a3412', lineHeight: 1.6 }}>Use this to clean old reward debt out of the queue instead of letting stale requests rot forever.</div>
@@ -127,6 +128,7 @@ export function RewardRequestQueuePanel({ queue }: { queue: RewardRequestQueue }
 
                 <div style={{ ...responsiveGrid(260), gap: 12 }}>
                   <form action={approveRewardRequestAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #dbeafe' }}>
+                    <input type="hidden" name="returnPath" value="/settings" />
                     <input type="hidden" name="requestId" value={item.id} />
                     <div style={{ fontWeight: 700 }}>Approve for fulfillment</div>
                     <input name="adminNote" defaultValue={`Approved ${item.rewardTitle} for ${item.learnerName ?? item.studentId}`} style={inputStyle} />
@@ -134,6 +136,7 @@ export function RewardRequestQueuePanel({ queue }: { queue: RewardRequestQueue }
                   </form>
 
                   <form action={fulfillRewardRequestAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #bbf7d0' }}>
+                    <input type="hidden" name="returnPath" value="/settings" />
                     <input type="hidden" name="requestId" value={item.id} />
                     <div style={{ fontWeight: 700 }}>Mark fulfilled</div>
                     <input name="adminNote" defaultValue={`Fulfilled ${item.rewardTitle} for ${item.learnerName ?? item.studentId}`} style={inputStyle} />
@@ -141,6 +144,7 @@ export function RewardRequestQueuePanel({ queue }: { queue: RewardRequestQueue }
                   </form>
 
                   <form action={requeueRewardRequestAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #e9d5ff' }}>
+                    <input type="hidden" name="returnPath" value="/settings" />
                     <input type="hidden" name="requestId" value={item.id} />
                     <input type="hidden" name="reason" value="needs_follow_up" />
                     <div style={{ fontWeight: 700 }}>Requeue approved item</div>
@@ -149,6 +153,7 @@ export function RewardRequestQueuePanel({ queue }: { queue: RewardRequestQueue }
                   </form>
 
                   <form action={expireRewardRequestAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #fecaca' }}>
+                    <input type="hidden" name="returnPath" value="/settings" />
                     <input type="hidden" name="requestId" value={item.id} />
                     <input type="hidden" name="reason" value="stale_request" />
                     <div style={{ fontWeight: 700 }}>Expire request</div>

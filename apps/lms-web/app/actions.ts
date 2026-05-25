@@ -972,7 +972,7 @@ export async function createAssessmentAction(formData: FormData) {
 export async function quickUpdateLessonStatusAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
   const status = String(formData.get('status') || 'draft');
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/lessons/${lessonId}`, 'PATCH', { status });
   revalidatePath('/canvas');
@@ -985,7 +985,7 @@ export async function quickUpdateLessonStatusAction(formData: FormData) {
 
 export async function quickUpdateCanvasModuleAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const title = String(formData.get('title') || '').trim();
   const status = String(formData.get('status') || 'draft');
   const level = String(formData.get('level') || '').trim();
@@ -1065,7 +1065,7 @@ export async function bulkUpdateCanvasModuleLessonsAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
   const subjectId = String(formData.get('subjectId') || '');
   const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const targetStatus = String(formData.get('status') || 'review');
   const lessonIds = Array.from(formData.getAll('lessonIds')).map((value) => String(value || '')).filter(Boolean);
 
@@ -1084,7 +1084,7 @@ export async function createCanvasModuleLessonShellsAction(formData: FormData) {
   const moduleId = String(formData.get('moduleId') || '');
   const subjectId = String(formData.get('subjectId') || '');
   const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const missingCount = Math.max(Number(formData.get('missingCount') || 0), 0);
   const startIndex = Math.max(Number(formData.get('startIndex') || 0), 0);
   const titles = Array.from(formData.getAll('titles')).map((value) => String(value || '').trim()).filter(Boolean);
@@ -1125,7 +1125,7 @@ export async function createCanvasModuleLessonShellsAction(formData: FormData) {
 
 export async function quickUpdateCanvasLessonAction(formData: FormData) {
   const lessonId = String(formData.get('lessonId') || '');
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const title = String(formData.get('title') || '').trim();
   const status = String(formData.get('status') || 'draft');
   const mode = String(formData.get('mode') || 'guided');
@@ -1263,7 +1263,7 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
   const lessonId = String(formData.get('lessonId') || '');
   const assessmentId = String(formData.get('assessmentId') || '').trim();
   const assessmentTitle = String(formData.get('assessmentTitle') || '').trim();
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   const lesson = await apiRead<{
     lessonAssessment?: { [key: string]: unknown; title?: string | null; assessmentId?: string | null; items?: Array<Record<string, unknown>> } | null;
@@ -1296,7 +1296,7 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
 export async function quickUpdateAssessmentStatusAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
   const status = String(formData.get('status') || 'draft');
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
 
   await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', { status });
   revalidatePath('/canvas');
@@ -1308,7 +1308,7 @@ export async function quickUpdateAssessmentStatusAction(formData: FormData) {
 
 export async function quickUpdateCanvasAssessmentAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const title = String(formData.get('title') || '').trim();
   const status = String(formData.get('status') || 'draft');
   const triggerLabel = String(formData.get('triggerLabel') || '').trim();
@@ -1331,7 +1331,7 @@ export async function quickUpdateCanvasAssessmentAction(formData: FormData) {
 }
 
 export async function createCanvasAssessmentQuickAction(formData: FormData) {
-  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const subjectId = String(formData.get('subjectId') || '');
   const moduleId = String(formData.get('moduleId') || '');
   const moduleTitle = String(formData.get('moduleTitle') || 'this module').trim() || 'this module';
@@ -1468,6 +1468,7 @@ export async function updateProgressAction(formData: FormData) {
 }
 
 export async function awardStudentRewardAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const studentId = String(formData.get('studentId') || '');
   const xpDelta = Number(formData.get('xpDelta') || 0);
   const badgeId = String(formData.get('badgeId') || '').trim();
@@ -1483,12 +1484,15 @@ export async function awardStudentRewardAction(formData: FormData) {
   };
 
   await apiWrite(`/api/v1/students/${studentId}/rewards`, 'POST', payload, 'admin');
-  revalidatePath('/rewards');
+  revalidatePath('/settings');
   revalidatePath('/students');
-  redirect('/rewards?message=Reward%20adjustment%20saved');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Reward adjustment saved',
+  }));
 }
 
 export async function correctRewardTransactionAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const transactionId = String(formData.get('transactionId') || '').trim();
   const xpDelta = Number(formData.get('xpDelta') || 0);
   const label = String(formData.get('label') || '').trim();
@@ -1496,7 +1500,9 @@ export async function correctRewardTransactionAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
 
   if (!transactionId) {
-    redirect(`/rewards?message=${encodeMessage('Correction failed: missing transaction id')}`);
+    redirect(appendSearchParams(returnPath, {
+      message: 'Correction failed: missing transaction id',
+    }));
   }
 
   try {
@@ -1513,21 +1519,28 @@ export async function correctRewardTransactionAction(formData: FormData) {
   } catch (error) {
     rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : 'Reward correction failed';
-    redirect(`/rewards?message=${encodeMessage(`Correction failed: ${message}`)}`);
+    redirect(appendSearchParams(returnPath, {
+      message: `Correction failed: ${message}`,
+    }));
   }
 
-  revalidatePath('/rewards');
+  revalidatePath('/settings');
   revalidatePath('/students');
-  redirect('/rewards?message=Reward%20transaction%20corrected');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Reward transaction corrected',
+  }));
 }
 
 export async function revokeRewardTransactionAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const transactionId = String(formData.get('transactionId') || '').trim();
   const reason = String(formData.get('reason') || '').trim() || 'manual_revocation';
   const note = String(formData.get('note') || '').trim();
 
   if (!transactionId) {
-    redirect(`/rewards?message=${encodeMessage('Revocation failed: missing transaction id')}`);
+    redirect(appendSearchParams(returnPath, {
+      message: 'Revocation failed: missing transaction id',
+    }));
   }
 
   try {
@@ -1542,12 +1555,16 @@ export async function revokeRewardTransactionAction(formData: FormData) {
   } catch (error) {
     rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : 'Reward revocation failed';
-    redirect(`/rewards?message=${encodeMessage(`Revocation failed: ${message}`)}`);
+    redirect(appendSearchParams(returnPath, {
+      message: `Revocation failed: ${message}`,
+    }));
   }
 
-  revalidatePath('/rewards');
+  revalidatePath('/settings');
   revalidatePath('/students');
-  redirect('/rewards?message=Reward%20transaction%20revoked');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Reward transaction revoked',
+  }));
 }
 
 async function runRewardRequestAction({
@@ -1555,16 +1572,20 @@ async function runRewardRequestAction({
   path,
   successMessage,
   failureLabel,
+  returnPath,
   payload,
 }: {
   requestId: string;
   path: string;
   successMessage: string;
   failureLabel: string;
+  returnPath: string;
   payload?: Record<string, unknown>;
 }) {
   if (!requestId) {
-    redirect(`/rewards?message=${encodeMessage(`${failureLabel}: missing reward request id`)}`);
+    redirect(appendSearchParams(returnPath, {
+      message: `${failureLabel}: missing reward request id`,
+    }));
   }
 
   try {
@@ -1572,16 +1593,20 @@ async function runRewardRequestAction({
   } catch (error) {
     rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : failureLabel;
-    redirect(`/rewards?message=${encodeMessage(`${failureLabel}: ${message}`)}`);
+    redirect(appendSearchParams(returnPath, {
+      message: `${failureLabel}: ${message}`,
+    }));
   }
 
-  revalidatePath('/rewards');
-  revalidatePath('/reports');
+  revalidatePath('/settings');
   revalidatePath('/students');
-  redirect(`/rewards?message=${encodeMessage(successMessage)}`);
+  redirect(appendSearchParams(returnPath, {
+    message: successMessage,
+  }));
 }
 
 export async function approveRewardRequestAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const requestId = String(formData.get('requestId') || '').trim();
   const adminNote = String(formData.get('adminNote') || '').trim();
 
@@ -1590,11 +1615,13 @@ export async function approveRewardRequestAction(formData: FormData) {
     path: `/api/v1/rewards/requests/${requestId}/approve`,
     successMessage: 'Reward request approved',
     failureLabel: 'Reward approval failed',
+    returnPath,
     payload: { adminNote: adminNote || null },
   });
 }
 
 export async function fulfillRewardRequestAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const requestId = String(formData.get('requestId') || '').trim();
   const adminNote = String(formData.get('adminNote') || '').trim();
 
@@ -1603,6 +1630,7 @@ export async function fulfillRewardRequestAction(formData: FormData) {
     path: `/api/v1/rewards/requests/${requestId}/fulfill`,
     successMessage: 'Reward request fulfilled',
     failureLabel: 'Reward fulfillment failed',
+    returnPath,
     payload: {
       adminNote: adminNote || null,
       metadata: {
@@ -1614,6 +1642,7 @@ export async function fulfillRewardRequestAction(formData: FormData) {
 }
 
 export async function requeueRewardRequestAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const requestId = String(formData.get('requestId') || '').trim();
   const adminNote = String(formData.get('adminNote') || '').trim();
   const reason = String(formData.get('reason') || '').trim() || 'needs_follow_up';
@@ -1623,11 +1652,13 @@ export async function requeueRewardRequestAction(formData: FormData) {
     path: `/api/v1/rewards/requests/${requestId}/requeue`,
     successMessage: 'Reward request moved back to pending',
     failureLabel: 'Reward requeue failed',
+    returnPath,
     payload: { adminNote: adminNote || null, reason },
   });
 }
 
 export async function expireRewardRequestAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const requestId = String(formData.get('requestId') || '').trim();
   const adminNote = String(formData.get('adminNote') || '').trim();
   const reason = String(formData.get('reason') || '').trim() || 'stale_request';
@@ -1637,6 +1668,7 @@ export async function expireRewardRequestAction(formData: FormData) {
     path: `/api/v1/rewards/requests/${requestId}/expire`,
     successMessage: 'Reward request expired',
     failureLabel: 'Reward expiry failed',
+    returnPath,
     payload: {
       adminNote: adminNote || null,
       reason,
@@ -1649,6 +1681,7 @@ export async function expireRewardRequestAction(formData: FormData) {
 }
 
 export async function expireStaleRewardRequestsAction(formData: FormData) {
+  const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/settings');
   const olderThanDays = Number(formData.get('olderThanDays') || 14);
   const limit = Number(formData.get('limit') || 100);
   const includeApproved = String(formData.get('includeApproved') || 'yes') === 'yes';
@@ -1665,13 +1698,16 @@ export async function expireStaleRewardRequestsAction(formData: FormData) {
   } catch (error) {
     rethrowRedirectError(error);
     const message = error instanceof Error ? error.message : 'Bulk expiry failed';
-    redirect(`/rewards?message=${encodeMessage(`Bulk expiry failed: ${message}`)}`);
+    redirect(appendSearchParams(returnPath, {
+      message: `Bulk expiry failed: ${message}`,
+    }));
   }
 
-  revalidatePath('/rewards');
-  revalidatePath('/reports');
+  revalidatePath('/settings');
   revalidatePath('/students');
-  redirect('/rewards?message=Stale%20reward%20requests%20expired');
+  redirect(appendSearchParams(returnPath, {
+    message: 'Stale reward requests expired',
+  }));
 }
 
 export async function createPodAction(formData: FormData) {

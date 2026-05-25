@@ -66,6 +66,7 @@ export function RewardsAdminForm({ students, catalog, leaderboard }: { students:
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <form action={awardStudentRewardAction} style={{ background: 'white', borderRadius: 20, padding: 24, display: 'grid', gap: 12, border: '1px solid #eef2f7' }}>
+        <input type="hidden" name="returnPath" value="/settings" />
         <h2 style={{ margin: 0 }}>Manual reward adjustment</h2>
         <div style={{ color: '#64748b', lineHeight: 1.5 }}>
           Secondary admin lane: use this when ops needs to grant recovery XP, fix a missed badge, or document a manual reward without pretending the system will read your mind.
@@ -114,6 +115,7 @@ export function RewardsAdminForm({ students, catalog, leaderboard }: { students:
 
             <div style={{ ...responsiveGrid(260), gap: 12 }}>
               <form action={correctRewardTransactionAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #e5e7eb' }}>
+                <input type="hidden" name="returnPath" value="/settings" />
                 <input type="hidden" name="transactionId" value={transaction.id} />
                 <input type="hidden" name="reason" value="manual_correction" />
                 <div style={{ fontWeight: 700 }}>Correct transaction</div>
@@ -124,6 +126,7 @@ export function RewardsAdminForm({ students, catalog, leaderboard }: { students:
               </form>
 
               <form action={revokeRewardTransactionAction} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, background: 'white', border: '1px solid #fee2e2' }}>
+                <input type="hidden" name="returnPath" value="/settings" />
                 <input type="hidden" name="transactionId" value={transaction.id} />
                 <input type="hidden" name="reason" value="manual_revocation" />
                 <div style={{ fontWeight: 700 }}>Revoke transaction</div>
