@@ -21,9 +21,8 @@ import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui
 import { assessmentMatchesModule, isLiveAssessmentGate } from '../../lib/module-assessment-match';
 import { filterLessonsForModule, findModuleForLesson } from '../../lib/module-lesson-match';
 import { getModuleReleaseState } from '../../lib/module-release';
-
-import { isDraftModuleLifecycleStatus } from '../../lib/module-status';
-import { matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
+import { isDraftModuleLifecycleStatus, normalizeModuleLifecycleStatus } from '../../lib/module-status';
+import { findSubjectByContext, matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId } from '../../lib/module-subject-match';
 import { buildAssessmentReviewHref, buildContentReturnPath, buildScopedLessonCreateHref, normalizeFilterValue } from '../../lib/content-return-path';
 import { resolveTopReleaseBlockerCta } from '../../lib/dashboard-top-blocker';
 import { isLessonReleaseReady } from '../../lib/lesson-release-readiness';
@@ -137,7 +136,6 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const criticalReleaseFailures = [
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
-    subjectsResult.status === 'rejected' ? 'subjects' : null,
     strandsResult.status === 'rejected' ? 'strands' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean);
@@ -195,6 +193,8 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const searchText = normalizeFilterValue(query?.q).trim().toLowerCase();
   const subjectFilter = normalizeFilterValue(query?.subject).trim();
   const statusFilter = normalizeFilterValue(query?.status).trim();
+  const normalizedStatusFilter = statusFilter.toLowerCase();
+  const normalizedModuleStatusFilter = statusFilter ? normalizeModuleLifecycleStatus(statusFilter) : '';
   const viewFilter = normalizeFilterValue(query?.view).trim();
   const moduleIdFilter = normalizeFilterValue(query?.moduleId).trim();
   const normalizedModuleIdFilter = moduleIdFilter.toLowerCase();
@@ -206,13 +206,22 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   const focusedModule = normalizedModuleIdFilter
     ? modules.find((module) => module.id.trim().toLowerCase() === normalizedModuleIdFilter) ?? null
     : null;
+  const focusedModuleSubject = focusedModule
+    ? findSubjectByContext(subjects, {
+        subjectId: focusedModule.subjectId,
+        subjectName: focusedModule.subjectName,
+      })
+    : null;
+  const scopedSubjectFilter = moduleIdFilter && focusedModuleSubject?.id
+    ? focusedModuleSubject.id
+    : subjectFilter;
   const filteredModules = modules.filter((module) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });
     const moduleMatches = moduleIdMatches(module.id);
-    const statusMatches = !statusFilter || module.status === statusFilter;
+    const statusMatches = !statusFilter || normalizeModuleLifecycleStatus(module.status) === normalizedModuleStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'modules' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([module.title, module.subjectName, module.strandName, module.level, module.status], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
@@ -220,24 +229,24 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
 
   const filteredLessons = lessons.filter((lesson) => {
     const moduleForLesson = findModuleForLesson(modules, lesson);
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [lesson.subjectId, moduleForLesson?.subjectId],
       subjectNames: [lesson.subjectName, moduleForLesson?.subjectName],
     });
     const moduleMatches = moduleIdMatches(lesson.moduleId) || moduleIdMatches(moduleForLesson?.id);
-    const statusMatches = !statusFilter || lesson.status === statusFilter;
+    const statusMatches = !statusFilter || lesson.status.trim().toLowerCase() === normalizedStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'lessons';
     const queryMatches = matchesQuery([lesson.title, lesson.subjectName, lesson.moduleTitle, lesson.mode, lesson.status, lesson.targetAgeRange], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
   });
 
   const filteredAssessments = assessments.filter((assessment) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [assessment.subjectId],
       subjectNames: [assessment.subjectName],
     });
     const moduleMatches = moduleIdMatches(assessment.moduleId);
-    const statusMatches = !statusFilter || assessment.status === statusFilter;
+    const statusMatches = !statusFilter || assessment.status.trim().toLowerCase() === normalizedStatusFilter;
     const viewMatches = !viewFilter || viewFilter === 'assessments' || viewFilter === 'blocked';
     const queryMatches = matchesQuery([assessment.title, assessment.moduleTitle, assessment.subjectName, assessment.triggerLabel, assessment.kind, assessment.status], searchText);
     return subjectMatches && moduleMatches && statusMatches && viewMatches && queryMatches;
@@ -259,7 +268,7 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
   });
 
   const filteredBlockedModules = blockedModules.filter((module) => {
-    const subjectMatches = matchesSubjectFilter(subjectFilter, subjects, {
+    const subjectMatches = matchesSubjectFilter(scopedSubjectFilter, subjects, {
       subjectIds: [module.subjectId],
       subjectNames: [module.subjectName],
     });
@@ -356,8 +365,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
       <FeedbackBanner message={query?.message} />
 
       {failedSources.length ? (
-        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
-          Content library degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+          <div style={{ padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+            Content library degraded gracefully: {failedSources.join(', ')} feed {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+          </div>
+          {!subjectFeedAvailable ? (
+            <div style={{ padding: '14px 16px', borderRadius: 16, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', lineHeight: 1.6, fontWeight: 700 }}>
+              Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane. If a scoped subject filter looks wrong, clear it and trust the exact module handoff first.
+            </div>
+          ) : null}
         </div>
       ) : null}
 

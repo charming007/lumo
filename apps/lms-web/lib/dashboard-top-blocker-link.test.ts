@@ -57,7 +57,7 @@ test('routes single-lesson blockers into lesson studio', () => {
   );
 });
 
-test('routes multi-lesson blockers into the canvas bulk shell flow', () => {
+test('routes multi-lesson blockers back into the scoped content blocker flow', () => {
   const href = resolveTopReleaseBlockerPrimaryHref({
     blocker,
     boardHref: '/content?view=blocked&moduleId=module-reading-1',
@@ -66,7 +66,7 @@ test('routes multi-lesson blockers into the canvas bulk shell flow', () => {
 
   assert.equal(
     href,
-    '/canvas?subject=subject-english&module=module-reading-1&readiness=blocked&q=Reading+lane',
+    '/content?view=blocked&moduleId=module-reading-1',
   );
 });
 
@@ -100,7 +100,37 @@ test('keeps single-lesson blocker launches alive when the subject id is blank bu
   );
 });
 
-test('keeps multi-lesson blocker launches alive when the subject id is blank but module context is recoverable', () => {
+test('recovered subject ids flow through blocker-board and lesson-studio CTAs after dashboard normalization', () => {
+  const recoveredBlocker = {
+    ...blocker,
+    subjectId: 'subject-legacy-english',
+  } satisfies DashboardReleaseBlocker;
+
+  const boardHref = buildTopReleaseBlockerBoardHref({
+    ...recoveredBlocker,
+    subjectId: 'subject-english',
+  });
+  const lessonHref = resolveTopReleaseBlockerPrimaryHref({
+    blocker: {
+      ...recoveredBlocker,
+      subjectId: 'subject-english',
+      missingLessons: 1,
+    },
+    boardHref,
+    canLaunchLessonStudio: true,
+  });
+
+  assert.equal(
+    boardHref,
+    '/content?view=blocked&moduleId=module-reading-1&subject=subject-english&q=Reading+lane',
+  );
+  assert.equal(
+    lessonHref,
+    '/content/lessons/new?subjectId=subject-english&moduleId=module-reading-1&from=%2Fcontent%3Fview%3Dblocked%26moduleId%3Dmodule-reading-1%26subject%3Dsubject-english%26q%3DReading%2Blane&focus=blockers',
+  );
+});
+
+test('keeps multi-lesson blocker launches on the scoped blocker flow when the subject id is blank but module context is recoverable', () => {
   const href = resolveTopReleaseBlockerPrimaryHref({
     blocker: {
       ...blocker,
@@ -110,5 +140,5 @@ test('keeps multi-lesson blocker launches alive when the subject id is blank but
     canLaunchLessonStudio: false,
   });
 
-  assert.equal(href, '/canvas?module=module-reading-1&readiness=blocked&q=Reading+lane');
+  assert.equal(href, '/content?view=blocked&moduleId=module-reading-1');
 });

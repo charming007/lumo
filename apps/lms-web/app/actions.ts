@@ -937,6 +937,16 @@ export async function deleteLessonAssetAction(formData: FormData) {
   });
 }
 
+function normalizeAssessmentStatusInput(rawStatus: FormDataEntryValue | null) {
+  const status = String(rawStatus || 'draft').trim().toLowerCase();
+
+  if (status === 'published') return 'active';
+  if (status === 'review') return 'draft';
+  if (status === 'active' || status === 'retired' || status === 'draft') return status;
+
+  return 'draft';
+}
+
 export async function createAssessmentAction(formData: FormData) {
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/content');
   const payload = {
@@ -948,7 +958,7 @@ export async function createAssessmentAction(formData: FormData) {
     triggerLabel: String(formData.get('triggerLabel') || ''),
     progressionGate: String(formData.get('progressionGate') || 'foundation-a'),
     passingScore: Number(formData.get('passingScore') || 0.6),
-    status: String(formData.get('status') || 'draft'),
+    status: normalizeAssessmentStatusInput(formData.get('status')),
   };
 
   await apiWrite('/api/v1/assessments', 'POST', payload);

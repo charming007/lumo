@@ -1425,15 +1425,28 @@ function CanvasEmptyState({ failedSources, compact = false, searchAware = false 
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
           {[
-            { label: 'Open content board', href: '/content', note: 'See the full curriculum library and filter by module, subject, or blockers.', background: '#ffffff', color: '#0f172a' },
-            { label: 'Create a lesson', href: '/content/lessons/new?from=%2Fcanvas', note: 'Jump straight into authoring instead of waiting for the graph to fill in.', background: '#4F46E5', color: '#ffffff' },
-            { label: 'Review blockers', href: '/content?view=blocked', note: 'Find modules missing ready lessons or assessment gates.', background: '#FEF3C7', color: '#92400E' },
-            { label: 'Open assessments', href: assessmentBoardHref({}), note: 'Manage progression gates and release readiness from the live content board.', background: '#EDE9FE', color: '#5B21B6' },
+            { label: 'Open content board', href: '/content', note: 'See the full curriculum library and filter by module, subject, or blockers.', background: '#ffffff', color: '#0f172a', disabled: false },
+            {
+              label: searchAware ? 'Create a lesson' : 'Lesson create locked',
+              href: '/content/lessons/new?from=%2Fcanvas',
+              note: searchAware
+                ? 'Jump straight into authoring instead of waiting for the graph to fill in.'
+                : 'Do not author from the empty rescue canvas. Reconnect the live curriculum graph first, then create content from a trustworthy subject/module lane.',
+              background: searchAware ? '#4F46E5' : 'rgba(127,29,29,0.18)',
+              color: searchAware ? '#ffffff' : '#fca5a5',
+              disabled: !searchAware,
+            },
+            { label: 'Review blockers', href: '/content?view=blocked', note: 'Find modules missing ready lessons or assessment gates.', background: '#FEF3C7', color: '#92400E', disabled: false },
+            { label: 'Open assessments', href: assessmentBoardHref({}), note: 'Manage progression gates and release readiness from the live content board.', background: '#EDE9FE', color: '#5B21B6', disabled: false },
           ].map((item) => (
             <div key={item.label} style={{ padding: 16, borderRadius: 20, background: 'rgba(15,23,42,0.72)', border: '1px solid rgba(148,163,184,0.16)', display: 'grid', gap: 12 }}>
               <div style={{ color: '#e2e8f0', fontWeight: 800 }}>{item.label}</div>
               <div style={{ color: '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>{item.note}</div>
-              <Link href={item.href} style={{ ...actionLinkStyle, background: item.background, color: item.color }}>Go now</Link>
+              {item.disabled ? (
+                <div style={{ ...actionLinkStyle, background: item.background, color: item.color, border: '1px solid rgba(248,113,113,0.24)', cursor: 'not-allowed' }}>Rescue mode — write locked</div>
+              ) : (
+                <Link href={item.href} style={{ ...actionLinkStyle, background: item.background, color: item.color }}>Go now</Link>
+              )}
             </div>
           ))}
         </div>

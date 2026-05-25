@@ -17,6 +17,8 @@ import { diagnoseBackendTargetMismatch, summarizeBackendTargetEvidence } from '.
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
 import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
+import { findSubjectByContext } from '../lib/module-subject-match';
+import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../lib/progression-status';
 
 const quickActionStyle = {
   borderRadius: 14,
@@ -50,12 +52,6 @@ function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') 
       {message}
     </div>
   );
-}
-
-function statusTone(status: string) {
-  if (status === 'ready') return { tone: '#DCFCE7', text: '#166534' };
-  if (status === 'watch') return { tone: '#FEF3C7', text: '#92400E' };
-  return { tone: '#E0E7FF', text: '#3730A3' };
 }
 
 function formatPercent(value: number) {
@@ -401,8 +397,8 @@ export default async function HomePage() {
       ? { tone: '#FEF3C7', text: '#92400E' }
       : { tone: '#DCFCE7', text: '#166534' };
 
-  const readyLearners = workboard.filter((item) => item.progressionStatus === 'ready');
-  const watchLearners = workboard.filter((item) => item.progressionStatus === 'watch');
+  const readyLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready');
+  const watchLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'watch');
   const priorityQueue = [...watchLearners, ...readyLearners];
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
   const hasCriticalDashboardGap = criticalDashboardFailures.length > 0;
@@ -426,7 +422,20 @@ export default async function HomePage() {
   const missingLessonGapCount = releaseBlockers.reduce((sum, module) => sum + module.missingLessons, 0);
   const publishReadyModules = Math.max(modules.length - releaseBlockers.length, 0);
   const topReleaseBlocker = releaseBlockers[0] ?? null;
-  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlocker);
+  const topReleaseBlockerAssessmentSubject = topReleaseBlocker
+    ? findSubjectByContext(subjects, {
+        subjectId: topReleaseBlocker.subjectId,
+        subjectName: topReleaseBlocker.subjectName,
+      })
+    : null;
+  const topReleaseBlockerRecoveredSubjectId = topReleaseBlockerAssessmentSubject?.id.trim() ?? '';
+  const topReleaseBlockerWithRecoveredSubject = topReleaseBlocker
+    ? {
+        ...topReleaseBlocker,
+        subjectId: topReleaseBlockerRecoveredSubjectId || topReleaseBlocker.subjectId,
+      }
+    : null;
+  const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref(topReleaseBlockerWithRecoveredSubject);
   const topReleaseBlockerSubjectMetadataMissing = Boolean(
     topReleaseBlocker?.missingLessons
     && !topReleaseBlocker.hasAuthoringContext
@@ -441,21 +450,21 @@ export default async function HomePage() {
     : null;
   const canLaunchTopReleaseLessonCreate = Boolean(topReleaseBlockerCta?.canLaunchLessonStudio && topReleaseBlocker);
   const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref({
-    blocker: topReleaseBlocker,
+    blocker: topReleaseBlockerWithRecoveredSubject,
     boardHref: topReleaseBlockerBoardHref,
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const scopedAssessmentSubjects = topReleaseBlocker?.subjectId
-    ? subjects.filter((subject) => subject.id === topReleaseBlocker.subjectId)
-    : subjects;
-  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubjects.length ? scopedAssessmentSubjects : subjects;
-
+  const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;
+  const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject
+    ? [topReleaseBlockerAssessmentSubject]
+    : [];
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate
     && topReleaseBlocker.hasAuthoringContext
     && subjectsResult.status === 'fulfilled'
+    && topReleaseBlockerAssessmentSubjectId
     && topReleaseBlockerAssessmentSubjects.length,
   );
 
@@ -895,7 +904,7 @@ export default async function HomePage() {
                   {canLaunchTopReleaseLessonCreate
                     ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
                     : topReleaseBlocker.missingLessons > 1 && topReleaseBlocker.hasAuthoringContext
-                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough.'
+                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas.'
                       : topReleaseBlockerSubjectMetadataMissing
                         ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
                         : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
@@ -1011,7 +1020,7 @@ export default async function HomePage() {
           ) : priorityQueue.length ? (
             <div style={{ display: 'grid', gap: 12 }}>
               {priorityQueue.slice(0, 6).map((item) => {
-                const tone = statusTone(item.progressionStatus);
+                const tone = progressionStatusTone(item.progressionStatus);
                 return (
                   <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -1019,7 +1028,7 @@ export default async function HomePage() {
                         <strong style={{ color: '#0f172a' }}>{item.studentName}</strong>
                         <div style={{ color: '#64748b', marginTop: 4 }}>{item.cohortName ?? 'No cohort'} · {item.mallamName ?? 'No mallam'} · {item.podLabel ?? 'No pod'}</div>
                       </div>
-                      <Pill label={item.progressionStatus} tone={tone.tone} text={tone.text} />
+                      <Pill label={formatProgressionStatusLabel(item.progressionStatus)} tone={tone.tone} text={tone.text} />
                     </div>
                     <div style={{ color: '#475569', lineHeight: 1.6 }}>{item.focus}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

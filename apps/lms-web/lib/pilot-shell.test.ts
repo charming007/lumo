@@ -14,14 +14,14 @@ test('pilot shell helper classifies visible shell routes as in-scope', () => {
   });
 });
 
-test('pilot shell helper classifies direct specialist routes as off-shell instead of pilot-approved', () => {
+test('pilot shell helper classifies explicitly deferred specialist routes as blocked instead of pilot-approved', () => {
   assert.deepEqual(describePilotShellRoute('/reports/weekly'), {
     routeId: 'reports',
     routeLabel: 'Reports',
-    status: 'off-shell',
-    eyebrow: 'Specialist route',
-    title: 'Reports is live but outside the pilot shell.',
-    detail: 'Do not treat this page as proof that the wider LMS surface is pilot-approved just because it renders behind the same chrome.',
+    status: 'blocked',
+    eyebrow: 'Blocked surface',
+    title: 'Reports is explicitly blocked for pilot use.',
+    detail: 'If this route is open at all, treat it as a blocker surface rather than a deployment-ready operator workflow.',
   });
 });
 

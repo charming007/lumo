@@ -68,16 +68,44 @@ test('dashboard route map tells the truth about the visible pilot shell and off-
   );
 });
 
-test('dashboard bulk blocker handoff copy matches the direct canvas launch', () => {
+test('dashboard bulk blocker handoff copy tells the truth about the pilot-blocked canvas detour', () => {
   assert.match(
     dashboardPageSource,
-    /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
-    'dashboard should describe the real direct bulk-flow launch instead of the old blocker-board detour',
+    /dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas\./,
+    'dashboard should explain that multi-lesson blockers stay on the content blocker flow because canvas is not a valid pilot action surface',
   );
   assert.doesNotMatch(
     dashboardPageSource,
-    /dashboard sends them back to the blocker board where the bulk shell flow already exists\./,
-    'dashboard should not keep shipping the stale blocker-board detour copy once the direct CTA exists',
+    /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
+    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the pilot blocker fix lands',
+  );
+});
+
+test('dashboard normalizes progression status before building the priority queue', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone \} from '\.\.\/lib\/progression-status';/,
+    'dashboard should import shared progression-status helpers so queue routing survives backend casing drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const readyLearners = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'ready'\);/,
+    'dashboard should normalize ready-state matching before constructing the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const watchLearners = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'watch'\);/,
+    'dashboard should normalize watch-state matching before constructing the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Pill label=\{formatProgressionStatusLabel\(item\.progressionStatus\)\} tone=\{tone\.tone\} text=\{tone\.text\} \/>/,
+    'dashboard priority queue should render the normalized progression label instead of leaking raw backend casing',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /const readyLearners = workboard\.filter\(\(item\) => item\.progressionStatus === 'ready'\);|const watchLearners = workboard\.filter\(\(item\) => item\.progressionStatus === 'watch'\);/,
+    'dashboard should stop trusting raw progressionStatus equality in the priority queue',
   );
 });
 
@@ -95,9 +123,38 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-
-    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
-    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and scoped subjects',
+    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjectId[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
+    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and a normalized matched subject scope',
+  );
+  assert.match(
+    dashboardPageSource,
+    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
+    'dashboard should reuse the shared normalized subject matcher before offering inline assessment creation',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubject = topReleaseBlocker[\s\S]*\? findSubjectByContext\(subjects, \{[\s\S]*subjectId: topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlocker\.subjectName,[\s\S]*\}\)[\s\S]*: null;/,
+    'dashboard should recover the top blocker subject through the shared matcher so inline gate creation survives subject-id drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerRecoveredSubjectId = topReleaseBlockerAssessmentSubject\?\.id\.trim\(\) \?\? '';/,
+    'dashboard should centralize the recovered top-blocker subject id so every CTA can reuse the same normalized scope',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerWithRecoveredSubject = topReleaseBlocker[\s\S]*subjectId: topReleaseBlockerRecoveredSubjectId \|\| topReleaseBlocker\.subjectId,[\s\S]*: null;/,
+    'dashboard should replace drifted blocker subject ids with the recovered subject scope before building dashboard CTAs',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;/,
+    'dashboard should gate the inline assessment action on the shared recovered subject id instead of the raw blocker payload',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject[\s\S]*\? \[topReleaseBlockerAssessmentSubject\][\s\S]*: \[\];/,
+    'dashboard should only pass the single normalized matched subject into inline assessment creation instead of the full subject list',
   );
   assert.match(
     dashboardPageSource,
@@ -125,8 +182,13 @@ test('dashboard reuses the normalized blocker-board href helper instead of hand-
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlocker\);/,
-    'dashboard should build the scoped blocker-board CTA through the shared helper so subject/module normalization stays in one place',
+    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlockerWithRecoveredSubject\);/,
+    'dashboard should build the scoped blocker-board CTA through the recovered blocker context so subject drift does not poison the shared helper input',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerPrimaryHref = resolveTopReleaseBlockerPrimaryHref\(\{[\s\S]*blocker: topReleaseBlockerWithRecoveredSubject,[\s\S]*\}\);/,
+    'dashboard should pass the recovered blocker subject scope into the primary CTA helper so lesson-studio and canvas launches survive subject-id drift',
   );
   assert.doesNotMatch(
     dashboardPageSource,

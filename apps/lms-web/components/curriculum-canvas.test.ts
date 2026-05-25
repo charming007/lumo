@@ -61,6 +61,11 @@ test('curriculum canvas disables inline write controls when only rescue data is 
   assert.match(source, /readOnly=\{!hasTrustedLiveAuthoringContext\}/);
   assert.match(source, /Rescue-only lesson context is inspectable, not writable\./);
   assert.match(source, /Rescue-only gate context is inspectable, not writable\./);
+  assert.match(source, /label: searchAware \? 'Create a lesson' : 'Lesson create locked'/);
+  assert.match(source, /Do not author from the empty rescue canvas\. Reconnect the live curriculum graph first, then create content from a trustworthy subject\/module lane\./);
+  assert.match(source, /\{item\.disabled \? \(/);
+  assert.match(source, /Rescue mode — write locked/);
+  assert.doesNotMatch(source, /\{ label: 'Create a lesson', href: '\/content\/lessons\/new\?from=%2Fcanvas'/);
 });
 
 test('curriculum canvas normalizes active module lifecycle values into the published quick-edit option', () => {

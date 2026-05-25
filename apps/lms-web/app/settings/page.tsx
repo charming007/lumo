@@ -7,6 +7,7 @@ import { FeedbackBanner } from '../../components/feedback-banner';
 import { fetchAssetRuntime, fetchLocalGovernments, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStates, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard, isProtectedEndpointAuthFailure } from '../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../../lib/progression-status';
 import { describeCatalogState, describeLiveBackendWithCatalog } from '../../lib/trust-copy';
 import type { AssetRuntimeReport, MetaResponse, OperationsReport, RewardSnapshot, RewardsReport, StorageBackupList, StorageIntegrityReport, StorageStatus, WorkboardItem } from '../../lib/types';
 
@@ -147,9 +148,8 @@ function emptyLeaderboardRow(message: string) {
 }
 
 function toneForStatus(status: string) {
-  if (status === 'ready') return ['#DCFCE7', '#166534'] as const;
-  if (status === 'watch') return ['#FEF3C7', '#92400E'] as const;
-  return ['#E0E7FF', '#3730A3'] as const;
+  const tone = progressionStatusTone(status);
+  return [tone.tone, tone.text] as const;
 }
 
 function formatDateTime(value?: string | null) {
@@ -347,8 +347,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
     );
   }
 
-  const ready = workboard.filter((item) => item.progressionStatus === 'ready').length;
-  const watch = workboard.filter((item) => item.progressionStatus === 'watch').length;
+  const ready = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready').length;
+  const watch = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'watch').length;
   const averageXp = leaderboard.length ? Math.round(leaderboard.reduce((sum, item) => sum + item.totalXp, 0) / leaderboard.length) : 0;
   const totalBadgesUnlocked = leaderboard.reduce((sum, item) => sum + item.badgesUnlocked, 0);
   const seedEntries = Object.entries(meta.seedSummary ?? {});
@@ -610,7 +610,8 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
             columns={['Learner', 'Level', 'XP', 'Next level', 'Badges', 'Recent status']}
             rows={leaderboard.length ? leaderboard.map((item) => {
               const matchingWorkboard = workboard.find((entry) => entry.studentName === item.learnerName);
-              const [pillTone, pillText] = toneForStatus(matchingWorkboard?.progressionStatus ?? 'on-track');
+              const progressionStatus = matchingWorkboard?.progressionStatus ?? 'on-track';
+              const [pillTone, pillText] = toneForStatus(progressionStatus);
 
               return [
                 item.learnerName ?? item.learnerId,
@@ -618,7 +619,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 `${item.totalXp} total (${item.xpIntoLevel}/${item.xpForNextLevel})`,
                 item.nextLevelLabel ? `${item.nextLevelLabel} @ ${item.nextLevelXp ?? '—'} XP` : 'Maxed current ladder',
                 `${item.badgesUnlocked} unlocked`,
-                <Pill key={item.learnerId} label={matchingWorkboard?.progressionStatus ?? 'on-track'} tone={pillTone} text={pillText} />,
+                <Pill key={item.learnerId} label={formatProgressionStatusLabel(progressionStatus)} tone={pillTone} text={pillText} />,
               ];
             }) : emptyLeaderboardRow('Reward data is unavailable right now.')}
           />

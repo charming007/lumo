@@ -7,6 +7,7 @@ const englishStudioAuthoringFormSource = readFileSync(fileURLToPath(new URL('./e
 
 test('english studio keeps assessment gates attached when module ids drift', () => {
   assert.match(englishStudioAuthoringFormSource, /assessmentMatchesModule\(activeModule, assessment\)/);
+  assert.match(englishStudioAuthoringFormSource, /isLiveAssessmentGate\(assessment\)/);
   assert.doesNotMatch(englishStudioAuthoringFormSource, /assessment\.moduleId === activeModule\?\.id \|\| assessment\.moduleTitle === activeModule\?\.title/);
 });
 

@@ -9,8 +9,8 @@ const dashboardPageSource = readFileSync(fileURLToPath(new URL('../page.tsx', im
 test('dashboard exact blocker CTA carries a module id into the content board', () => {
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlocker\);/,
-    'dashboard blocker CTA should build the scoped blocker-board href through the shared helper so the exact module id survives normalization',
+    /const topReleaseBlockerBoardHref = buildTopReleaseBlockerBoardHref\(topReleaseBlockerWithRecoveredSubject\);/,
+    'dashboard blocker CTA should build the scoped blocker-board href through the recovered subject scope so the exact module id survives normalization and subject-id drift',
   );
 });
 
@@ -22,6 +22,21 @@ test('content board honors the focused module id filter and hard-blocks scoped d
   );
   assert.match(
     contentPageSource,
+    /import \{ findSubjectByContext, matchesSubjectFilter, resolveModuleSubjectId, subjectsIncludeId \} from '\.\.\/\.\.\/lib\/module-subject-match';/,
+    'content page should reuse the shared subject matcher so focused dashboard handoffs survive subject-id drift',
+  );
+  assert.match(
+    contentPageSource,
+    /const focusedModuleSubject = focusedModule[\s\S]*\? findSubjectByContext\(subjects, \{[\s\S]*subjectId: focusedModule\.subjectId,[\s\S]*subjectName: focusedModule\.subjectName,[\s\S]*\}\)[\s\S]*: null;/,
+    'content page should recover the focused module subject through the shared matcher before applying scoped filters',
+  );
+  assert.match(
+    contentPageSource,
+    /const scopedSubjectFilter = moduleIdFilter && focusedModuleSubject\?\.id[\s\S]*\? focusedModuleSubject\.id[\s\S]*: subjectFilter;/,
+    'content page should override a stale dashboard subject filter with the recovered focused-module subject id when exact module scope is present',
+  );
+  assert.match(
+    contentPageSource,
     /const moduleIdFilter = normalizeFilterValue\(query\?\.moduleId\)\.trim\(\);/,
     'content page should normalize the incoming moduleId filter',
   );
@@ -29,6 +44,11 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     contentPageSource,
     /const moduleMatches = moduleIdMatches\(module\.id\);/,
     'blocked module rows should be narrowed by exact module id when present',
+  );
+  assert.match(
+    contentPageSource,
+    /const subjectMatches = matchesSubjectFilter\(scopedSubjectFilter, subjects, \{/,
+    'focused dashboard handoffs should filter against the recovered scoped subject instead of a stale raw query value',
   );
   assert.match(
     contentPageSource,
@@ -44,6 +64,24 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     contentPageSource,
     /The dashboard passed moduleId <code style=\{\{ color: 'white', fontWeight: 900 \}\}>\{moduleIdFilter\}<\/code>, but this board cannot find that module in the live curriculum feed\./,
     'content board should treat a missing focused module as stale or mismatched deployment evidence',
+  );
+});
+
+test('content board normalizes status filters so legacy live module states still stay visible', () => {
+  assert.match(
+    contentPageSource,
+    /import \{ isDraftModuleLifecycleStatus, normalizeModuleLifecycleStatus \} from '\.\.\/\.\.\/lib\/module-status';/,
+    'content page should import the shared module lifecycle normalizer so the status filter does not drift from release-readiness logic',
+  );
+  assert.match(
+    contentPageSource,
+    /const normalizedModuleStatusFilter = statusFilter \? normalizeModuleLifecycleStatus\(statusFilter\) : '';/,
+    'content page should normalize the incoming status filter before comparing module lifecycle values',
+  );
+  assert.match(
+    contentPageSource,
+    /const statusMatches = !statusFilter \|\| normalizeModuleLifecycleStatus\(module\.status\) === normalizedModuleStatusFilter;/,
+    'content board should treat legacy module states like active\/approved as their release-safe lifecycle equivalent instead of hiding live modules from filtered blocker views',
   );
 });
 
@@ -99,6 +137,24 @@ test('content board treats strand outages as critical release blockers', () => {
     contentPageSource,
     /Strands are the structural spine for subject lanes and module placement\./,
     'content page should explain why a missing strands feed blocks deployment trust for the curriculum board',
+  );
+});
+
+test('content board does not hard-block on subject metadata degradation alone', () => {
+  assert.doesNotMatch(
+    contentPageSource,
+    /const criticalReleaseFailures = \[[\s\S]*subjectsResult\.status === 'rejected' \? 'subjects' : null,[\s\S]*\]\.filter\(Boolean\);/,
+    'content board should stop treating subject metadata degradation alone as a hard release blocker',
+  );
+  assert.match(
+    contentPageSource,
+    /const subjectFeedAvailable = subjectsResult\.status === 'fulfilled';/,
+    'content board should still track subject feed availability for warning copy and guarded write flows',
+  );
+  assert.match(
+    contentPageSource,
+    /Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane\./,
+    'content board should warn about degraded subject metadata instead of blocking the whole release workflow',
   );
 });
 

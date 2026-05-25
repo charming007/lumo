@@ -1517,9 +1517,16 @@ class HomePage extends StatelessWidget {
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
-    final showTrustBanner = hasSyncWarnings && !ultraShortHeight;
+    final forceTrustBannerOnUltraShort = state.deploymentBlockerReason != null ||
+        state.backendError != null ||
+        state.hasPendingRecoveredSession ||
+        state.pendingSyncEvents.isNotEmpty ||
+        state.lastSyncedAt != null;
+    final showTrustBanner =
+        hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
-    final trustBannerCompact = viewportWidth < 900 || viewportHeight <= 1040;
+    final trustBannerCompact =
+        ultraShortHeight || viewportWidth < 900 || viewportHeight <= 1040;
     final freshnessBannerCompact = viewportWidth < 900 || viewportHeight <= 920;
 
     return Scaffold(
@@ -1527,9 +1534,9 @@ class HomePage extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             24,
-            ultraShortHeight ? 12 : 24,
+            ultraShortHeight ? 8 : 24,
             24,
-            ultraShortHeight ? 12 : 20,
+            ultraShortHeight ? 8 : 20,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1543,14 +1550,14 @@ class HomePage extends StatelessWidget {
                       : _buildOperatorStatusChips(state),
                 ),
               if (showTrustBanner) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: ultraShortHeight ? 0 : 12),
                 _HomeTrustBanner(
                   state: state,
                   onChanged: onChanged,
                   compact: trustBannerCompact,
                 ),
               ] else if (showFreshnessBanner) ...[
-                const SizedBox(height: 12),
+                SizedBox(height: ultraShortHeight ? 0 : 12),
                 _HomeFreshnessBanner(
                   state: state,
                   compact: freshnessBannerCompact,
