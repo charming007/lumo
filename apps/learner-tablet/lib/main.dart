@@ -286,7 +286,7 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
   }
 }
 
-class LearnerDeploymentBlockerPage extends StatelessWidget {
+class LearnerDeploymentBlockerPage extends StatefulWidget {
   const LearnerDeploymentBlockerPage({
     super.key,
     required this.state,
@@ -297,7 +297,33 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
   final Future<void> Function() onRetry;
 
   @override
+  State<LearnerDeploymentBlockerPage> createState() =>
+      _LearnerDeploymentBlockerPageState();
+}
+
+class _LearnerDeploymentBlockerPageState
+    extends State<LearnerDeploymentBlockerPage> {
+  bool _isRetrying = false;
+
+  Future<void> _handleRetry() async {
+    if (_isRetrying) return;
+    setState(() {
+      _isRetrying = true;
+    });
+    try {
+      await widget.onRetry();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRetrying = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final blockerReason = state.deploymentBlockerReason ??
         state.backendError ??
         'Learner bootstrap could not reach the production backend.';
@@ -690,11 +716,21 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                           runSpacing: 12,
                           children: [
                             FilledButton.icon(
-                              onPressed: () async {
-                                await onRetry();
-                              },
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Retry production bootstrap'),
+                              onPressed: _isRetrying ? null : _handleRetry,
+                              icon: _isRetrying
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.refresh_rounded),
+                              label: Text(
+                                _isRetrying
+                                    ? 'Retrying production bootstrap…'
+                                    : 'Retry production bootstrap',
+                              ),
                             ),
                           ],
                         ),

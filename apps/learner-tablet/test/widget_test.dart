@@ -1082,6 +1082,78 @@ void main() {
     },
   );
 
+  testWidgets(
+    'deployment blocker page locks retry while bootstrap retry is in flight',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final retryCompleter = Completer<void>();
+      var retryCount = 0;
+      final state = LumoAppState(includeSeedDemoContent: false);
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason = 'Bootstrap failed';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () {
+              retryCount += 1;
+              return retryCompleter.future;
+            },
+          ),
+        ),
+      );
+
+      final initialRetryButton = find.widgetWithText(
+        FilledButton,
+        'Retry production bootstrap',
+      );
+      expect(initialRetryButton, findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(initialRetryButton).onPressed,
+        isNotNull,
+      );
+
+      await tester.ensureVisible(initialRetryButton);
+      await tester.tap(initialRetryButton);
+      await tester.pump();
+
+      expect(retryCount, 1);
+      expect(find.text('Retrying production bootstrap…'), findsOneWidget);
+      final retryingButton = find.widgetWithText(
+        FilledButton,
+        'Retrying production bootstrap…',
+      );
+      expect(retryingButton, findsOneWidget);
+      expect(tester.widget<FilledButton>(retryingButton).onPressed, isNull);
+
+      await tester.tap(retryingButton, warnIfMissed: false);
+      await tester.pump();
+      expect(retryCount, 1);
+
+      retryCompleter.complete();
+      await tester.pump();
+
+      expect(find.text('Retry production bootstrap'), findsOneWidget);
+      final restoredRetryButton = find.widgetWithText(
+        FilledButton,
+        'Retry production bootstrap',
+      );
+      expect(
+        tester.widget<FilledButton>(restoredRetryButton).onPressed,
+        isNotNull,
+      );
+    },
+  );
+
   test(
     'unregistered live bootstrap does not get certified as a trusted offline snapshot',
     () async {
