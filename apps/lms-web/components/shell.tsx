@@ -25,23 +25,22 @@ export function AppShell({
   children,
   seedCount = 0,
   buildSignature,
+  pilotControlPlaneEnabled = false,
 }: {
   children: React.ReactNode;
   seedCount?: number;
   buildSignature: BuildSignature;
+  pilotControlPlaneEnabled?: boolean;
 }) {
   const pathname = usePathname() || '/';
-  const pilotRoute = describePilotShellRoute(pathname);
+  const pilotRoute = pilotControlPlaneEnabled ? describePilotShellRoute(pathname) : undefined;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
     const savedPreference = window.localStorage.getItem(SIDEBAR_PREFERENCE_KEY);
-    if (savedPreference === 'true') {
-      setSidebarCollapsed(true);
-    }
+    if (savedPreference === 'true') setSidebarCollapsed(true);
   }, []);
 
   useEffect(() => {
@@ -55,19 +54,12 @@ export function AppShell({
         mobileNavOpen={mobileNavOpen}
         sidebarCollapsed={sidebarCollapsed}
         buildSignature={buildSignature}
+        pilotControlPlaneEnabled={pilotControlPlaneEnabled}
         onCloseMobileNav={() => setMobileNavOpen(false)}
         onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
       />
       <main className="app-shell__content" style={{ minWidth: 0, padding: 'clamp(16px, 3vw, 24px)' }}>
-        <button
-          type="button"
-          className="app-shell__mobile-menu-button"
-          style={mobileMenuButtonStyle}
-          onClick={() => setMobileNavOpen(true)}
-          aria-label="Open navigation menu"
-          aria-expanded={mobileNavOpen}
-          aria-controls="lumo-sidebar"
-        >
+        <button type="button" className="app-shell__mobile-menu-button" style={mobileMenuButtonStyle} onClick={() => setMobileNavOpen(true)} aria-label="Open navigation menu" aria-expanded={mobileNavOpen} aria-controls="lumo-sidebar">
           ☰ Menu
         </button>
         <Topbar
@@ -75,41 +67,18 @@ export function AppShell({
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
           seedCount={seedCount}
           buildSignature={buildSignature}
+          pilotControlPlaneEnabled={pilotControlPlaneEnabled}
           pilotRoute={pilotRoute}
         />
         {children}
       </main>
       <style>{`
-        .app-shell {
-          display: grid;
-          grid-template-columns: minmax(220px, 278px) minmax(0, 1fr);
-          min-height: 100vh;
-          background: #f5f7fb;
-          transition: grid-template-columns 180ms ease;
-        }
-
-        .app-shell--sidebar-collapsed {
-          grid-template-columns: 112px minmax(0, 1fr);
-        }
-
-        .app-shell__mobile-menu-button {
-          display: none;
-          margin-bottom: 12px;
-        }
-
+        .app-shell { display: grid; grid-template-columns: minmax(220px, 278px) minmax(0, 1fr); min-height: 100vh; background: #f5f7fb; transition: grid-template-columns 180ms ease; }
+        .app-shell--sidebar-collapsed { grid-template-columns: 112px minmax(0, 1fr); }
+        .app-shell__mobile-menu-button { display: none; margin-bottom: 12px; }
         @media (max-width: 960px) {
-          .app-shell,
-          .app-shell--sidebar-collapsed {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
-          .app-shell__mobile-menu-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: fit-content;
-          }
+          .app-shell, .app-shell--sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+          .app-shell__mobile-menu-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; }
         }
       `}</style>
     </div>

@@ -25,46 +25,36 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard route map tells the truth about the visible pilot shell and off-shell specialist surfaces', () => {
+test('dashboard defaults to the full LMS route map and keeps the pilot route map behind the override', () => {
+  assert.match(
+    dashboardPageSource,
+    /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
+    'dashboard should derive the pilot shell override from env instead of assuming pilot mode on main',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
+    'dashboard should restore the default route map to the full LMS shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Visible LMS routes/,
+    'dashboard should label the default visible nav as LMS routes',
+  );
+  assert.match(
+    dashboardPageSource,
+    /The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main\./,
+    'dashboard should say plainly that main is back on the full LMS shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
+    'dashboard should document the explicit pilot override switch',
+  );
   assert.match(
     dashboardPageSource,
     /<Card title="Pilot route map" eyebrow="Visible shell">/,
-    'dashboard should label the route map as the visible pilot shell',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Visible pilot routes/,
-    'dashboard should present the visible navigation as pilot routes',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Off-shell specialist routes/,
-    'dashboard should call out the routes that still exist off-shell',
-  );
-  assert.match(
-    dashboardPageSource,
-    /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
-    'dashboard route map should explain that the visible shell is intentionally constrained for pilot trust',
-  );
-  assert.match(
-    dashboardPageSource,
-    /“Not in nav” is not the same thing as “blocked\.”/,
-    'dashboard should explain the difference between off-shell and blocked routes',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Explicitly blocked surfaces/,
-    'dashboard should keep the blocked-surfaces section available when a route truly needs a blocker card',
-  );
-  assert.match(
-    dashboardPageSource,
-    /No pilot routes are intentionally blocked right now\. If that changes, say it here instead of making operators infer it from missing nav links\./,
-    'dashboard should say plainly when no pilot routes are intentionally blocked instead of implying there is still a blocked surface',
-  );
-  assert.doesNotMatch(
-    dashboardPageSource,
-    /The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
-    'dashboard should stop implying the full LMS nav is the live deployment target',
+    'dashboard should keep the pilot route map code path available for the override mode',
   );
 });
 

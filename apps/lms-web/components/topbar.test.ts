@@ -7,30 +7,25 @@ const topbarSource = readFileSync(fileURLToPath(new URL('./topbar.tsx', import.m
 const shellSource = readFileSync(fileURLToPath(new URL('./shell.tsx', import.meta.url)), 'utf8');
 const pilotShellSource = readFileSync(fileURLToPath(new URL('../lib/pilot-shell.ts', import.meta.url)), 'utf8');
 
-test('pilot shell warns when a direct route is outside the visible pilot nav', () => {
+test('pilot shell warnings only render when the pilot control-plane override is enabled', () => {
   assert.match(
     shellSource,
-    /const pilotRoute = describePilotShellRoute\(pathname\);/,
-    'app shell should classify the current route so the shell can tell the truth about scope',
+    /const pilotRoute = pilotControlPlaneEnabled \? describePilotShellRoute\(pathname\) : undefined;/,
+    'app shell should only classify pilot shell routes when the override is enabled',
   );
   assert.match(
-    pilotShellSource,
-    /eyebrow: 'Specialist route'/,
-    'pilot shell helper should classify off-shell routes as specialist surfaces',
+    topbarSource,
+    /pilotControlPlaneEnabled && pilotRoute \?/,
+    'topbar should gate pilot route warning chrome behind the override flag',
+  );
+  assert.match(
+    topbarSource,
+    /Full LMS shell live/,
+    'topbar should expose the full-shell chip in default mode',
   );
   assert.match(
     pilotShellSource,
     /outside the pilot shell/,
-    'pilot shell helper should say plainly when the current route is live but outside the pilot shell',
-  );
-  assert.match(
-    pilotShellSource,
-    /Do not treat this page as proof that the wider LMS surface is pilot-approved just because it renders behind the same chrome\./,
-    'pilot shell helper should warn reviewers not to mistake shared chrome for pilot approval',
-  );
-  assert.match(
-    topbarSource,
-    /pilotRoute\.title/,
-    'topbar should actually render the classified route warning copy in the shell chrome',
+    'pilot shell helper should still explain off-shell routes for the override mode',
   );
 });

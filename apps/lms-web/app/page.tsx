@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
-import { navigationItems } from '../lib/navigation';
+import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
+import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
@@ -233,6 +234,7 @@ function describeApiTarget() {
 export default async function HomePage() {
   const buildSignature = getBuildSignature();
   const apiTarget = describeApiTarget();
+  const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -1060,63 +1062,89 @@ export default async function HomePage() {
           )}
         </Card>
 
-        <Card title="Pilot route map" eyebrow="Visible shell">
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible pilot routes</div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {navigationItems.map((item) => (
-                  <Pill
-                    key={item.id}
-                    label={item.label}
-                    tone="#DCFCE7"
-                    text="#166534"
-                  />
-                ))}
-              </div>
-              <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
-                This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live.
-              </div>
-            </div>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Off-shell specialist routes</div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {PILOT_OFF_SHELL_ROUTE_LABELS.map((label) => (
-                  <Pill key={label} label={label} tone="#FFFFFF" text="#9A3412" />
-                ))}
-              </div>
-              <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
-                “Not in nav” is not the same thing as “blocked.” These specialist routes still exist, but they stay out of the pilot shell so the dashboard does not fake a broader deployment target than the team can honestly support.
-              </div>
-            </div>
-            <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked surfaces</div>
-              {PILOT_BLOCKED_ROUTE_LABELS.length ? (
-                <>
-                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
-                      <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                    If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
-                  </div>
-                </>
-              ) : (
-                <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                  No pilot routes are intentionally blocked right now. If that changes, say it here instead of making operators infer it from missing nav links.
+        {pilotControlPlaneEnabled ? (
+          <Card title="Pilot route map" eyebrow="Visible shell">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible pilot routes</div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {pilotNavigationItems.map((item) => (
+                    <Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
+                  ))}
                 </div>
-              )}
+                <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
+                  This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live.
+                </div>
+              </div>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Off-shell specialist routes</div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {PILOT_OFF_SHELL_ROUTE_LABELS.map((label) => (
+                    <Pill key={label} label={label} tone="#FFFFFF" text="#9A3412" />
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, color: '#9A3412', lineHeight: 1.6 }}>
+                  “Not in nav” is not the same thing as “blocked.” These specialist routes still exist, but they stay out of the pilot shell so the dashboard does not fake a broader deployment target than the team can honestly support.
+                </div>
+              </div>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked surfaces</div>
+                {PILOT_BLOCKED_ROUTE_LABELS.length ? (
+                  <>
+                    <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
+                        <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
+                      ))}
+                    </div>
+                    <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                      If a route still needs a blocker page, say it plainly. Deployment review gets dangerous the moment shell copy implies a surface is ready just because the link exists somewhere.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                    No pilot routes are intentionally blocked right now. If that changes, say it here instead of making operators infer it from missing nav links.
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
+                <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open content</Link>
+                <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
+                <Link href="/progress" style={{ ...quickActionStyle, background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>Open progress</Link>
+                <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href="/" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open dashboard</Link>
-              <Link href="/content" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open content</Link>
-              <Link href="/assignments" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open assignments</Link>
-              <Link href="/progress" style={{ ...quickActionStyle, background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>Open progress</Link>
-              <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
+          </Card>
+        ) : (
+          <Card title="Full LMS route map" eyebrow="Visible shell">
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible LMS routes</div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {fullNavigationItems.map((item) => (
+                    <Pill key={item.id} label={item.label} tone="#DCFCE7" text="#166534" />
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, color: '#64748b', lineHeight: 1.6 }}>
+                  The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main.
+                </div>
+              </div>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Pilot control plane override</div>
+                <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                  The pilot/control-plane shell only appears when NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true. Legitimate deployment and outage blockers still live inside the actual admin routes instead of replacing the whole shell by default.
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open learners</Link>
+                <Link href="/mallams" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open mallams</Link>
+                <Link href="/devices" style={{ ...quickActionStyle, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' }}>Open devices</Link>
+                <Link href="/attendance" style={{ ...quickActionStyle, background: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>Open attendance</Link>
+                <Link href="/settings" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>Open settings</Link>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </section>
 
       <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
