@@ -558,11 +558,11 @@ class LumoAppState {
   }
 
   String get operatorSourceLabel {
-    if (!usingFallbackData && lastSyncedAt != null) {
-      return 'Backend link live';
-    }
     if (backendError != null) {
       return 'Backend unavailable';
+    }
+    if (!usingFallbackData && lastSyncedAt != null) {
+      return 'Backend link live';
     }
     if (isBootstrapping) return 'Checking backend';
     if (usingFallbackData) {

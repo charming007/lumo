@@ -7300,6 +7300,20 @@ void main() {
       },
     );
 
+    test(
+      'operator source label stops advertising a live backend after sync failure on a previously live tablet',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false);
+        state.usingFallbackData = false;
+        state.lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 5));
+        state.lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1));
+        state.backendError = 'sync queue timeout';
+
+        expect(state.operatorSourceLabel, 'Backend unavailable');
+        expect(state.operatorHealthLabel, 'Backend unavailable');
+      },
+    );
+
     test('degraded mode actions recommend audio-first recovery steps', () {
       final state = LumoAppState(includeSeedDemoContent: true);
       state.usingFallbackData = true;
