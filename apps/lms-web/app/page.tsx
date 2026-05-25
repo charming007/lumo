@@ -723,8 +723,8 @@ export default async function HomePage() {
         <div style={{ padding: '18px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', border: '1px solid #e2e8f0', display: 'grid', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: 6 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Command center</div>
-              <strong style={{ fontSize: 22, color: '#0f172a' }}>Deployment health at a glance</strong>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Admin overview</div>
+              <strong style={{ fontSize: 22, color: '#0f172a' }}>Dashboard at a glance</strong>
               <div style={{ color: '#64748b', lineHeight: 1.6 }}>
                 {hasCriticalDashboardGap
                   ? 'Critical dashboard feeds are down, so deployment review is blocked until summary, progression, facilitator coverage, and assignment pressure are trustworthy again.'
@@ -762,23 +762,23 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#0F172A', border: '1px solid #1E293B', display: 'grid', gap: 10 }}>
+          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <strong style={{ color: 'white' }}>Deployment trace</strong>
+              <strong style={{ color: '#0f172a' }}>Build info</strong>
               <Pill label={buildSignature.commitShort} tone="#EEF2FF" text="#3730A3" />
             </div>
-            <div style={{ color: '#CBD5E1', lineHeight: 1.6 }}>
+            <div style={{ color: '#334155', lineHeight: 1.6 }}>
               Frontend build: {buildSignature.summary}
             </div>
-            <div style={{ color: '#E2E8F0', lineHeight: 1.6 }}>
-              API target: <code style={{ color: 'white', fontWeight: 800 }}>{apiTarget}</code>
+            <div style={{ color: '#334155', lineHeight: 1.6 }}>
+              API target: <code style={{ color: '#0f172a', fontWeight: 800 }}>{apiTarget}</code>
             </div>
-            <div style={{ color: '#94A3B8', lineHeight: 1.6 }}>
-              When reviewers think they are staring at a stale deploy, these two facts should be visible without opening DevTools or guessing which environment won the roulette wheel.
+            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+              Shows the current frontend build signature and API target for quick environment verification when needed.
             </div>
             {!buildSignature.metadataTrusted ? (
-              <div style={{ color: '#FDE68A', lineHeight: 1.6 }}>
-                Deployment metadata is incomplete in this build, so the dashboard now says that plainly instead of faking a fresh timestamp. Treat missing commit/build provenance as a release-trace gap until the deploy pipeline restores it.
+              <div style={{ color: '#64748b', lineHeight: 1.6, padding: '10px 12px', borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                Build metadata is partial in this runtime, so the dashboard is showing the commit and API target it can verify. Missing commit/build provenance is a traceability gap to tidy up, not a dashboard failure by itself.
               </div>
             ) : null}
           </div>
@@ -837,7 +837,7 @@ export default async function HomePage() {
       </section>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
-        <Card title="Content release snapshot" eyebrow="Deployment handoff">
+        <Card title="Content readiness" eyebrow="Content library">
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Blocked modules</div>
@@ -872,7 +872,7 @@ export default async function HomePage() {
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Release handoff</div>
+                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Next content fix</div>
                     <strong style={{ color: '#7C2D12', fontSize: 18 }}>{topReleaseBlocker.title}</strong>
                     <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
                       {topReleaseBlocker.subjectName !== '—'
@@ -1015,7 +1015,7 @@ export default async function HomePage() {
           </div>
         </Card>
 
-        <Card title="Priority queue" eyebrow="Immediate intervention">
+        <Card title="Learners needing attention" eyebrow="Progression follow-up">
           {!workboardAvailable ? (
             sectionAlert('The progression workboard is unavailable right now, so this dashboard cannot safely pretend there is no intervention queue.', 'warning')
           ) : priorityQueue.length ? (
