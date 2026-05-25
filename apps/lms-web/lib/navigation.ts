@@ -4,10 +4,30 @@ export type NavigationItem = {
   href: string;
 };
 
-export const navigationItems: readonly NavigationItem[] = [
+export const fullNavigationItems: readonly NavigationItem[] = [
+  { id: 'dashboard', label: 'Dashboard', href: '/' },
+  { id: 'students', label: 'Learners', href: '/students' },
+  { id: 'mallams', label: 'Mallams', href: '/mallams' },
+  { id: 'pods', label: 'Pods', href: '/pods' },
+  { id: 'devices', label: 'Devices', href: '/devices' },
+  { id: 'attendance', label: 'Attendance', href: '/attendance' },
+  { id: 'content', label: 'Content Library', href: '/content' },
+  { id: 'assessments', label: 'Assessments', href: '/assessments' },
+  { id: 'assignments', label: 'Assignments', href: '/assignments' },
+  { id: 'progress', label: 'Progress', href: '/progress' },
+  { id: 'settings', label: 'Settings', href: '/settings' },
+] as const;
+
+export const pilotNavigationItems: readonly NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '/' },
   { id: 'content', label: 'Content Library', href: '/content' },
   { id: 'assignments', label: 'Assignments', href: '/assignments' },
   { id: 'progress', label: 'Progress', href: '/progress' },
   { id: 'settings', label: 'Settings', href: '/settings' },
 ] as const;
+
+export function getNavigationItems(pilotControlPlaneEnabled: boolean) {
+  return pilotControlPlaneEnabled ? pilotNavigationItems : fullNavigationItems;
+}
+
+export const navigationItems = fullNavigationItems;

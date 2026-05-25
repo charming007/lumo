@@ -25,46 +25,51 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard route map tells the truth about the visible pilot shell and off-shell specialist surfaces', () => {
+test('dashboard defaults to the full LMS route map and keeps the pilot route map behind the override', () => {
+  assert.match(
+    dashboardPageSource,
+    /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
+    'dashboard should derive the pilot shell override from env instead of assuming pilot mode on main',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
+    'dashboard should restore the default route map to the full LMS shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Visible LMS routes/,
+    'dashboard should label the default visible nav as LMS routes',
+  );
+  assert.match(
+    dashboardPageSource,
+    /The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main\./,
+    'dashboard should say plainly that main is back on the full LMS shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
+    'dashboard should document the explicit pilot override switch',
+  );
   assert.match(
     dashboardPageSource,
     /<Card title="Pilot route map" eyebrow="Visible shell">/,
-    'dashboard should label the route map as the visible pilot shell',
+    'dashboard should keep the pilot route map code path available for the override mode',
   );
   assert.match(
     dashboardPageSource,
-    /Visible pilot routes/,
-    'dashboard should present the visible navigation as pilot routes',
+    /\{PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard should keep rendering the specialist off-shell pills from the shared pilot-nav list',
   );
   assert.match(
     dashboardPageSource,
-    /Off-shell specialist routes/,
-    'dashboard should call out the routes that still exist off-shell',
-  );
-  assert.match(
-    dashboardPageSource,
-    /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
-    'dashboard route map should explain that the visible shell is intentionally constrained for pilot trust',
-  );
-  assert.match(
-    dashboardPageSource,
-    /“Not in nav” is not the same thing as “blocked\.”/,
-    'dashboard should explain the difference between off-shell and blocked routes',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Explicitly blocked surfaces/,
-    'dashboard should keep the blocked-surfaces section available when a route truly needs a blocker card',
-  );
-  assert.match(
-    dashboardPageSource,
-    /No pilot routes are intentionally blocked right now\. If that changes, say it here instead of making operators infer it from missing nav links\./,
-    'dashboard should say plainly when no pilot routes are intentionally blocked instead of implying there is still a blocked surface',
+    /\{PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard should render blocked pilot surfaces from the dedicated blocked-route list',
   );
   assert.doesNotMatch(
     dashboardPageSource,
-    /The LMS dashboard should expose the full admin shell operators actually use\.|Keep the route map, sidebar, and dashboard aligned so operators can trust the full LMS surface that is actually deployed\./,
-    'dashboard should stop implying the full LMS nav is the live deployment target',
+    /Off-shell specialist routes[\s\S]*Curriculum Canvas|Off-shell specialist routes[\s\S]*English Studio|Off-shell specialist routes[\s\S]*Rewards|Off-shell specialist routes[\s\S]*Reports|Off-shell specialist routes[\s\S]*Guide/,
+    'dashboard source should not hardcode blocked pilot labels into the off-shell specialist section',
   );
 });
 
@@ -237,16 +242,26 @@ test('dashboard deploy checklist CTA points at a shipped public document', () =>
   );
 });
 
-test('dashboard deployment trace tells the truth when provenance metadata is missing', () => {
+test('dashboard build info keeps provenance gaps secondary in healthy mode', () => {
   assert.match(
     dashboardPageSource,
-    /dashboard now says that plainly instead of faking a fresh timestamp/,
-    'dashboard should warn when deployment metadata is incomplete instead of implying a fake fresh build trace',
+    /<strong style=\{\{ color: '#0f172a' \}\}>Build info<\/strong>/,
+    'dashboard should relabel the healthy-state provenance card as build info instead of deployment trace',
   );
   assert.match(
     dashboardPageSource,
+    /Build metadata is partial in this runtime, so the dashboard is showing the commit and API target it can verify\./,
+    'dashboard should mention partial build metadata without escalating it into a healthy-mode warning banner',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Missing commit\/build provenance is a traceability gap to tidy up, not a dashboard failure by itself\./,
+    'dashboard should keep missing provenance secondary instead of framing it as a blocker on an otherwise healthy dashboard',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
     /Treat missing commit\/build provenance as a release-trace gap until the deploy pipeline restores it\./,
-    'dashboard should call missing provenance a release-trace gap so deployment review does not treat source-archive builds as trustworthy',
+    'dashboard should drop the old release-ops provenance warning copy from the healthy-state dashboard',
   );
 });
 

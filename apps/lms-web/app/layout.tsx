@@ -4,6 +4,7 @@ import { ProductionConfigBanner } from '../components/production-config-banner';
 import { fetchMeta } from '../lib/api';
 import { getBuildSignature } from '../lib/build-signature';
 import { API_BASE_SOURCE } from '../lib/config';
+import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import type { MetaResponse } from '../lib/types';
 
 export const metadata = {
@@ -27,11 +28,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const buildSignature = getBuildSignature();
 
   const seedCount = Object.values(meta.seedSummary ?? {}).reduce((sum, count) => sum + count, 0);
+  const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
 
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
-        <AppShell seedCount={seedCount} buildSignature={buildSignature}>
+        <AppShell seedCount={seedCount} buildSignature={buildSignature} pilotControlPlaneEnabled={pilotControlPlaneEnabled}>
           <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />
           {children}
