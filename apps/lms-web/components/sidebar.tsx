@@ -54,10 +54,10 @@ export function Sidebar({
   const shellHeadline = pilotControlPlaneEnabled ? 'Keep the visible nav brutally honest' : 'Run the full LMS without shell detours';
   const shellDetail = pilotControlPlaneEnabled
     ? 'This sidebar only shows the routes operators should trust for pilot go-live: dashboard, content, assignments, progress, and settings.'
-    : 'This sidebar restores the full admin surfaces operators actually use: learner ops, staffing, pods, devices, attendance, content, assessments, assignments, progress, and settings.';
+    : 'This sidebar restores the full LMS admin route map: learner ops, staffing, pods, devices, attendance, content, English Studio, Curriculum Canvas, assessments, assignments, progress, rewards, reports, guide, and settings.';
   const brandDetail = pilotControlPlaneEnabled
     ? 'Pilot control plane for dashboard triage, curriculum release cleanup, assignments, learner progress, and trust checks.'
-    : 'Full LMS admin shell for learner operations, facilitator coverage, device rollout, content, assessments, assignments, progress, and settings.';
+    : 'Full LMS admin shell for learner operations, facilitator coverage, device rollout, content, specialist authoring, assessments, assignments, progress, reporting, and settings.';
   const footerTitle = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Full LMS shell';
   const footerDetail = pilotControlPlaneEnabled
     ? 'Use this shell to verify deployment trust, clean up curriculum blockers, assign live delivery, and monitor learner risk without pretending every specialist route is pilot-ready.'
