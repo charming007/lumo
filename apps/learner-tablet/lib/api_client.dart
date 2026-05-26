@@ -349,7 +349,7 @@ class LumoApiClient {
                 (event) => {
                   'id': event.id,
                   'type': _canonicalSyncEventType(event.type),
-                  ...event.payload,
+                  ..._canonicalSyncEventPayload(event),
                 },
               )
               .toList(),
@@ -483,6 +483,21 @@ class LumoApiClient {
       default:
         return type;
     }
+  }
+
+  Map<String, dynamic> _canonicalSyncEventPayload(SyncEvent event) {
+    final payload = <String, dynamic>{...event.payload};
+    if (event.type == 'learner_registered_local_fallback') {
+      final resolvedDeviceIdentifier = deviceIdentifier?.trim();
+      final hasDeviceIdentifier =
+          payload['deviceIdentifier']?.toString().trim().isNotEmpty == true;
+      if (!hasDeviceIdentifier &&
+          resolvedDeviceIdentifier != null &&
+          resolvedDeviceIdentifier.isNotEmpty) {
+        payload['deviceIdentifier'] = resolvedDeviceIdentifier;
+      }
+    }
+    return payload;
   }
 
   List<Map<String, dynamic>> _asList(Object? value) {

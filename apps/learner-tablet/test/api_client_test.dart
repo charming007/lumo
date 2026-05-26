@@ -116,6 +116,48 @@ void main() {
         ),
       );
     });
+
+    test('enriches queued local registration sync events with tablet identity',
+        () async {
+      Map<String, dynamic>? postedBody;
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/sync');
+          postedBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'accepted': 1,
+              'ignored': 0,
+              'syncedAt': '2026-04-12T10:00:00.000Z',
+              'results': const [
+                {'id': 'sync-register-1', 'status': 'accepted'},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+        deviceIdentifier: 'lumo-tablet-stable-01',
+      );
+
+      await client.syncEvents([
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {
+            'learnerCode': 'AMI-001',
+            'fullName': 'Amina Ibrahim',
+          },
+        ),
+      ]);
+
+      final events = postedBody?['events'] as List<dynamic>?;
+      expect(events, isNotNull);
+      expect(events, hasLength(1));
+      expect(events!.single['type'], 'learner_registered');
+      expect(events.single['deviceIdentifier'], 'lumo-tablet-stable-01');
+    });
   });
 
   group('LumoApiClient.normalizeBaseUrl', () {
