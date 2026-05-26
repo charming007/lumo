@@ -223,6 +223,29 @@ test('dashboard blocked modules snapshot summarizes all blocker types instead of
   );
 });
 
+test('dashboard blocker-state content CTAs land on the blocker board instead of generic content home', () => {
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Content blocker board', href: '\/content\?view=blocked'/,
+    'dashboard API-base blocker should send operators straight to the blocker board',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Open content blockers', href: '\/content\?view=blocked'/,
+    'dashboard degraded-state docs should send operators to the blocker board instead of the generic content home',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Cross-check content blockers', href: '\/content\?view=blocked'/,
+    'asset-runtime recovery docs should cross-check the blocker board specifically',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Check content blockers', href: '\/content\?view=blocked'/,
+    'release-readiness blocker docs should point at the blocker board specifically',
+  );
+});
+
 test('dashboard deploy checklist CTA points at a shipped public document', () => {
   assert.match(
     dashboardPageSource,

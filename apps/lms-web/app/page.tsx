@@ -279,7 +279,7 @@ export default async function HomePage() {
         ]}
         docs={[
           { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
-          { label: 'Content blocker', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Content blocker board', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
           { label: 'Assignments blocker', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
           { label: 'Settings blocker', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
         ]}
@@ -662,13 +662,13 @@ export default async function HomePage() {
               { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
               { label: 'Deploy verification guide', href: '/LUMO_MVP_QA_UAT_GUIDE.html', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-              { label: 'Open content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+              { label: 'Open content blockers', href: '/content?view=blocked', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
             ]
           : hasCriticalDashboardGap
             ? [
                 { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
                 { label: 'Check progress feed', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-                { label: 'Open content board', href: '/content', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                { label: 'Open content blockers', href: '/content?view=blocked', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
               ]
             : hasCriticalAssetOpsGap
@@ -676,11 +676,11 @@ export default async function HomePage() {
                 { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
                 { label: 'Open asset library', href: '/content/assets', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                 { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-                { label: 'Cross-check content', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+                { label: 'Cross-check content blockers', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]
             : [
                 { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
-                { label: 'Check content board', href: '/content', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+                { label: 'Check content blockers', href: '/content?view=blocked', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                 { label: 'Open assignments', href: '/assignments', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]}
