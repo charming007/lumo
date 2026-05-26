@@ -20,3 +20,10 @@ test('assignments route blocks when core delivery feeds degrade instead of leavi
   assert.match(assignmentsPageSource, /Assessments and pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds are missing\./, 'assignments blocker should distinguish tolerable degradation from deployment-blocking control-surface blindness');
   assert.match(assignmentsPageSource, /Forms stay interactive while the core reference feeds are missing or stale/, 'assignments blocker should describe the unsafe write failure mode it prevents');
 });
+
+test('assignments route surfaces issue timestamps so ops can separate sync delay from actual breakage', () => {
+  assert.match(assignmentsPageSource, /const assignmentsWithFreshness = filteredAssignments\.filter\(/, 'assignments should derive visible freshness from issued assignment timestamps');
+  assert.match(assignmentsPageSource, /title="Assignment freshness" eyebrow="Is this broken or just delayed\?"/, 'assignments should make freshness an explicit operator panel, not hidden trivia');
+  assert.match(assignmentsPageSource, /Issued \{formatRelativeTime\(item\.assignedAt\)\}/, 'assignment rows should show how old the issued assignment is');
+  assert.match(assignmentsPageSource, /When the learner tablet says “waiting for sync,” this panel helps ops tell the difference between a genuinely fresh assignment and one that has been sitting long enough to suspect sync drift\./, 'assignments should explain why freshness matters operationally');
+});

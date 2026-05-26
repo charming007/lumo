@@ -57,6 +57,40 @@ function formatDueLabel(value: string) {
   });
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function formatRelativeTime(value?: string | null) {
+  if (!value) return 'Timestamp missing';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Timestamp unverified';
+
+  const diffMs = Date.now() - date.getTime();
+  const future = diffMs < 0;
+  const absoluteMs = Math.abs(diffMs);
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  const label = absoluteMs < hourMs
+    ? `${Math.max(1, Math.round(absoluteMs / minuteMs))}m`
+    : absoluteMs < dayMs
+      ? `${Math.max(1, Math.round(absoluteMs / hourMs))}h`
+      : `${Math.max(1, Math.round(absoluteMs / dayMs))}d`;
+
+  return future ? `in ${label}` : `${label} ago`;
+}
+
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -263,6 +297,14 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
   }).filter((entry) => entry.assignmentCount > 0)
     .sort((left, right) => right.assignmentCount - left.assignmentCount || right.overdue - left.overdue)
     .slice(0, 4);
+  const assignmentsWithFreshness = filteredAssignments.filter((item) => item.assignedAt && !Number.isNaN(new Date(item.assignedAt).getTime()));
+  const newestAssignment = assignmentsWithFreshness
+    .slice()
+    .sort((left, right) => new Date(right.assignedAt!).getTime() - new Date(left.assignedAt!).getTime())[0] ?? null;
+  const stalestAssignment = assignmentsWithFreshness
+    .slice()
+    .sort((left, right) => new Date(left.assignedAt!).getTime() - new Date(right.assignedAt!).getTime())[0] ?? null;
+  const missingFreshnessCount = filteredAssignments.filter((item) => !item.assignedAt || Number.isNaN(new Date(item.assignedAt).getTime())).length;
 
   return (
     <PageShell
@@ -410,6 +452,29 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
             ) : null}
           </div>
         </Card>
+        <Card title="Assignment freshness" eyebrow="Is this broken or just delayed?">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ padding: 14, borderRadius: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div style={{ fontWeight: 800, marginBottom: 6, color: '#0F172A' }}>Visible assignment issue timestamps</div>
+              <div style={{ color: '#475569', lineHeight: 1.6 }}>
+                {assignmentsWithFreshness.length
+                  ? `Newest visible assignment was issued ${formatRelativeTime(newestAssignment?.assignedAt)} at ${formatDateTime(newestAssignment?.assignedAt)}. Oldest visible issue still in scope dates back to ${formatDateTime(stalestAssignment?.assignedAt)}.`
+                  : 'No assignment issue timestamps are available in this scope yet, so operators should cross-check the learner tablet before calling a delayed lesson a clean backend problem.'}
+              </div>
+            </div>
+            <MetricList
+              items={[
+                { label: 'Assignments with issue time', value: String(assignmentsWithFreshness.length) },
+                { label: 'Missing issue time', value: String(missingFreshnessCount) },
+                { label: 'Newest visible issue', value: newestAssignment ? formatRelativeTime(newestAssignment.assignedAt) : '—' },
+                { label: 'Oldest visible issue', value: stalestAssignment ? formatRelativeTime(stalestAssignment.assignedAt) : '—' },
+              ]}
+            />
+            <div style={{ color: '#64748B', lineHeight: 1.6 }}>
+              When the learner tablet says “waiting for sync,” this panel helps ops tell the difference between a genuinely fresh assignment and one that has been sitting long enough to suspect sync drift.
+            </div>
+          </div>
+        </Card>
         <Card title="Operator guidance" eyebrow="Use some taste">
           <div style={{ display: 'grid', gap: 10 }}>
             {[
@@ -429,7 +494,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
       <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 20 }}>
         <Card title="Assignment board" eyebrow="Delivery control">
           <SimpleTable
-            columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Mallam', 'Due date', 'Status']}
+            columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Mallam', 'Due + issue time', 'Status']}
             rows={filteredAssignments.length ? filteredAssignments.map((item) => {
               const tone = statusTone(item.status);
               const due = dueTone(item.dueDate, item.status);
@@ -442,6 +507,9 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
                 <div key={`${item.id}-due`} style={{ display: 'grid', gap: 6 }}>
                   <span>{formatDueLabel(item.dueDate)}</span>
                   <Pill label={due.label} tone={due.tone} text={due.text} />
+                  <div style={{ color: '#64748B', lineHeight: 1.5, fontSize: 13 }}>
+                    Issued {formatRelativeTime(item.assignedAt)}{item.assignedAt ? ` • ${formatDateTime(item.assignedAt)}` : ''}
+                  </div>
                 </div>,
                 <Pill key={item.id} label={item.status} tone={tone.tone} text={tone.text} />,
               ];
