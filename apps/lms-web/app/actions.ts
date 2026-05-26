@@ -1295,14 +1295,14 @@ export async function quickLinkCanvasLessonAssessmentAction(formData: FormData) 
 
 export async function quickUpdateAssessmentStatusAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
-  const status = String(formData.get('status') || 'draft');
+  const normalizedStatus = normalizeAssessmentStatusInput(formData.get('status'));
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
 
-  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', { status });
+  await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', { status: normalizedStatus });
   revalidatePath('/canvas');
   revalidatePath('/content');
   redirect(appendSearchParams(returnPath, {
-    message: `Assessment moved to ${status}`,
+    message: `Assessment moved to ${normalizedStatus}`,
   }));
 }
 
@@ -1310,14 +1310,14 @@ export async function quickUpdateCanvasAssessmentAction(formData: FormData) {
   const assessmentId = String(formData.get('assessmentId') || '');
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/canvas');
   const title = String(formData.get('title') || '').trim();
-  const status = String(formData.get('status') || 'draft');
+  const normalizedStatus = normalizeAssessmentStatusInput(formData.get('status'));
   const triggerLabel = String(formData.get('triggerLabel') || '').trim();
   const progressionGate = String(formData.get('progressionGate') || '').trim();
   const passingScore = Number(formData.get('passingScore') || 0);
 
   await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', {
     title,
-    status,
+    status: normalizedStatus,
     triggerLabel,
     progressionGate,
     passingScore,
@@ -1365,7 +1365,7 @@ export async function updateAssessmentAction(formData: FormData) {
     triggerLabel: String(formData.get('triggerLabel') || ''),
     progressionGate: String(formData.get('progressionGate') || ''),
     passingScore: Number(formData.get('passingScore') || 0),
-    status: String(formData.get('status') || ''),
+    status: normalizeAssessmentStatusInput(formData.get('status')),
   };
 
   await apiWrite(`/api/v1/assessments/${assessmentId}`, 'PATCH', payload);
