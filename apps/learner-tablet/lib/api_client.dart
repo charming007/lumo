@@ -115,6 +115,24 @@ class LumoApiClient {
   String? get invalidProductionBaseUrlReason =>
       productionBaseUrlIssue(baseUrl, hasExplicitConfig: _hasExplicitBaseUrl);
 
+  Uri? resolvePublicUri(String rawPath) {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) return null;
+
+    final absolute = Uri.tryParse(trimmed);
+    if (absolute != null && absolute.hasScheme) {
+      return absolute;
+    }
+
+    final baseUri = Uri.tryParse(baseUrl);
+    if (baseUri == null || baseUri.host.isEmpty) {
+      return null;
+    }
+
+    final normalizedPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    return baseUri.resolve(normalizedPath);
+  }
+
   static List<String> _stripApiSuffix(List<String> segments) {
     if (segments.isEmpty) return const [];
 

@@ -267,6 +267,30 @@ void main() {
         isNull,
       );
     });
+
+    test('resolvePublicUri upgrades backend-relative media paths to absolute urls', () {
+      final client = LumoApiClient(
+        baseUrl: 'https://lumo-api-production-303a.up.railway.app/api/v1/learner-app/bootstrap',
+      );
+
+      expect(
+        client.resolvePublicUri('/media/takes/review-1.m4a')?.toString(),
+        'https://lumo-api-production-303a.up.railway.app/media/takes/review-1.m4a',
+      );
+      expect(
+        client.resolvePublicUri('uploads/runtime/take-2.webm')?.toString(),
+        'https://lumo-api-production-303a.up.railway.app/uploads/runtime/take-2.webm',
+      );
+    });
+
+    test('resolvePublicUri leaves absolute urls untouched', () {
+      final client = LumoApiClient(baseUrl: 'https://lumo-api-production-303a.up.railway.app');
+
+      expect(
+        client.resolvePublicUri('https://cdn.example.com/audio/clip.mp3')?.toString(),
+        'https://cdn.example.com/audio/clip.mp3',
+      );
+    });
   });
 
   group('LumoApiClient module bundles', () {

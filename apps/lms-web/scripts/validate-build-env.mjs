@@ -80,7 +80,7 @@ const isProductionDeployment =
   process.env.CONTEXT === 'production';
 const isBuildCommand = lifecycleEvent === 'build';
 const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
-const shouldBlockForAdminApiKey = isHostedDeployment || isProductionDeployment;
+const shouldBlockForAdminApiKey = isHostedDeployment || isProductionDeployment || isBuildCommand;
 
 function invalidProductionApiReason(value) {
   try {

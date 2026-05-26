@@ -1,9 +1,65 @@
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
+
+bool looksLikeBackendRelativeMediaPath(String path) {
+  final trimmed = path.trim();
+  if (trimmed.isEmpty || trimmed.startsWith('asset:')) return false;
+  if (trimmed.startsWith('/media/') ||
+      trimmed.startsWith('/uploads/') ||
+      trimmed.startsWith('/api/')) {
+    return true;
+  }
+  return trimmed.startsWith('media/') ||
+      trimmed.startsWith('uploads/') ||
+      trimmed.startsWith('api/');
+}
+
+Source learnerAudioPlaybackSourceForPath(
+  String path, {
+  LumoApiClient? apiClient,
+}) {
+  final uri = Uri.tryParse(path);
+  final scheme = uri?.scheme ?? '';
+  final hasScheme = scheme.isNotEmpty;
+  if (hasScheme &&
+      (scheme == 'http' ||
+          scheme == 'https' ||
+          scheme == 'blob' ||
+          scheme == 'data')) {
+    return UrlSource(path);
+  }
+
+  if (scheme == 'file') {
+    return DeviceFileSource(uri?.toFilePath() ?? path);
+  }
+
+  if (File(path).existsSync()) {
+    return DeviceFileSource(path);
+  }
+
+  if (looksLikeBackendRelativeMediaPath(path)) {
+    final resolved = apiClient?.resolvePublicUri(path)?.toString();
+    if (resolved != null && resolved.isNotEmpty) {
+      return UrlSource(resolved);
+    }
+  }
+
+  if (_looksLikeFlutterAssetPath(path)) {
+    return AssetSource(path);
+  }
+
+  return UrlSource(path);
+}
+
+bool _looksLikeFlutterAssetPath(String path) {
+  final trimmed = path.trim();
+  if (trimmed.isEmpty || trimmed.startsWith('/')) return false;
+  final uri = Uri.tryParse(trimmed);
+  return !(uri?.hasScheme ?? false);
+}
 
 class LearnerAudioPlaybackService {
   LearnerAudioPlaybackService({LumoApiClient? apiClient})
@@ -34,7 +90,10 @@ class LearnerAudioPlaybackService {
     await _player.stop();
 
     final resolvedPath = await _resolvePlaybackPath(trimmed);
-    final source = _sourceFor(resolvedPath);
+    final source = learnerAudioPlaybackSourceForPath(
+      resolvedPath,
+      apiClient: _apiClient,
+    );
     await _player.play(source);
     _isPlaying = true;
     _currentSourcePath = trimmed;
@@ -64,35 +123,5 @@ class LearnerAudioPlaybackService {
       return fileUrl;
     }
     return path;
-  }
-
-  Source _sourceFor(String path) {
-    final uri = Uri.tryParse(path);
-    final scheme = uri?.scheme ?? '';
-    final hasScheme = scheme.isNotEmpty;
-    if (hasScheme &&
-        (scheme == 'http' ||
-            scheme == 'https' ||
-            scheme == 'blob' ||
-            scheme == 'data')) {
-      return UrlSource(path);
-    }
-
-    if (!kIsWeb && File(path).existsSync()) {
-      return DeviceFileSource(path);
-    }
-
-    if (_looksLikeFlutterAsset(path)) {
-      return AssetSource(path);
-    }
-
-    return UrlSource(path);
-  }
-
-  bool _looksLikeFlutterAsset(String path) {
-    final trimmed = path.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('/')) return false;
-    final uri = Uri.tryParse(trimmed);
-    return !(uri?.hasScheme ?? false);
   }
 }
