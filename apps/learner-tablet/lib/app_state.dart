@@ -55,6 +55,10 @@ bool isLearnerVisibleLessonStatus(
   return usingFallbackData && normalizedStatus == 'offline';
 }
 
+String _normalizeAssignmentLookupValue(String value) {
+  return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+}
+
 enum ContentOrigin {
   liveBackend,
   localCache,
@@ -310,17 +314,20 @@ class LumoAppState {
           isLearnerVisibleLessonStatus(lesson.status, usingFallbackData: false),
     );
     final hasLearnerVisibleLessons = learnerVisibleLessons.isNotEmpty;
-    final launchableLessonIds = learnerVisibleLessons
+    final launchableLessons = learnerVisibleLessons
         .where((lesson) => lesson.steps.isNotEmpty)
-        .map((lesson) => lesson.id.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet();
-    final hasLaunchableLearnerLesson = launchableLessonIds.isNotEmpty;
+        .toList(growable: false);
+    final hasLaunchableLearnerLesson = launchableLessons.isNotEmpty;
     final hasLiveAssignments = data.assignmentPacks.isNotEmpty;
-    final hasAssignmentWithLaunchableLesson = data.assignmentPacks.any((pack) {
-      final lessonId = pack.lessonId.trim();
-      return lessonId.isNotEmpty && launchableLessonIds.contains(lessonId);
-    });
+    final hasAssignmentWithLaunchableLesson = data.assignmentPacks.any(
+      (pack) =>
+          _findLessonForAssignmentPack(
+            pack,
+            lessons: launchableLessons,
+            availableModules: data.modules,
+          ) !=
+          null,
+    );
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
 
@@ -2534,25 +2541,41 @@ class LumoAppState {
     return ordered;
   }
 
-  LessonCardModel? _findLessonForAssignmentPack(LearnerAssignmentPack pack) {
-    final normalizedLessonTitle = pack.lessonTitle.trim().toLowerCase();
+  LessonCardModel? _findLessonForAssignmentPack(
+    LearnerAssignmentPack pack, {
+    Iterable<LessonCardModel>? lessons,
+    Iterable<LearningModule>? availableModules,
+  }) {
+    final lessonPool = lessons ?? assignedLessons;
+    final normalizedLessonTitle = _normalizeAssignmentLookupValue(
+      pack.lessonTitle,
+    );
     final preferredModuleIds = {
       pack.curriculumModuleId?.trim(),
       pack.moduleId.trim(),
     }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    final matchedModule = availableModules?.cast<LearningModule?>().firstWhere(
+          (module) {
+            if (module == null) return false;
+            final moduleId = module.id.trim();
+            return moduleId.isNotEmpty && preferredModuleIds.contains(moduleId);
+          },
+          orElse: () => null,
+        );
 
-    for (final lesson in assignedLessons) {
+    for (final lesson in lessonPool) {
       if (lesson.id == pack.lessonId) return lesson;
     }
 
-    for (final lesson in assignedLessons) {
-      final lessonTitle = lesson.title.trim().toLowerCase();
-      if (normalizedLessonTitle.isEmpty ||
-          lessonTitle != normalizedLessonTitle) {
+    for (final lesson in lessonPool) {
+      final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
+      if (normalizedLessonTitle.isEmpty || lessonTitle != normalizedLessonTitle) {
         continue;
       }
       if (preferredModuleIds.isEmpty ||
-          preferredModuleIds.contains(lesson.moduleId.trim())) {
+          preferredModuleIds.contains(lesson.moduleId.trim()) ||
+          (matchedModule != null &&
+              _lessonMatchesModule(lesson: lesson, module: matchedModule))) {
         return lesson;
       }
     }
