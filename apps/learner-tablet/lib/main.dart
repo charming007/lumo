@@ -96,7 +96,7 @@ class _LumoAppState extends State<LumoApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lumo',
+      title: 'Lumo Learner',
       debugShowCheckedModeBanner: false,
       theme: LumoTheme.light,
       navigatorObservers: [lumoRouteObserver],
