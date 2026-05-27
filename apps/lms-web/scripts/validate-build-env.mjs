@@ -79,8 +79,9 @@ const isProductionDeployment =
   process.env.VERCEL_ENV === 'production' ||
   process.env.CONTEXT === 'production';
 const isBuildCommand = lifecycleEvent === 'build';
-const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
-const shouldBlockForAdminApiKey = isHostedDeployment || isProductionDeployment || isBuildCommand;
+const isStrictDeploymentBuild = isBuildCommand && (isHostedDeployment || isProductionDeployment);
+const shouldBlockBuild = isStrictDeploymentBuild;
+const shouldBlockForAdminApiKey = isStrictDeploymentBuild;
 
 function invalidProductionApiReason(value) {
   try {
