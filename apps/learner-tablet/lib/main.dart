@@ -2141,8 +2141,11 @@ class _HomeTrustBanner extends StatelessWidget {
     final registrationBlocked = state.registrationBlockerReason;
     final assignmentGapCount =
         state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
+    final criticalSyncBlocker = state.criticalSyncTrustBlockerReason;
     final hasPriorityWarning =
-        registrationBlocked != null || assignmentGapCount > 0;
+        registrationBlocked != null ||
+        criticalSyncBlocker != null ||
+        assignmentGapCount > 0;
 
     Future<void> refreshTabletSync() async {
       await state.bootstrap();
@@ -2159,9 +2162,10 @@ class _HomeTrustBanner extends StatelessWidget {
 
     final compactWarning = registrationBlocked != null
         ? '$registrationBlocked Fix backend reachability first.'
-        : assignmentGapCount == 1
-            ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
-            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.';
+        : criticalSyncBlocker
+            ?? (assignmentGapCount == 1
+                ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+                : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
 
     return Container(
       width: double.infinity,
@@ -2200,9 +2204,11 @@ class _HomeTrustBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      hasPriorityWarning
-                          ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
-                          : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+                      criticalSyncBlocker != null
+                          ? 'Deployment trust is blocked until the backend sync mismatch is reconciled. Do not hand this tablet off as if progress is safely landing upstream.'
+                          : hasPriorityWarning
+                              ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
+                              : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         height: 1.45,
@@ -2369,13 +2375,28 @@ class _HomeTrustBanner extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFED7AA)),
                 ),
-                child: Text(
-                  compactWarning,
-                  style: const TextStyle(
-                    color: Color(0xFF9A3412),
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (criticalSyncBlocker != null) ...[
+                      const Text(
+                        'Pilot trust blocker',
+                        style: TextStyle(
+                          color: Color(0xFF9A3412),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Text(
+                      compactWarning,
+                      style: const TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

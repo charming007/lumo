@@ -614,6 +614,46 @@ void main() {
     );
   });
 
+  testWidgets(
+      'compact home trust banner does not claim safe handoff during critical sync blocker',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event';
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Pilot trust blocker'), findsOneWidget);
+    expect(
+      find.textContaining('Deployment trust is blocked until the backend sync mismatch is reconciled.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('backend rejected at least one learner event as unknown'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.'),
+      findsNothing,
+    );
+  });
+
   test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
     final source = File('lib/main.dart').readAsStringSync();
 
