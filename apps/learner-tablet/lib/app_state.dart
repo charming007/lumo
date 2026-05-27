@@ -56,7 +56,12 @@ bool isLearnerVisibleLessonStatus(
 }
 
 String _normalizeAssignmentLookupValue(String value) {
-  return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
 
 enum ContentOrigin {

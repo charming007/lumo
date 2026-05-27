@@ -8253,6 +8253,100 @@ void main() {
     );
 
     test(
+      'production-like bootstrap stays live when assignment lesson ids drift but punctuation-normalized title and module still resolve a launchable lesson',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': beginner.id,
+                        'name': beginner.name,
+                        'age': beginner.age,
+                        'cohortName': beginner.cohort,
+                        'guardianName': beginner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-live-1',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'English hello!',
+                        'status': 'published',
+                        'activitySteps': [
+                          {
+                            'id': 'english-live-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Say hello',
+                            'prompt': 'Say hello.',
+                            'detail': 'Greeting step',
+                            'evidence': 'Learner greets',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'english-runtime-alias',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English hello',
+                        'cohortName': beginner.cohort,
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [beginner.id],
+                      },
+                    ],
+                    'registrationContext': {'cohorts': [], 'mallams': []},
+                    'meta': {
+                      'generatedAt': '2026-05-27T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isFalse);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(state.backendError, isNull);
+        expect(state.assignmentPacks, hasLength(1));
+        expect(
+          state.nextAssignedLessonForLearner(state.learners.first)?.id,
+          'english-live-1',
+        );
+      },
+    );
+
+    test(
       'production-like bootstrap stays live when module bundle hydration supplies the launchable lesson payload',
       () async {
         final state = LumoAppState(
