@@ -1528,6 +1528,165 @@ void main() {
     );
 
     test(
+      'pending recovered sessions rebind the learner by learner code after live id churn',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'currentLearnerId': 'learner-stale-id',
+            'currentLearnerCode': 'LM-100',
+            'activeSession': {
+              'sessionId': 'session-recover-code-match',
+              'lessonId': 'lesson-recover-code-match',
+              'lessonTitle': 'Recovered by learner code',
+              'currentLearnerId': 'learner-stale-id',
+              'currentLearnerCode': 'LM-100',
+              'moduleId': 'english',
+              'moduleTitle': 'Foundational English',
+              'subjectName': 'Foundational English',
+              'stepIndex': 0,
+              'completionState': 'inProgress',
+            },
+          }),
+        });
+
+        final liveLearner = LearnerProfile(
+          id: 'learner-live-id',
+          learnerCode: 'LM-100',
+          name: 'Amina Bello',
+          age: 9,
+          cohort: 'Cohort A',
+          streakDays: 0,
+          guardianName: 'Hauwa Bello',
+          village: 'Kawo',
+          guardianPhone: '',
+          sex: 'Girl',
+          preferredLanguage: 'Hausa',
+          baselineLevel: 'No prior exposure',
+          readinessLabel: 'Voice-first beginner',
+          consentCaptured: true,
+          supportPlan: 'Short prompts and praise after every answer.',
+          lastLessonSummary: 'No lesson captured yet.',
+          lastAttendance: 'Checked in today',
+        );
+
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': liveLearner.id,
+                        'name': liveLearner.name,
+                        'age': liveLearner.age,
+                        'cohortName': liveLearner.cohort,
+                        'guardianName': liveLearner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                        'learnerCode': liveLearner.learnerCode,
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'subjectId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Foundational English',
+                        'level': 'foundation-a',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'lesson-recover-code-match',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Recovered by learner code',
+                        'durationMinutes': 9,
+                        'status': 'assigned',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Resume guidance',
+                        'scenario': 'Recovered after learner id churn',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'title': 'Resume guidance',
+                            'instruction': 'Say hello again',
+                            'coachPrompt': 'Say hello again.',
+                            'expectedResponse': 'Hello',
+                            'speakerMode': 'guiding',
+                            'type': 'prompt',
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              if (request.url.path == '/api/v1/learner-app/modules/english') {
+                return http.Response(
+                  jsonEncode({
+                    'subjectId': 'english',
+                    'subjectName': 'Foundational English',
+                    'title': 'Foundational English',
+                    'level': 'foundation-a',
+                    'lessons': [
+                      {
+                        'id': 'lesson-recover-code-match',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Recovered by learner code',
+                        'durationMinutes': 9,
+                        'status': 'assigned',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Resume guidance',
+                        'scenario': 'Recovered after learner id churn',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'title': 'Resume guidance',
+                            'instruction': 'Say hello again',
+                            'coachPrompt': 'Say hello again.',
+                            'expectedResponse': 'Hello',
+                            'speakerMode': 'guiding',
+                            'type': 'prompt',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignmentPacks': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+
+        await state.restorePersistedState();
+        expect(state.activeSession, isNull);
+        expect(state.hasPendingRecoveredSession, isTrue);
+        expect(state.currentLearner, isNull);
+
+        await state.bootstrap();
+
+        expect(state.hasPendingRecoveredSession, isFalse);
+        expect(state.activeSession?.sessionId, 'session-recover-code-match');
+        expect(state.activeSession?.lesson.id, 'lesson-recover-code-match');
+        expect(state.currentLearner?.id, liveLearner.id);
+        state.dispose();
+      },
+    );
+
+    test(
       'logs learner reward redemption history and reduces spendable points',
       () async {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -2543,7 +2702,9 @@ void main() {
       expect(summary, contains('assigned lesson'));
     });
 
-    test('assigned lesson summary does not advertise placeholder lessons as ready to start', () {
+    test(
+        'assigned lesson summary does not advertise placeholder lessons as ready to start',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false;
       const learner = LearnerProfile(
@@ -4587,11 +4748,13 @@ void main() {
 
         expect(state.learnerCanOpenLesson(learner, firstLesson), isFalse);
         expect(
-          state.terminalRuntimeSessionForLearnerAndLesson(learner, firstLesson)
+          state
+              .terminalRuntimeSessionForLearnerAndLesson(learner, firstLesson)
               ?.completionState,
           'absent',
         );
-        expect(state.nextAssignedLessonForLearner(learner)?.id, fallbackLesson.id);
+        expect(
+            state.nextAssignedLessonForLearner(learner)?.id, fallbackLesson.id);
 
         state.dispose();
       },
@@ -4754,7 +4917,8 @@ void main() {
       state.dispose();
     });
 
-    test('restore drops stale in-progress sessions for completed lessons', () async {
+    test('restore drops stale in-progress sessions for completed lessons',
+        () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
           'schemaVersion': '2026-04-13-runtime-persist',
@@ -5020,8 +5184,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'assigned',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Placeholder should wait for real lesson sync.',
-                'scenario': 'Real lesson payload has not synced to the tablet yet.',
+                'readinessFocus':
+                    'Placeholder should wait for real lesson sync.',
+                'scenario':
+                    'Real lesson payload has not synced to the tablet yet.',
                 'steps': [
                   {
                     'id': 'placeholder-step',
@@ -5061,7 +5227,8 @@ void main() {
         expect(state.currentLearner?.id, beginner.id);
         expect(state.activeSession, isNull);
         expect(state.hasPendingRecoveredSession, isTrue);
-        expect(state.pendingRecoveredSessionLabel, contains('waiting for lesson sync'));
+        expect(state.pendingRecoveredSessionLabel,
+            contains('waiting for lesson sync'));
 
         await state.bootstrap();
 
@@ -5069,7 +5236,8 @@ void main() {
         expect(state.activeSession, isNotNull);
         expect(state.activeSession?.lesson.id, 'lesson-live-sync');
         expect(state.activeSession?.lesson.isAssignmentPlaceholder, isFalse);
-        expect(state.activeSession?.sessionId, 'session-placeholder-in-progress');
+        expect(
+            state.activeSession?.sessionId, 'session-placeholder-in-progress');
 
         state.dispose();
       },
@@ -5116,8 +5284,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'assigned',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Placeholder should never certify a finished lesson.',
-                'scenario': 'Real lesson payload has not synced to the tablet yet.',
+                'readinessFocus':
+                    'Placeholder should never certify a finished lesson.',
+                'scenario':
+                    'Real lesson payload has not synced to the tablet yet.',
                 'steps': [
                   {
                     'id': 'placeholder-step',
@@ -5200,8 +5370,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'published',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Published shell should never certify a finished lesson.',
-                'scenario': 'Lesson shell is visible before the tablet receives the real activity payload.',
+                'readinessFocus':
+                    'Published shell should never certify a finished lesson.',
+                'scenario':
+                    'Lesson shell is visible before the tablet receives the real activity payload.',
                 'activitySteps': const [],
               },
             ],
@@ -6983,7 +7155,8 @@ void main() {
       expect(state.degradedModeSummary, contains('queued locally'));
     });
 
-    test('pending sync summary escalates local fallback registration backlog', () {
+    test('pending sync summary escalates local fallback registration backlog',
+        () {
       final state = LumoAppState(includeSeedDemoContent: true)
         ..pendingSyncEvents.add(
           const SyncEvent(
@@ -9268,7 +9441,8 @@ void main() {
       },
     );
 
-    test('sync-pending assignment placeholders are never learner-launchable', () {
+    test('sync-pending assignment placeholders are never learner-launchable',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false;
       const learner = LearnerProfile(
@@ -9335,7 +9509,8 @@ void main() {
       state.dispose();
     });
 
-    test('startLesson refuses stale direct launches for blocked learners', () async {
+    test('startLesson refuses stale direct launches for blocked learners',
+        () async {
       final state = LumoAppState(includeSeedDemoContent: true);
       final learner = state.learners.first;
       final lesson = state.assignedLessons.firstWhere(

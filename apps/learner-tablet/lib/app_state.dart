@@ -524,8 +524,8 @@ class LumoAppState {
   }
 
   bool get hasAssignmentPayloadGaps => assignedLessons.any(
-    (lesson) => lesson.isAssignmentPlaceholder || lesson.steps.isEmpty,
-  );
+        (lesson) => lesson.isAssignmentPlaceholder || lesson.steps.isEmpty,
+      );
 
   Set<ContentOrigin> get visibleCurriculumOrigins => assignedLessons
       .map(lessonOriginFor)
@@ -946,11 +946,9 @@ class LumoAppState {
       final moduleId = _readNullableString(snapshot['selectedModuleId']);
       selectedModule = modules.where((item) => item.id == moduleId).firstOrNull;
       final recoveredSession = _decodeActiveSession(activeSessionRaw);
-      final recoveredSessionCanWaitForSync =
-          recoveredSession != null &&
+      final recoveredSessionCanWaitForSync = recoveredSession != null &&
           _shouldKeepRecoveredSessionPendingUntilSync(recoveredSession);
-      final recoveredSessionUnsafe =
-          recoveredSession != null &&
+      final recoveredSessionUnsafe = recoveredSession != null &&
           currentLearner != null &&
           !recoveredSessionCanWaitForSync &&
           !_isRecoveredSessionSafeToResume(
@@ -966,22 +964,19 @@ class LumoAppState {
       final recoveredCompletionState = _readNullableString(
         activeSessionRaw is Map ? activeSessionRaw['completionState'] : null,
       )?.trim().toLowerCase();
-      final recoveredSessionMissingLessonPayload =
-          recoveredSession == null &&
+      final recoveredSessionMissingLessonPayload = recoveredSession == null &&
           recoveredCompletionState != 'complete' &&
           recoveredCompletionState != 'completed';
       final recoveredSessionShouldStayPending =
           recoveredSessionCanWaitForSync ||
-          recoveredSessionMissingLessonPayload ||
-          (recoveredSession != null && currentLearner == null);
-      pendingRecoveredSessionSnapshot =
-          activeSessionRaw is Map &&
-                  activeSession == null &&
-                  recoveredSessionShouldStayPending
-              ? Map<String, dynamic>.from(activeSessionRaw)
-              : null;
-      final recoveredLessonRequiresSync =
-          recoveredSession != null &&
+              recoveredSessionMissingLessonPayload ||
+              (recoveredSession != null && currentLearner == null);
+      pendingRecoveredSessionSnapshot = activeSessionRaw is Map &&
+              activeSession == null &&
+              recoveredSessionShouldStayPending
+          ? Map<String, dynamic>.from(activeSessionRaw)
+          : null;
+      final recoveredLessonRequiresSync = recoveredSession != null &&
           _lessonRequiresSyncBeforeStarting(recoveredSession.lesson);
       if ((recoveredCompletionState == 'complete' ||
               recoveredCompletionState == 'completed') &&
@@ -1198,9 +1193,8 @@ class LumoAppState {
       }
 
       usingFallbackData = liveBootstrapRuntimeBlocker != null;
-      deploymentBlockerReason = restoringTrustedOfflineSnapshot
-          ? null
-          : liveBootstrapRuntimeBlocker;
+      deploymentBlockerReason =
+          restoringTrustedOfflineSnapshot ? null : liveBootstrapRuntimeBlocker;
       backendError = liveBootstrapRuntimeBlocker;
       if (liveBootstrapRuntimeBlocker == null) {
         lastSyncedAt = bootstrapRecordedAt;
@@ -2555,13 +2549,13 @@ class LumoAppState {
       pack.moduleId.trim(),
     }.whereType<String>().where((value) => value.isNotEmpty).toSet();
     final matchedModule = availableModules?.cast<LearningModule?>().firstWhere(
-          (module) {
-            if (module == null) return false;
-            final moduleId = module.id.trim();
-            return moduleId.isNotEmpty && preferredModuleIds.contains(moduleId);
-          },
-          orElse: () => null,
-        );
+      (module) {
+        if (module == null) return false;
+        final moduleId = module.id.trim();
+        return moduleId.isNotEmpty && preferredModuleIds.contains(moduleId);
+      },
+      orElse: () => null,
+    );
 
     for (final lesson in lessonPool) {
       if (lesson.id == pack.lessonId) return lesson;
@@ -2569,7 +2563,8 @@ class LumoAppState {
 
     for (final lesson in lessonPool) {
       final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
-      if (normalizedLessonTitle.isEmpty || lessonTitle != normalizedLessonTitle) {
+      if (normalizedLessonTitle.isEmpty ||
+          lessonTitle != normalizedLessonTitle) {
         continue;
       }
       if (preferredModuleIds.isEmpty ||
@@ -5263,9 +5258,8 @@ class LumoAppState {
       return '${lessons.length} assigned lesson(s) • start with ${nextLesson.title}';
     }
 
-    final waitingForSyncCount = lessons
-        .where((lesson) => lesson.isAssignmentPlaceholder)
-        .length;
+    final waitingForSyncCount =
+        lessons.where((lesson) => lesson.isAssignmentPlaceholder).length;
     if (waitingForSyncCount > 0) {
       return waitingForSyncCount == lessons.length
           ? waitingForSyncCount == 1
@@ -5275,7 +5269,8 @@ class LumoAppState {
     }
 
     final syncIncompleteCount = lessons
-        .where((lesson) => !lesson.isAssignmentPlaceholder && lesson.steps.isEmpty)
+        .where(
+            (lesson) => !lesson.isAssignmentPlaceholder && lesson.steps.isEmpty)
         .length;
     if (syncIncompleteCount > 0) {
       return syncIncompleteCount == lessons.length
@@ -5938,13 +5933,10 @@ class LumoAppState {
   void _recoverPendingSessionAfterRefresh() {
     final snapshot = pendingRecoveredSessionSnapshot;
     if (snapshot == null || activeSession != null) return;
-    final learnerId = snapshot['currentLearnerId']?.toString();
-    if (learnerId != null && learnerId.trim().isNotEmpty) {
-      currentLearner = learners.cast<LearnerProfile?>().firstWhere(
-            (item) => item?.id == learnerId,
-            orElse: () => currentLearner,
-          );
-    }
+    currentLearner ??= _resolvePersistedLearnerMatch(
+      persistedLearnerId: _readNullableString(snapshot['currentLearnerId']),
+      persistedLearnerCode: _readNullableString(snapshot['currentLearnerCode']),
+    );
     if (currentLearner == null) {
       return;
     }
