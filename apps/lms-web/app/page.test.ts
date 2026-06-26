@@ -400,6 +400,16 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
+    /!deviceRegistrations\.length \? \(/,
+    'dashboard should treat an empty tablet registry as a deployment blocker, not a harmless zero-state',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Tablet deployment handoff is blocked because the LMS has zero registered tablets\./,
+    'dashboard should call out the zero-tablet rollout blocker explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
     /Tablet deployment handoff is blind right now because device registrations failed to load\./,
     'dashboard should warn loudly when learner rollout targeting is blind',
   );

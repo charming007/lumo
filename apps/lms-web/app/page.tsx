@@ -1009,30 +1009,46 @@ export default async function HomePage() {
               </div>
             ) : sectionAlert('Asset runtime diagnostics are unavailable right now. That means the dashboard cannot honestly tell you whether the shared media registry is ready for live content ops.', 'warning')}
             {deviceDeploymentReadiness ? (
-              <div style={{ display: 'grid', gap: 14 }}>
-                <div style={{ padding: '16px 18px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Learner app deployment handoff</div>
-                      <strong style={{ color: '#0f172a', fontSize: 18 }}>Tablet-targeted learner builds now have a dashboard-grade rollout check.</strong>
-                      <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                        Only tablets with a real pod owner, active status, and no duplicate live scope should get a learner release bundle. This keeps the wrong device identifier from sneaking into a production learner build because someone copied env vars from the wrong row at 2am.
-                      </div>
+              !deviceRegistrations.length ? (
+                <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Learner app deployment handoff</div>
+                    <strong style={{ color: '#7F1D1D', fontSize: 18 }}>Tablet deployment handoff is blocked because the LMS has zero registered tablets.</strong>
+                    <div style={{ color: '#991B1B', lineHeight: 1.6 }}>
+                      The dashboard cannot produce a trustworthy learner build bundle until at least one live tablet registration exists with a real device identifier, pod owner, and rollout status. A neat “0 ready” chip here would be deployment theatre.
                     </div>
-                    <Pill
-                      label={deviceDeploymentReadiness.hasRolloutReadyRegistration ? `${deviceDeploymentReadiness.rolloutReadyCount} rollout-ready` : 'No rollout-ready tablets'}
-                      tone={deviceDeploymentReadiness.hasRolloutReadyRegistration ? '#DCFCE7' : '#FEE2E2'}
-                      text={deviceDeploymentReadiness.hasRolloutReadyRegistration ? '#166534' : '#991B1B'}
-                    />
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Pill label={`${deviceDeploymentReadiness.rolloutReadyCount} ready bundle${deviceDeploymentReadiness.rolloutReadyCount === 1 ? '' : 's'}`} tone="#ECFDF5" text="#166534" />
-                    <Pill label={`${deviceDeploymentReadiness.blockedCount} blocked tablet${deviceDeploymentReadiness.blockedCount === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
-                    <Pill label={`${deviceRegistrations.length} tablet registration${deviceRegistrations.length === 1 ? '' : 's'}`} tone="#EEF2FF" text="#3730A3" />
+                    <Pill label="0 rollout-ready" tone="#FEE2E2" text="#991B1B" />
+                    <Pill label="0 tablet registrations" tone="#FEF3C7" text="#92400E" />
                   </div>
                 </div>
-                <DeviceDeploymentHandoff registrations={deviceRegistrations} apiBase={apiTarget} />
-              </div>
+              ) : (
+                <div style={{ display: 'grid', gap: 14 }}>
+                  <div style={{ padding: '16px 18px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Learner app deployment handoff</div>
+                        <strong style={{ color: '#0f172a', fontSize: 18 }}>Tablet-targeted learner builds now have a dashboard-grade rollout check.</strong>
+                        <div style={{ color: '#475569', lineHeight: 1.6 }}>
+                          Only tablets with a real pod owner, active status, and no duplicate live scope should get a learner release bundle. This keeps the wrong device identifier from sneaking into a production learner build because someone copied env vars from the wrong row at 2am.
+                        </div>
+                      </div>
+                      <Pill
+                        label={deviceDeploymentReadiness.hasRolloutReadyRegistration ? `${deviceDeploymentReadiness.rolloutReadyCount} rollout-ready` : 'No rollout-ready tablets'}
+                        tone={deviceDeploymentReadiness.hasRolloutReadyRegistration ? '#DCFCE7' : '#FEE2E2'}
+                        text={deviceDeploymentReadiness.hasRolloutReadyRegistration ? '#166534' : '#991B1B'}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Pill label={`${deviceDeploymentReadiness.rolloutReadyCount} ready bundle${deviceDeploymentReadiness.rolloutReadyCount === 1 ? '' : 's'}`} tone="#ECFDF5" text="#166534" />
+                      <Pill label={`${deviceDeploymentReadiness.blockedCount} blocked tablet${deviceDeploymentReadiness.blockedCount === 1 ? '' : 's'}`} tone="#FFF7ED" text="#9A3412" />
+                      <Pill label={`${deviceRegistrations.length} tablet registration${deviceRegistrations.length === 1 ? '' : 's'}`} tone="#EEF2FF" text="#3730A3" />
+                    </div>
+                  </div>
+                  <DeviceDeploymentHandoff registrations={deviceRegistrations} apiBase={apiTarget} />
+                </div>
+              )
             ) : sectionAlert('Tablet deployment handoff is blind right now because device registrations failed to load. Do not ship a learner build until the dashboard can prove which device identifier is safe to target.', 'warning')}
             <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 10 }}>
               <div style={{ display: 'grid', gap: 6 }}>
