@@ -3,7 +3,7 @@ import type { DeviceRegistration } from './types';
 function getDuplicateScopeCounts(registrations: DeviceRegistration[]) {
   return registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    if (!registration.podId || normalizedStatus === 'retired') return accumulator;
+    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
     accumulator[registration.podId] = (accumulator[registration.podId] || 0) + 1;
     return accumulator;
   }, {});

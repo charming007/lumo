@@ -23,6 +23,10 @@ function toneForStatus(status?: string | null) {
   return { background: '#F8FAFC', border: '#E2E8F0', accent: '#334155' };
 }
 
+function shellEscape(value: string) {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
 function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
   const base = normalizeBaseUrl(apiBase);
   const probe = new URL(`${base}/api/v1/learner-app/bootstrap`);
@@ -32,8 +36,8 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
 
 function buildReleaseEnv(apiBase: string, deviceIdentifier: string, buildCommand: 'npm run build:learner:web' | 'npm run build:learner:apk') {
   return [
-    `LUMO_API_BASE_URL=${normalizeBaseUrl(apiBase)}`,
-    `LUMO_DEVICE_IDENTIFIER=${deviceIdentifier}`,
+    `LUMO_API_BASE_URL=${shellEscape(normalizeBaseUrl(apiBase))}`,
+    `LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
     buildCommand,
   ].join(' \\\n');
 }
@@ -41,8 +45,8 @@ function buildReleaseEnv(apiBase: string, deviceIdentifier: string, buildCommand
 function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
   const base = normalizeBaseUrl(apiBase);
   return [
-    `export API_BASE=${base}`,
-    `export DEVICE_IDENTIFIER=${deviceIdentifier}`,
+    `export API_BASE=${shellEscape(base)}`,
+    `export DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
     "curl -fsS \"$API_BASE/api/v1/learner-app/bootstrap?deviceIdentifier=$DEVICE_IDENTIFIER\" \\",
     "  -H 'Accept: application/json'",
   ].join('\n');
@@ -61,7 +65,7 @@ function getDeploymentBlockingReasons(registration: DeviceRegistration, duplicat
   }
 
   if (registration.podId && duplicateScopeCount > 1) {
-    reasons.push('This pod currently has multiple non-retired tablets attached. Resolve the duplicate device scope before provisioning another learner build.');
+    reasons.push('This pod currently has multiple active tablets attached. Resolve the duplicate live device scope before provisioning another learner build.');
   }
 
   return reasons;
@@ -76,7 +80,7 @@ export function DeviceDeploymentHandoff({
 }) {
   const duplicateScopeCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    if (!registration.podId || normalizedStatus === 'retired') return accumulator;
+    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
     accumulator[registration.podId] = (accumulator[registration.podId] || 0) + 1;
     return accumulator;
   }, {});

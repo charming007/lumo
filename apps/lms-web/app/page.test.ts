@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
 const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
+const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
+const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
 test('dashboard does not hard-block on subject metadata degradation alone', () => {
@@ -400,6 +402,54 @@ test('dashboard surfaces learner app deployment handoff from live device registr
     dashboardPageSource,
     /Tablet deployment handoff is blind right now because device registrations failed to load\./,
     'dashboard should warn loudly when learner rollout targeting is blind',
+  );
+});
+
+test('device deployment handoff only treats active tablets as duplicate live scope and shell-escapes provisioning commands', () => {
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /function shellEscape\(value: string\)/,
+    'device deployment handoff should shell-escape provisioning snippets before copy-paste',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /LUMO_API_BASE_URL=\$\{shellEscape\(normalizeBaseUrl\(apiBase\)\)\}/,
+    'learner release env bundle should shell-escape the API base',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
+    'learner release env bundle should shell-escape the device identifier',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /export API_BASE=\$\{shellEscape\(base\)\}/,
+    'bootstrap curl smoke test should shell-escape the API base export',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /export DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
+    'bootstrap curl smoke test should shell-escape the device identifier export',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'duplicate live scope should only count active tablets in the handoff UI',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /multiple active tablets attached/,
+    'handoff blocker copy should describe duplicate active tablets explicitly',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /multiple non-retired tablets attached/,
+    'handoff blocker copy should stop treating inactive or repair tablets as live-scope duplicates',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'shared rollout readiness helper should only count active tablets in duplicate live scope',
   );
 });
 
