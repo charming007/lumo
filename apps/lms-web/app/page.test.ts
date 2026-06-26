@@ -360,6 +360,49 @@ test('wrong-backend blocker exposes route evidence and copy-paste verification c
   );
 });
 
+test('dashboard surfaces learner app deployment handoff from live device registrations', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ DeviceDeploymentHandoff \} from '\.\.\/components\/device-deployment-handoff';/,
+    'dashboard should import the learner app deployment handoff component',
+  );
+  assert.match(
+    dashboardPageSource,
+    /import \{ getDeviceDeploymentReadiness \} from '\.\.\/lib\/device-deployment';/,
+    'dashboard should import the shared learner app rollout readiness helper',
+  );
+  assert.match(
+    dashboardPageSource,
+    /fetchDeviceRegistrations\(\),/,
+    'dashboard should pull live device registrations so learner build rollout readiness is visible from the front door',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const deviceDeploymentReadiness = deviceRegistrationsResult\.status === 'fulfilled'[\s\S]*getDeviceDeploymentReadiness\(deviceRegistrations\)/,
+    'dashboard should derive rollout readiness from the live device-registration feed',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Learner app deployment handoff/,
+    'dashboard should label the new learner app rollout block explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Only tablets with a real pod owner, active status, and no duplicate live scope should get a learner release bundle\./,
+    'dashboard should explain the rollout-safety rules instead of making operators infer them',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<DeviceDeploymentHandoff registrations=\{deviceRegistrations\} apiBase=\{apiTarget\} \/>/,
+    'dashboard should render the copy-paste learner build handoff against the actual dashboard API target',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Tablet deployment handoff is blind right now because device registrations failed to load\./,
+    'dashboard should warn loudly when learner rollout targeting is blind',
+  );
+});
+
 test('global error route keeps the dashboard recovery actions without forcing Next to prerender-bug itself', () => {
   assert.doesNotMatch(
     globalErrorSource,
