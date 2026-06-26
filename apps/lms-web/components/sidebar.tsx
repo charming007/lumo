@@ -51,17 +51,17 @@ export function Sidebar({
   }, [safePathname, mobileNavOpen, onCloseMobileNav]);
 
   const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'LMS admin workspace';
-  const shellHeadline = pilotControlPlaneEnabled ? 'Keep the visible nav brutally honest' : 'Run the full LMS without shell detours';
+  const shellHeadline = pilotControlPlaneEnabled ? 'Keep the visible nav brutally honest' : 'Run the full LMS admin shell';
   const shellDetail = pilotControlPlaneEnabled
     ? 'This sidebar only shows the routes operators should trust for pilot go-live: dashboard, content, assignments, progress, and settings.'
-    : 'This sidebar restores the full LMS admin route map: learner ops, staffing, pods, devices, attendance, content, English Studio, Curriculum Canvas, assessments, assignments, progress, rewards, reports, guide, and settings.';
+    : 'This sidebar gives operators the full LMS route map: learners, mallams, pods, devices, attendance, content, English Studio, Curriculum Canvas, assessments, assignments, progress, rewards, reports, guide, and settings.';
   const brandDetail = pilotControlPlaneEnabled
     ? 'Pilot control plane for dashboard triage, curriculum release cleanup, assignments, learner progress, and trust checks.'
-    : 'Full LMS admin shell for learner operations, facilitator coverage, device rollout, content, specialist authoring, assessments, assignments, progress, reporting, and settings.';
+    : 'Full LMS admin shell for learner operations, facilitator coverage, device management, content authoring, assessments, assignments, progress, reporting, and settings.';
   const footerTitle = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Full LMS shell';
   const footerDetail = pilotControlPlaneEnabled
     ? 'Use this shell to verify deployment trust, clean up curriculum blockers, assign live delivery, and monitor learner risk without pretending every specialist route is pilot-ready.'
-    : 'Use this shell to move across the real admin routes without forcing operators through the pilot-only control-plane chrome.';
+    : 'Use this shell to move across the real admin routes, verify live data, and manage day-to-day LMS operations.';
 
   return (
     <>

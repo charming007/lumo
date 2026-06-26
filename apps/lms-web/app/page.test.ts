@@ -46,10 +46,10 @@ test('dashboard defaults to the full LMS route map and keeps the pilot route map
     /The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main\./,
     'dashboard should say plainly that main is back on the full LMS shell',
   );
-  assert.match(
+  assert.doesNotMatch(
     dashboardPageSource,
-    /NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
-    'dashboard should document the explicit pilot override switch',
+    /Pilot control plane override[\s\S]*NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
+    'default dashboard shell copy should not surface pilot override messaging on the main LMS route map card',
   );
   assert.match(
     dashboardPageSource,
@@ -73,16 +73,21 @@ test('dashboard defaults to the full LMS route map and keeps the pilot route map
   );
 });
 
-test('dashboard bulk blocker handoff copy tells the truth about the pilot-blocked canvas detour', () => {
+test('dashboard bulk blocker handoff copy keeps multi-lesson fixes on the scoped blocker flow', () => {
   assert.match(
     dashboardPageSource,
-    /dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas\./,
-    'dashboard should explain that multi-lesson blockers stay on the content blocker flow because canvas is not a valid pilot action surface',
+    /dashboard keeps operators on the scoped content blocker flow until the lane is structurally complete\./,
+    'dashboard should explain that multi-lesson blockers stay on the content blocker flow instead of pretending one deep link solves structural gaps',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /pilot-blocked canvas/,
+    'default dashboard shell copy should not leak pilot-only blocker language into the main LMS route',
   );
   assert.doesNotMatch(
     dashboardPageSource,
     /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
-    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the pilot blocker fix lands',
+    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the scoped blocker fix lands',
   );
 });
 

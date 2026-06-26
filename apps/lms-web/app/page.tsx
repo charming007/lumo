@@ -906,7 +906,7 @@ export default async function HomePage() {
                   {canLaunchTopReleaseLessonCreate
                     ? 'The dashboard only flags the ugliest lane. Actual curriculum action stays in Content Library so operators do not end up juggling two competing release boards.'
                     : topReleaseBlocker.missingLessons > 1 && topReleaseBlocker.hasAuthoringContext
-                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas.'
+                      ? 'This lane is missing multiple lessons. Dumping operators into single-lesson studio would fake progress, so the dashboard keeps operators on the scoped content blocker flow until the lane is structurally complete.'
                       : topReleaseBlockerSubjectMetadataMissing
                         ? 'The subject feed is degraded, so the dashboard refuses to guess its way into Lesson Studio from partial metadata. Re-open the scoped blocker board first, then launch authoring from the real content surface.'
                         : 'This lane is missing recoverable subject context, so the dashboard refuses to fire operators into Lesson Studio and sends them back to the blocker board to repair the lane first.'}
@@ -1130,9 +1130,9 @@ export default async function HomePage() {
                 </div>
               </div>
               <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Pilot control plane override</div>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Shell mode</div>
                 <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
-                  The pilot/control-plane shell only appears when NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true. Legitimate deployment and outage blockers still live inside the actual admin routes instead of replacing the whole shell by default.
+                  This deployment is running the standard LMS admin shell with the full route set. Route-specific deployment and outage blockers still appear where they belong instead of replacing the shared chrome.
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
