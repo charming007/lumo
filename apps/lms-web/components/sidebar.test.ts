@@ -20,11 +20,11 @@ test('sidebar normalizes nullable pathname values before active-path checks', ()
 });
 
 test('sidebar keeps pilot copy behind the override and restores normal LMS shell copy by default', () => {
-  assert.match(source, /Pilot control plane for dashboard triage/);
-  assert.match(source, /Keep the visible nav brutally honest/);
-  assert.match(source, /This sidebar only shows the routes operators should trust for pilot go-live/);
-  assert.match(source, /Run the full LMS admin shell/);
-  assert.match(source, /This sidebar gives operators the full LMS route map/);
-  assert.match(source, /Use this shell to move across the real admin routes, verify live data, and manage day-to-day LMS operations\./);
+  assert.match(source, /Pilot control plane for curriculum readiness and learner progress/);
+  assert.match(source, /Pilot-ready routes/);
+  assert.match(source, /Dashboard, content, assignments, progress, and settings are visible for pilot go-live/);
+  assert.match(source, /Education operations/);
+  assert.match(source, /Learners, facilitators, pods, devices, curriculum, assessment, assignments, and reporting in one focused shell/);
+  assert.match(source, /All admin routes stay available; this redesign only changes presentation\./);
   assert.doesNotMatch(source, /forcing operators through the pilot-only control-plane chrome/);
 });

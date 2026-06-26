@@ -1512,14 +1512,14 @@ function ModalShell({ title, eyebrow, children, onClose }: { title: string; eyeb
     <div
       role="presentation"
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(2,6,23,0.74)', backdropFilter: 'blur(6px)', padding: 'clamp(16px, 4vw, 28px)', display: 'grid', placeItems: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(2,6,23,0.74)', backdropFilter: 'blur(10px)', padding: 'clamp(16px, 4vw, 40px)', display: 'grid', placeItems: 'center', boxSizing: 'border-box' }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
-        style={{ width: 'min(760px, 100%)', maxHeight: '90vh', overflow: 'auto', borderRadius: 28, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,1) 100%)', border: '1px solid rgba(99,102,241,0.24)', boxShadow: '0 28px 60px rgba(2,6,23,0.4)', padding: 22, display: 'grid', gap: 16 }}
+        style={{ width: 'min(860px, calc(100vw - 32px))', maxHeight: 'min(860px, calc(100dvh - 48px))', overflow: 'auto', borderRadius: 30, background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,1) 100%)', border: '1px solid rgba(99,102,241,0.24)', boxShadow: '0 34px 90px rgba(2,6,23,0.42)', padding: 'clamp(18px, 3vw, 28px)', display: 'grid', gap: 18, boxSizing: 'border-box' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div style={{ display: 'grid', gap: 6 }}>

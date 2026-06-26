@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
+      <body style={{ margin: 0, overflowX: 'hidden', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', background: '#eef2f7', color: '#202436' }}>
         <AppShell seedCount={seedCount} buildSignature={buildSignature} pilotControlPlaneEnabled={pilotControlPlaneEnabled}>
           <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />

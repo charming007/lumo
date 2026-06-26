@@ -11,21 +11,27 @@ type Props = {
 function bannerTone(apiSource: ApiBaseSource) {
   if (apiSource === 'invalid-production-env') {
     return {
-      background: '#7c2d12',
-      detail: '#fed7aa',
+      background: '#fff5ed',
+      border: '#fed7aa',
+      title: '#9a3412',
+      detail: '#9a5a1f',
     };
   }
 
   if (apiSource === 'missing-production-env') {
     return {
-      background: '#7c2d12',
-      detail: '#fed7aa',
+      background: '#fff5ed',
+      border: '#fed7aa',
+      title: '#9a3412',
+      detail: '#9a5a1f',
     };
   }
 
   return {
-    background: '#111827',
-    detail: '#cbd5e1',
+    background: 'linear-gradient(135deg, #7468ff 0%, #8d7aff 58%, #b79dff 100%)',
+    border: '#dcd7ff',
+    title: '#ffffff',
+    detail: '#f1efff',
   };
 }
 
@@ -68,20 +74,22 @@ export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Pro
   return (
     <div
       style={{
-        margin: '16px clamp(16px, 4vw, 32px) 0',
+        margin: '18px clamp(18px, 3vw, 32px) 0',
         background: tone.background,
-        color: 'white',
-        borderRadius: 18,
-        padding: '14px 18px',
+        color: tone.title,
+        borderRadius: 26,
+        padding: '18px 22px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: 12,
+        border: `1px solid ${tone.border}`,
+        boxShadow: '0 20px 55px rgba(111, 99, 255, 0.16)',
       }}
     >
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-        <strong>Lumo operator shell</strong> — {runtimeStatus.label}
+        <strong style={{ color: tone.title }}>Lumo operator shell</strong> — {runtimeStatus.label}
         {detail ? (
           <div style={{ marginTop: 4, fontSize: 13, color: tone.detail, lineHeight: 1.5 }}>
             {detail}
@@ -96,7 +104,7 @@ export function DemoBanner({ role, mode, seedCount = 0, apiSource = 'env' }: Pro
           </div>
         ) : null}
       </div>
-      <div style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Current role: {role}</div>
+      <div style={{ fontWeight: 850, whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.22)', color: tone.title, border: '1px solid rgba(255,255,255,0.28)', borderRadius: 999, padding: '9px 12px' }}>Current role: {role}</div>
     </div>
   );
 }

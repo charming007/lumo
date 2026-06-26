@@ -311,6 +311,13 @@ class LumoAppState {
       !hasUsableOfflineSnapshot &&
       usingFallbackData;
 
+  String? productionDeviceIdentifierIssue({bool isReleaseBuild = kReleaseBuild}) {
+    if (!isReleaseBuild || _includeSeedDemoContent) return null;
+    final configured = _configuredDeviceIdentifier?.trim();
+    if (configured != null && configured.isNotEmpty) return null;
+    return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+  }
+
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
     if (_includeSeedDemoContent) return null;
 
@@ -1014,10 +1021,23 @@ class LumoAppState {
   }
 
   Future<void> bootstrap() async {
-    await ensureStableDeviceIdentifier();
+    final deviceProvisioningIssue = productionDeviceIdentifierIssue();
+    if (deviceProvisioningIssue == null) {
+      await ensureStableDeviceIdentifier();
+    }
     if (isBootstrapping) return;
     isBootstrapping = true;
     backendError = null;
+    _notifyListeners();
+
+    if (deviceProvisioningIssue != null) {
+      usingFallbackData = true;
+      backendError = deviceProvisioningIssue;
+      deploymentBlockerReason = deviceProvisioningIssue;
+      isBootstrapping = false;
+      persistStateSoon();
+      return;
+    }
 
     final invalidProductionBaseUrlReason =
         kReleaseBuild ? _apiClient.invalidProductionBaseUrlReason : null;
@@ -6566,6 +6586,12 @@ class LumoAppState {
         await _persistStateNow();
       }
       return configured;
+    }
+
+    if (productionDeviceIdentifierIssue() != null) {
+      tabletDeviceIdentifier = null;
+      _apiClient.deviceIdentifier = null;
+      return '';
     }
 
     final existing = tabletDeviceIdentifier?.trim();

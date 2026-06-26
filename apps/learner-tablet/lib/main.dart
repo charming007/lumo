@@ -309,11 +309,21 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final backendLabel = backendHost != null && backendHost.isNotEmpty
         ? '$backendHost · $configuredBackend'
         : configuredBackend;
-    final bootstrapProbeUrl = (backendUri != null
-            ? backendUri.resolve('/api/v1/learner-app/bootstrap')
-            : Uri.tryParse('$configuredBackend/api/v1/learner-app/bootstrap'))
-        ?.toString();
     final deviceIdentifier = state.stableDeviceIdentifier?.trim();
+    final bootstrapProbeUri = Uri.tryParse(
+      '${LumoApiClient.normalizeBaseUrl(configuredBackend)}/api/v1/learner-app/bootstrap',
+    );
+    final bootstrapProbeUrl = bootstrapProbeUri == null
+        ? null
+        : ((deviceIdentifier != null && deviceIdentifier.isNotEmpty)
+                ? bootstrapProbeUri.replace(
+                    queryParameters: <String, String>{
+                      ...bootstrapProbeUri.queryParameters,
+                      'deviceIdentifier': deviceIdentifier,
+                    },
+                  )
+                : bootstrapProbeUri)
+            .toString();
     final deviceIdentifierLabel =
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
@@ -321,6 +331,14 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final blockerNeedsDeviceIdentity =
         blockerReason.toLowerCase().contains('device identifier') ||
             blockerReason.toLowerCase().contains('tablet registration');
+    final blockerMissingProvisionedIdentifier =
+        blockerReason.contains('LUMO_DEVICE_IDENTIFIER');
+    final blockerHeroTitle = blockerMissingProvisionedIdentifier
+        ? 'Deployment blocker: this release build was shipped without its tablet identity.'
+        : 'Deployment blocker: learner app is offline and refusing to fake a live roster.';
+    final blockerHeroSummary = blockerMissingProvisionedIdentifier
+        ? 'This tablet was deployed without the exact LMS device identifier baked into the release build. Until the app is rebuilt with LUMO_DEVICE_IDENTIFIER, the learner bootstrap cannot prove which tablet is asking, so retrying on-device is just theater.'
+        : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.';
 
     return Scaffold(
       body: SafeArea(
@@ -360,9 +378,9 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Deployment blocker: learner app is offline and refusing to fake a live roster.',
-                          style: TextStyle(
+                        Text(
+                          blockerHeroTitle,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
@@ -371,7 +389,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.',
+                          blockerHeroSummary,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.92),
                             height: 1.5,
@@ -467,6 +485,8 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               Text(
                                 blockerReason.contains('LUMO_API_BASE_URL')
                                     ? 'This build is blocked on release config, not learner content. Fix the API host, redeploy, then retry on the tablet.'
+                                    : blockerMissingProvisionedIdentifier
+                                    ? 'The backend host may be fine. This release is blocked because the tablet identity was never provisioned into the build, so it needs a rebuild and redeploy before the learner bootstrap can succeed.'
                                     : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
                                 style: const TextStyle(
                                   color: Color(0xFF475569),

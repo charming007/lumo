@@ -387,6 +387,22 @@ void main() {
     );
 
     test(
+      'release builds require a provisioned tablet device identifier instead of generating one',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final state = LumoAppState(includeSeedDemoContent: false);
+
+        expect(
+          state.productionDeviceIdentifierIssue(isReleaseBuild: true),
+          contains('LUMO_DEVICE_IDENTIFIER'),
+        );
+        expect(state.productionDeviceIdentifierIssue(), isNull);
+
+        state.dispose();
+      },
+    );
+
+    test(
       'bootstrap automatically sends the persisted tablet device identifier',
       () async {
         SharedPreferences.setMockInitialValues({});

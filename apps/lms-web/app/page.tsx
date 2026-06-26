@@ -24,13 +24,27 @@ import { findSubjectByContext } from '../lib/module-subject-match';
 import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../lib/progression-status';
 
 const quickActionStyle = {
-  borderRadius: 14,
-  padding: '12px 14px',
-  fontWeight: 800,
+  borderRadius: 16,
+  padding: '12px 15px',
+  fontWeight: 850,
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  fontSize: 13,
+} as const;
+
+const panelStyle = {
+  borderRadius: 28,
+  background: '#ffffff',
+  border: '1px solid #e4e8ef',
+  boxShadow: '0 22px 65px rgba(76, 83, 112, 0.09)',
+} as const;
+
+const insetPanelStyle = {
+  borderRadius: 22,
+  background: '#f8f9ff',
+  border: '1px solid #ebedf8',
 } as const;
 
 const emptySummary: DashboardSummary = {
@@ -47,11 +61,11 @@ const emptySummary: DashboardSummary = {
 
 function sectionAlert(message: string, tone: 'warning' | 'neutral' = 'neutral') {
   const styles = tone === 'warning'
-    ? { background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412' }
-    : { background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b' };
+    ? { background: '#fff6ed', border: '1px solid #f4d6b7', color: '#8a4f15' }
+    : { background: '#f7f8ff', border: '1px solid #e7e8fb', color: '#667085' };
 
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 16, lineHeight: 1.6, ...styles }}>
+    <div style={{ padding: '14px 16px', borderRadius: 18, lineHeight: 1.6, fontSize: 14, ...styles }}>
       {message}
     </div>
   );
@@ -395,13 +409,16 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
+  const hasDeviceDeploymentGap = deviceRegistrationsResult.status === 'rejected'
+    || !deviceDeploymentReadiness
+    || !deviceDeploymentReadiness.hasRolloutReadyRegistration;
   const healthyFeedCount = Math.max(totalDashboardFeedCount - failedSources.length, 0);
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap
+  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
@@ -483,6 +500,7 @@ export default async function HomePage() {
     criticalReleaseFailureCount: criticalReleaseFailures.length,
     hasCriticalAssetOpsGap,
     hasEmptyReleaseBoard,
+    hasDeviceDeploymentGap,
   })) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
@@ -506,6 +524,10 @@ export default async function HomePage() {
             ? 'The dashboard cannot read the protected asset runtime audit because the LMS is missing or using the wrong admin API key. Until that auth wiring is fixed, this route cannot honestly prove upload readiness, registry integrity, or managed lesson media health.'
             : 'The asset runtime audit failed to load from the live API. That leaves the dashboard unable to prove whether uploads, registry integrity, and managed lesson media are actually usable for live content operations.'
           : 'The asset runtime audit is live, and it is telling you asset operations are blocked. A dashboard that still looks deployable while uploads or managed lesson references are broken is lying by omission.'
+        : hasDeviceDeploymentGap
+          ? deviceRegistrationsResult.status === 'rejected'
+            ? 'The dashboard cannot load device registrations from the live API, so it cannot honestly tell ops which learner tablet is safe to target. Shipping from a blind rollout handoff is how the wrong device identifier ends up blessed as a production build.'
+            : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
         : !modules.length && !lessons.length && !assessments.length
           ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
           : criticalReleaseFailures.length === 1
@@ -521,9 +543,11 @@ export default async function HomePage() {
             ? 'The admin landing page stays blocked when the critical live dashboard feeds are down.'
             : hasCriticalAssetOpsGap
               ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
-              : hasEmptyReleaseBoard
-                ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
-                : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+              : hasDeviceDeploymentGap
+                ? 'The admin landing page also blocks when learner rollout handoff is blind or has no safe tablet target.'
+                : hasEmptyReleaseBoard
+                  ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
+                  : 'The admin landing page also blocks when release-readiness feeds are blind.'}
         blockerHeadline={backendTargetDiagnosis
           ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
           : hasCriticalDashboardGap
@@ -532,9 +556,13 @@ export default async function HomePage() {
               ? assetRuntimeAuthBlocked
                 ? 'Deployment blocker: LMS admin API key cannot unlock asset audit feeds.'
                 : 'Deployment blocker: asset operations are not trustworthy.'
-              : hasEmptyReleaseBoard
-                ? 'Deployment blocker: release board came back empty.'
-                : 'Deployment blocker: release-readiness feeds are degraded.'}
+              : hasDeviceDeploymentGap
+                ? deviceRegistrationsResult.status === 'rejected'
+                  ? 'Deployment blocker: learner rollout targeting is blind.'
+                  : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
+                : hasEmptyReleaseBoard
+                  ? 'Deployment blocker: release board came back empty.'
+                  : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -565,6 +593,12 @@ export default async function HomePage() {
                   'This deployment depends on shared lesson media, upload integrity, and managed asset references. If those are broken, the front door should not pretend deployment is fine.',
                   'Operators use the dashboard as a trust signal before validating learner content paths. Broken asset operations mean lessons can still fail even if top-line counts look healthy.',
                   'A loud blocker is safer than shipping a dashboard that hides dead uploads, broken registry state, or stale backend media references.',
+                ]
+            : hasDeviceDeploymentGap
+              ? [
+                  'The root dashboard now doubles as learner rollout handoff. If the tablet registry is blind or every tablet is blocked, the front door should say so plainly instead of burying it halfway down the page.',
+                  'Learner build provisioning depends on a real device identifier, active tablet status, and a unique live pod scope. Missing any of that makes deployment handoff fiction.',
+                  'A loud rollout blocker is safer than letting ops cargo-cult a bundle from the wrong row just because the rest of the dashboard looked green.',
                 ]
             : [
                 'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
@@ -607,6 +641,24 @@ export default async function HomePage() {
                   failure: 'Dashboard implies deployment is safe while asset tooling still shows blocked or degraded operations',
                 },
               ]
+            : hasDeviceDeploymentGap
+              ? [
+                  {
+                    surface: 'Learner rollout handoff',
+                    expected: 'At least one tablet registration is active, uniquely scoped, and safe to target for learner builds',
+                    failure: 'Dashboard still looks deployable even though rollout targeting is blind or every tablet is blocked',
+                  },
+                  {
+                    surface: 'Provisioning bundle source',
+                    expected: 'Ops can copy a real device identifier and API target bundle from the dashboard handoff card',
+                    failure: 'No trustworthy tablet row exists, so bundle copy-paste would be guesswork',
+                  },
+                  {
+                    surface: 'Cross-check routes',
+                    expected: '/devices and the dashboard handoff agree on the safe rollout tablet after cleanup',
+                    failure: 'Dashboard implies learner deployment is ready while device scope or assignment cleanup is still pending',
+                  },
+                ]
             : [
                 {
                   surface: 'Content release blockers',
@@ -658,6 +710,14 @@ export default async function HomePage() {
                   { label: 'Operator action', value: 'Restore upload readiness, registry integrity, and managed asset references before trusting the dashboard' },
                   { label: 'Cross-check', value: 'Verify /content/assets and /settings after the asset pipeline fix lands' },
                 ]
+            : hasDeviceDeploymentGap
+              ? [
+                  { label: 'Frontend build', value: buildSignature.summary },
+                  { label: 'Current API target', value: apiTarget },
+                  { label: 'Failing area', value: deviceRegistrationsResult.status === 'rejected' ? 'device registrations feed' : 'rollout-ready tablet coverage' },
+                  { label: 'Operator action', value: deviceRegistrationsResult.status === 'rejected' ? 'Restore the device registration feed before handing off a learner build bundle' : 'Register or repair at least one active, uniquely scoped tablet before trusting learner deployment handoff' },
+                  { label: 'Cross-check', value: 'Verify /devices and the dashboard tablet handoff agree on the safe rollout target after cleanup' },
+                ]
             : [
                 { label: 'Frontend build', value: buildSignature.summary },
                 { label: 'Current API target', value: apiTarget },
@@ -686,6 +746,13 @@ export default async function HomePage() {
                 { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                 { label: 'Cross-check content blockers', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
               ]
+            : hasDeviceDeploymentGap
+              ? [
+                  { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+                  { label: 'Open devices', href: '/devices', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+                  { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+                  { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+                ]
             : [
                 { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
                 { label: 'Check content blockers', href: '/content?view=blocked', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
@@ -703,19 +770,19 @@ export default async function HomePage() {
   return (
     <PageShell
       title="Dashboard"
-      subtitle="The live admin landing page for learner risk, progression readiness, mallam coverage, and assignment flow."
+      subtitle="A live operations briefing for learner progress, facilitator coverage, content readiness, and delivery pressure."
       aside={(
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/settings" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>
+          <Link href="/settings" style={{ ...quickActionStyle, background: '#6f63ff', color: 'white', boxShadow: '0 14px 30px rgba(111, 99, 255, 0.22)' }}>
             Open settings
           </Link>
-          <Link href="/content" style={{ ...quickActionStyle, background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' }}>
+          <Link href="/content" style={{ ...quickActionStyle, background: '#f5f3ff', color: '#5b56c8', border: '1px solid #dedcff' }}>
             Open content
           </Link>
-          <Link href="/assignments" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>
+          <Link href="/assignments" style={{ ...quickActionStyle, background: '#eefaf1', color: '#2f7a52', border: '1px solid #d9f0df' }}>
             Open assignments
           </Link>
-          <Link href="/progress" style={{ ...quickActionStyle, background: '#F8FAFC', color: '#334155', border: '1px solid #E2E8F0' }}>
+          <Link href="/progress" style={{ ...quickActionStyle, background: '#ffffff', color: '#5d6679', border: '1px solid #e2e6ef' }}>
             Open progress
           </Link>
         </div>
@@ -728,12 +795,12 @@ export default async function HomePage() {
       ) : null}
 
       <section style={{ marginBottom: 20 }}>
-        <div style={{ padding: '18px 20px', borderRadius: 20, background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', border: '1px solid #e2e8f0', display: 'grid', gap: 16 }}>
+        <div style={{ ...panelStyle, padding: 'clamp(22px, 3vw, 30px)', display: 'grid', gap: 18, background: 'linear-gradient(135deg, #ffffff 0%, #f7f5ff 58%, #f1fbf8 100%)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ display: 'grid', gap: 6 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 800 }}>Admin overview</div>
-              <strong style={{ fontSize: 22, color: '#0f172a' }}>Dashboard at a glance</strong>
-              <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.3, color: '#7d75d9', fontWeight: 900 }}>Admin overview</div>
+              <strong style={{ fontSize: 'clamp(24px, 3vw, 34px)', color: '#151827', fontWeight: 900 }}>Dashboard at a glance</strong>
+              <div style={{ color: '#747b8f', lineHeight: 1.7, maxWidth: 880, fontSize: 15 }}>
                 {hasCriticalDashboardGap
                   ? 'Critical dashboard feeds are down, so deployment review is blocked until summary, progression, facilitator coverage, and assignment pressure are trustworthy again.'
                   : failedSources.length
@@ -748,7 +815,7 @@ export default async function HomePage() {
             />
           </div>
 
-          <div style={{ padding: '14px 16px', borderRadius: 18, ...apiSourceDetail.tone, display: 'grid', gap: 6 }}>
+          <div style={{ padding: '16px 18px', borderRadius: 22, ...apiSourceDetail.tone, display: 'grid', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <strong style={{ color: apiSourceDetail.tone.text }}>Backend trust</strong>
               <Pill label={apiSourceDetail.label} tone="#FFFFFF" text={apiSourceDetail.tone.text} />
@@ -756,36 +823,36 @@ export default async function HomePage() {
             <div style={{ color: apiSourceDetail.tone.text, lineHeight: 1.6 }}>{apiSourceDetail.note}</div>
           </div>
 
-          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
+          <div style={{ padding: '16px 18px', ...insetPanelStyle, display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <strong style={{ color: '#0f172a' }}>Live pull freshness</strong>
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
-            <div style={{ color: '#334155', lineHeight: 1.6 }}>
+            <div style={{ color: '#5d6679', lineHeight: 1.65 }}>
               Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+            <div style={{ color: '#747b8f', lineHeight: 1.65 }}>
               If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
             </div>
           </div>
 
-          <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
+          <div style={{ padding: '16px 18px', ...insetPanelStyle, display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <strong style={{ color: '#0f172a' }}>Build info</strong>
               <Pill label={buildSignature.commitShort} tone="#EEF2FF" text="#3730A3" />
             </div>
-            <div style={{ color: '#334155', lineHeight: 1.6 }}>
+            <div style={{ color: '#5d6679', lineHeight: 1.65 }}>
               Frontend build: {buildSignature.summary}
             </div>
-            <div style={{ color: '#334155', lineHeight: 1.6 }}>
-              API target: <code style={{ color: '#0f172a', fontWeight: 800 }}>{apiTarget}</code>
+            <div style={{ color: '#5d6679', lineHeight: 1.65 }}>
+              API target: <code style={{ color: '#151827', fontWeight: 850 }}>{apiTarget}</code>
             </div>
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
+            <div style={{ color: '#747b8f', lineHeight: 1.65 }}>
               Shows the current frontend build signature and API target for quick environment verification when needed.
             </div>
             {!buildSignature.metadataTrusted ? (
-              <div style={{ color: '#64748b', lineHeight: 1.6, padding: '10px 12px', borderRadius: 14, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+              <div style={{ color: '#747b8f', lineHeight: 1.6, padding: '12px 14px', borderRadius: 16, background: '#ffffff', border: '1px solid #e8ecf4' }}>
                 Build metadata is partial in this runtime, so the dashboard is showing the commit and API target it can verify. Missing commit/build provenance is a traceability gap to tidy up, not a dashboard failure by itself.
               </div>
             ) : null}
@@ -793,7 +860,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
+      <section className="dashboard-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 18, marginBottom: 20 }}>
         {[
           {
             label: 'Active learners',
@@ -838,11 +905,28 @@ export default async function HomePage() {
               : 'Unavailable until the live dashboard summary feed recovers.',
           },
         ].map((item) => (
-          <Card key={item.label} title={item.value} eyebrow={item.label}>
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>{item.note}</div>
-          </Card>
+          <div key={item.label} style={{ ...panelStyle, padding: '18px 19px', display: 'grid', gap: 9, minHeight: 136, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 82, height: 82, borderBottomLeftRadius: 42, background: 'linear-gradient(135deg, rgba(111,99,255,0.12), rgba(116,213,187,0.10))' }} />
+            <div style={{ fontSize: 11, color: '#8b93a8', textTransform: 'uppercase', letterSpacing: 1.15, fontWeight: 900, position: 'relative' }}>{item.label}</div>
+            <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 900, color: '#151827', position: 'relative' }}>{item.value}</div>
+            <div style={{ color: '#747b8f', lineHeight: 1.5, fontSize: 13, position: 'relative' }}>{item.note}</div>
+          </div>
         ))}
       </section>
+
+      <style>{`
+        @media (max-width: 960px) {
+          .dashboard-metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .dashboard-metric-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+        }
+      `}</style>
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
         <Card title="Content readiness" eyebrow="Content library">
@@ -1112,6 +1196,7 @@ export default async function HomePage() {
           )}
         </Card>
 
+        <div style={{ gridColumn: '1 / -1' }}>
         {pilotControlPlaneEnabled ? (
           <Card title="Pilot route map" eyebrow="Visible shell">
             <div style={{ display: 'grid', gap: 12 }}>
@@ -1195,9 +1280,10 @@ export default async function HomePage() {
             </div>
           </Card>
         )}
+        </div>
       </section>
 
-      <section style={{ ...responsiveGrid(340), marginBottom: 20 }}>
+      <section style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
         <Card title="Executive signals" eyebrow="Narrative from the dashboard feed">
           {insightsResult.status !== 'fulfilled' ? (
             sectionAlert('Dashboard insights did not load, so use progress, assignments, and settings before making any “looks fine to me” call.', 'warning')

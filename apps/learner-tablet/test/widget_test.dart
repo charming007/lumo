@@ -867,6 +867,55 @@ void main() {
   );
 
   testWidgets(
+    'deployment blocker page shows unprovisioned tablet identifier when the build is missing device identity',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('Not provisioned in this build'), findsOneWidget);
+      expect(
+        find.text(
+          'Deployment blocker: this release build was shipped without its tablet identity.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'retrying on-device is just theater',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'it needs a rebuild and redeploy before the learner bootstrap can succeed',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'deployment blocker page surfaces the provisioned tablet identifier for registration mismatches',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

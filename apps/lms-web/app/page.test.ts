@@ -385,6 +385,11 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
+    /const hasDeviceDeploymentGap = deviceRegistrationsResult\.status === 'rejected'[\s\S]*!deviceDeploymentReadiness\.hasRolloutReadyRegistration;/,
+    'dashboard should treat blind or zero-ready learner rollout handoff as a top-level deployment gap',
+  );
+  assert.match(
+    dashboardPageSource,
     /Learner app deployment handoff/,
     'dashboard should label the new learner app rollout block explicitly',
   );
@@ -412,6 +417,11 @@ test('dashboard surfaces learner app deployment handoff from live device registr
     dashboardPageSource,
     /Tablet deployment handoff is blind right now because device registrations failed to load\./,
     'dashboard should warn loudly when learner rollout targeting is blind',
+  );
+  assert.match(
+    dashboardPageSource,
+    /hasDeviceDeploymentGap,/,
+    'dashboard should feed learner rollout readiness into the top-level blocker gate',
   );
 });
 
