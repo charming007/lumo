@@ -23,7 +23,7 @@ export function PageShell({
   return (
     <main style={{ boxSizing: 'border-box', padding: 'clamp(18px, 3vw, 32px)', minWidth: 0, maxWidth: '100%', overflowX: 'clip' }}>
       <Breadcrumbs items={breadcrumbs} currentLabel={title} />
-      <div className="page-shell__header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, 0.46fr)', gap: 22, marginBottom: 28, alignItems: 'stretch' }}>
+      <div className="page-shell__header" style={{ display: 'grid', gridTemplateColumns: aside ? 'minmax(0, 1fr) minmax(260px, 0.46fr)' : 'minmax(0, 1fr)', gap: 22, marginBottom: 28, alignItems: 'stretch' }}>
         <div className="page-shell__copy" style={{ minWidth: 0, position: 'relative', overflow: 'hidden', borderRadius: 32, padding: 'clamp(22px, 4vw, 36px)', background: 'linear-gradient(135deg, #ffffff 0%, #f4f1ff 58%, #ecfbff 100%)', border: '1px solid rgba(213, 217, 255, 0.9)', boxShadow: '0 28px 80px rgba(82, 74, 145, 0.12)' }}>
           <div aria-hidden="true" style={{ position: 'absolute', right: 26, top: 22, width: 128, height: 112, opacity: 0.92 }}>
             <div style={{ position: 'absolute', right: 0, bottom: 0, width: 94, height: 64, borderRadius: 24, background: '#151827', transform: 'rotate(-3deg)', boxShadow: '0 18px 32px rgba(21, 24, 39, 0.16)' }} />
@@ -36,8 +36,8 @@ export function PageShell({
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 99, background: '#6D5DF7', display: 'inline-block' }} />
             Operations workspace
           </div>
-          <h1 style={{ margin: 0, fontSize: 'clamp(34px, 4.7vw, 56px)', letterSpacing: 0, color: '#121527', fontWeight: 900, maxWidth: 720, lineHeight: 0.98 }}>{title}</h1>
-          <p style={{ margin: '14px 0 0', color: '#687086', maxWidth: 720, lineHeight: 1.65, fontSize: 16 }}>{subtitle}</p>
+          <h1 style={{ margin: 0, fontSize: 'clamp(34px, 4.7vw, 56px)', letterSpacing: 0, color: '#121527', fontWeight: 900, maxWidth: aside ? 720 : 960, lineHeight: 0.98 }}>{title}</h1>
+          <p style={{ margin: '14px 0 0', color: '#687086', maxWidth: aside ? 720 : 980, lineHeight: 1.65, fontSize: 16 }}>{subtitle}</p>
         </div>
         {aside ? <div className="page-shell__aside" style={{ minWidth: 0, borderRadius: 30, padding: 16, background: 'rgba(255, 255, 255, 0.72)', border: '1px solid rgba(226, 230, 240, 0.94)', boxShadow: '0 22px 60px rgba(82, 74, 145, 0.09)', backdropFilter: 'blur(18px)' }}>{aside}</div> : null}
       </div>
@@ -46,6 +46,71 @@ export function PageShell({
         .page-shell__header::selection,
         .page-shell__copy::selection {
           background: #d9d4ff;
+        }
+
+        .page-shell__header,
+        .page-shell__copy,
+        .page-shell__aside {
+          box-sizing: border-box;
+          max-width: 100%;
+        }
+
+        .page-shell__copy input,
+        .page-shell__copy select,
+        .page-shell__copy textarea,
+        .page-shell__copy pre,
+        .page-shell__copy code,
+        main input,
+        main select,
+        main textarea {
+          box-sizing: border-box;
+          max-width: 100%;
+        }
+
+        main select,
+        .modal-launcher__dialog select {
+          padding-right: 42px !important;
+        }
+
+        .modal-launcher__dialog form,
+        .modal-launcher__dialog form > div {
+          min-width: 0;
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+
+        .modal-launcher__dialog label,
+        .modal-launcher__dialog input,
+        .modal-launcher__dialog select,
+        .modal-launcher__dialog textarea {
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+
+        .modal-launcher__dialog label {
+          display: grid;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .modal-launcher__dialog input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+        .modal-launcher__dialog select,
+        .modal-launcher__dialog textarea {
+          display: block;
+          width: 100% !important;
+        }
+
+        .modal-launcher__dialog form > div[style*="grid-template-columns"] {
+          column-gap: 20px !important;
+          row-gap: 18px !important;
+        }
+
+        main textarea,
+        main pre,
+        main code {
+          overflow-wrap: anywhere;
         }
 
         @media (max-width: 720px) {
@@ -121,7 +186,7 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
         </tbody>
       </table>
       <style>{`
-        @media (max-width: 960px) {
+        @media (max-width: 1440px) {
           .simple-table-shell {
             overflow: visible;
             padding: 0;

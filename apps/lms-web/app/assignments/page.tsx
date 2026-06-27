@@ -491,7 +491,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
         </Card>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 16, marginBottom: 20 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20, marginBottom: 20 }}>
         <Card title="Assignment board" eyebrow="Delivery control">
           <SimpleTable
             columns={['Lesson', 'Cohort', 'Pod', 'Assessment', 'Mallam', 'Due + issue time', 'Status']}

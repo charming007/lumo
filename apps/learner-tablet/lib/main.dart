@@ -328,16 +328,23 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : 'Not provisioned in this build';
+    final normalizedBlockerReason = blockerReason.toLowerCase();
     final blockerNeedsDeviceIdentity =
-        blockerReason.toLowerCase().contains('device identifier') ||
-            blockerReason.toLowerCase().contains('tablet registration');
+        normalizedBlockerReason.contains('device identifier') ||
+            normalizedBlockerReason.contains('tablet registration');
     final blockerMissingProvisionedIdentifier =
-        blockerReason.contains('LUMO_DEVICE_IDENTIFIER');
+        normalizedBlockerReason.contains('lumo_device_identifier');
+    final blockerRegistrationMismatch =
+        blockerNeedsDeviceIdentity && !blockerMissingProvisionedIdentifier;
     final blockerHeroTitle = blockerMissingProvisionedIdentifier
         ? 'Deployment blocker: this release build was shipped without its tablet identity.'
+        : blockerRegistrationMismatch
+        ? 'Deployment blocker: this tablet identity does not match the LMS registration.'
         : 'Deployment blocker: learner app is offline and refusing to fake a live roster.';
     final blockerHeroSummary = blockerMissingProvisionedIdentifier
         ? 'This tablet was deployed without the exact LMS device identifier baked into the release build. Until the app is rebuilt with LUMO_DEVICE_IDENTIFIER, the learner bootstrap cannot prove which tablet is asking, so retrying on-device is just theater.'
+        : blockerRegistrationMismatch
+        ? 'The learner app reached deployment trust checks, but the backend could not match this tablet identity to a valid LMS registration. Until the identifier and LMS device record agree, the roster and pod scope are not safe to trust.'
         : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.';
 
     return Scaffold(

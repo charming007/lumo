@@ -4,11 +4,27 @@ import { DeploymentBlockerCard } from '../../components/deployment-blocker-card'
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { LearnerMallamAssignmentForm } from '../../components/learner-mallam-assignment-form';
 import { ModalLauncher } from '../../components/modal-launcher';
+import { AdminDirectory } from '../../components/admin-directory';
 import { fetchCenters, fetchCohorts, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
-import { averageAttendancePercent, formatAttendancePercent } from '../../lib/attendance';
+import { averageAttendancePercent } from '../../lib/attendance';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterStudentsByGeography, studentGeographyLabel } from '../../lib/geography';
-import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { Card, MetricList, PageShell, Pill } from '../../lib/ui';
+
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'L';
+}
+
+function progressPercent(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value * 100)));
+}
+
+function levelTone(level?: string | null) {
+  const normalized = String(level || '').toLowerCase();
+  if (normalized.includes('confident') || normalized.includes('advanced')) return ['#DCFCE7', '#166534'] as const;
+  if (normalized.includes('emerging') || normalized.includes('intermediate')) return ['#FEF3C7', '#92400E'] as const;
+  return ['#DBEAFE', '#1D4ED8'] as const;
+}
 
 export default async function StudentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
@@ -203,56 +219,94 @@ export default async function StudentsPage({ searchParams }: { searchParams?: Pr
             ? `Showing ${filteredStudents.length} learner${filteredStudents.length === 1 ? '' : 's'} with degraded geography context because one of the support feeds is down.`
             : `Showing ${filteredStudents.length} learner${filteredStudents.length === 1 ? '' : 's'} in the current geography/program slice.`}
       />
-      <SimpleTable
-        columns={['Learner', 'Stage', 'Geography', 'Cohort', 'Pod', 'Mallam', 'Attendance', 'Actions']}
-        rows={hasCoreRosterGap ? [[
-          <span key="students-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Learner roster unavailable. Recover the students feed before using learner admin actions.</span>,
-          '', '', '', '', '', '', '',
-        ]] : filteredStudents.map((student) => [
-          <div key={`${student.id}-name`}>
-            <strong>{student.name}</strong>
-            <div style={{ color: '#64748b', marginTop: 4 }}>Age {student.age || '—'} · {student.gender || 'N/A'}</div>
-          </div>,
-          <Pill key={`${student.id}-stage`} label={student.stage || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-          studentGeographyLabel(student, pods, centers, states, localGovernments),
-          student.cohortName || '—',
-          student.podLabel || '—',
-          student.mallamName || '—',
-          formatAttendancePercent(student.attendanceRate),
-          <div key={`${student.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Link href={`/students/${student.id}`} title="View learner" aria-label="View learner" style={{ textDecoration: 'none', borderRadius: 10, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730A3', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
-              👁
-            </Link>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">✏️</span>}
-              title={`Edit ${student.name}`}
-              description="Update learner details without blowing up the table layout."
-              eyebrow="Learner admin"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} title={`Edit ${student.name}`} />
-            </ModalLauncher>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">🗑️</span>}
-              title={`Delete ${student.name}`}
-              description="Remove this learner from the live roster carefully."
-              eyebrow="Danger zone"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <DeleteStudentForm student={student} />
-            </ModalLauncher>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">🧭</span>}
-              title={`Route ${student.name} by pod`}
-              description="Move the learner by pod and let the primary mallam derive from that pod."
-              eyebrow="Learner routing"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <LearnerMallamAssignmentForm student={student} pods={pods} returnPath="/students" />
-            </ModalLauncher>
-          </div>,
-        ])}
-      />
+      <AdminDirectory
+        title="All learners"
+        count={filteredStudents.length}
+        searchPlaceholder="Search learners..."
+      >
+        {hasCoreRosterGap ? (
+          <div style={{ color: '#b91c1c', lineHeight: 1.6 }}>Learner roster unavailable. Recover the students feed before using learner admin actions.</div>
+        ) : (
+          <>
+            <div data-directory-view="grid">
+              {filteredStudents.map((student) => {
+                const attendance = progressPercent(student.attendanceRate);
+                const [levelToneColor, levelTextColor] = levelTone(student.level);
+                const search = [student.name, student.stage, student.level, student.cohortName, student.podLabel, student.mallamName, studentGeographyLabel(student, pods, centers, states, localGovernments)].filter(Boolean).join(' ');
+                const actions = (
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Link href={`/students/${student.id}`} title="View learner" aria-label="View learner" style={{ textDecoration: 'none', color: '#202436', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>◉</Link>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">✎</span>} title={`Edit ${student.name}`} description="Update learner details without blowing up the table layout." eyebrow="Learner admin" triggerStyle={{ borderRadius: 10, border: '1px solid #dbeafe', background: '#eff6ff', color: '#1d4ed8', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}>
+                      <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} title={`Edit ${student.name}`} />
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">⇄</span>} title={`Route ${student.name} by pod`} description="Move the learner by pod and let the primary mallam derive from that pod." eyebrow="Learner routing" triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}>
+                      <LearnerMallamAssignmentForm student={student} pods={pods} returnPath="/students" />
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">×</span>} title={`Delete ${student.name}`} description="Remove this learner from the live roster carefully." eyebrow="Danger zone" triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 18 }}>
+                      <DeleteStudentForm student={student} />
+                    </ModalLauncher>
+                  </div>
+                );
+
+                return (
+                  <article key={student.id} data-directory-item data-search={search} style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, border: '1px solid #e4e8ef', background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)', padding: 22, display: 'grid', gap: 18, boxShadow: '0 18px 45px rgba(76, 83, 112, 0.06)' }}>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: '0 0 auto 0', height: 5, background: 'linear-gradient(90deg, #6D5DF7, #FF79C8, #9EE7F2)' }} />
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                      <div style={{ width: 58, height: 58, borderRadius: 999, background: '#E5E7EB', color: '#202436', display: 'grid', placeItems: 'center', fontWeight: 850, fontSize: 20, flex: '0 0 auto' }}>{initials(student.name)}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: 20, color: '#151827' }}>{student.name}</h3>
+                        <div style={{ color: '#7b8496', marginTop: 4 }}>Age {student.age || '—'} · {student.cohortName || 'No cohort'}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      {[['Mallam', student.mallamName || '—'], ['Pod', student.podLabel || '—'], ['Attendance', `${attendance}%`]].map(([label, value]) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: '#7b8496' }}><span>{label}:</span><strong style={{ color: '#202436' }}>{value}</strong></div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7b8496' }}><span>Progress</span><strong style={{ color: '#202436' }}>{attendance}%</strong></div>
+                      <div style={{ height: 9, borderRadius: 999, background: '#dbe7f5', overflow: 'hidden' }}><div style={{ width: `${attendance}%`, height: '100%', borderRadius: 999, background: '#0B73D9' }} /></div>
+                    </div>
+                    <div style={{ height: 1, background: '#edf0f6' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                      <Pill label={student.level || student.stage || 'Learner'} tone={levelToneColor} text={levelTextColor} />
+                      {actions}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div data-directory-view="list">
+              {filteredStudents.map((student) => {
+                const attendance = progressPercent(student.attendanceRate);
+                const [levelToneColor, levelTextColor] = levelTone(student.level);
+                const search = [student.name, student.stage, student.level, student.cohortName, student.podLabel, student.mallamName].filter(Boolean).join(' ');
+                return (
+                  <div key={student.id} data-directory-item data-search={search} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) 80px 120px minmax(150px, 0.9fr) 150px minmax(220px, 1fr)', gap: 16, alignItems: 'center', padding: '16px 18px', borderRadius: 18, border: '1px solid #edf0f6', background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ width: 44, height: 44, borderRadius: 999, background: '#E5E7EB', display: 'grid', placeItems: 'center', fontWeight: 800 }}>{initials(student.name)}</span><strong>{student.name}</strong></div>
+                    <div>{student.age || '—'}</div>
+                    <Pill label={student.level || 'Learner'} tone={levelToneColor} text={levelTextColor} />
+                    <div>{student.mallamName || '—'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><div style={{ height: 8, width: 72, borderRadius: 999, background: '#dbe7f5', overflow: 'hidden' }}><div style={{ width: `${attendance}%`, height: '100%', background: '#0B73D9' }} /></div>{attendance}%</div>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Link href={`/students/${student.id}`} title="View learner" aria-label="View learner" style={{ textDecoration: 'none', color: '#202436', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>◉</Link>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">✎</span>} title={`Edit ${student.name}`} description="Update learner details without blowing up the table layout." eyebrow="Learner admin" triggerStyle={{ borderRadius: 10, border: '1px solid #dbeafe', background: '#eff6ff', color: '#1d4ed8', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}>
+                        <UpdateStudentForm student={student} cohorts={cohorts} pods={pods} mallams={mallams} centers={centers} states={states} localGovernments={localGovernments} title={`Edit ${student.name}`} />
+                      </ModalLauncher>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">⇄</span>} title={`Route ${student.name} by pod`} description="Move the learner by pod and let the primary mallam derive from that pod." eyebrow="Learner routing" triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}>
+                        <LearnerMallamAssignmentForm student={student} pods={pods} returnPath="/students" />
+                      </ModalLauncher>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">×</span>} title={`Delete ${student.name}`} description="Remove this learner from the live roster carefully." eyebrow="Danger zone" triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 18 }}>
+                        <DeleteStudentForm student={student} />
+                      </ModalLauncher>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </AdminDirectory>
     </PageShell>
   );
 }

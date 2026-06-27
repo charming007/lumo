@@ -944,6 +944,18 @@ void main() {
         ),
       );
 
+      expect(
+        find.text(
+          'Deployment blocker: this tablet identity does not match the LMS registration.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'the backend could not match this tablet identity to a valid LMS registration',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
       expect(find.text('tablet-pod-a-007'), findsOneWidget);
       expect(

@@ -771,22 +771,6 @@ export default async function HomePage() {
     <PageShell
       title="Dashboard"
       subtitle="A live operations briefing for learner progress, facilitator coverage, content readiness, and delivery pressure."
-      aside={(
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <Link href="/settings" style={{ ...quickActionStyle, background: '#6f63ff', color: 'white', boxShadow: '0 14px 30px rgba(111, 99, 255, 0.22)' }}>
-            Open settings
-          </Link>
-          <Link href="/content" style={{ ...quickActionStyle, background: '#f5f3ff', color: '#5b56c8', border: '1px solid #dedcff' }}>
-            Open content
-          </Link>
-          <Link href="/assignments" style={{ ...quickActionStyle, background: '#eefaf1', color: '#2f7a52', border: '1px solid #d9f0df' }}>
-            Open assignments
-          </Link>
-          <Link href="/progress" style={{ ...quickActionStyle, background: '#ffffff', color: '#5d6679', border: '1px solid #e2e6ef' }}>
-            Open progress
-          </Link>
-        </div>
-      )}
     >
       {failedSources.length ? (
         <div style={{ marginBottom: 16 }}>
@@ -865,6 +849,7 @@ export default async function HomePage() {
           {
             label: 'Active learners',
             value: metricDisplay(String(summary.activeLearners), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #E9FDF3 0%, #C8F7DF 100%)',
             note: summaryAvailable
               ? 'Learners currently visible to the admin surface'
               : 'Unavailable until the live dashboard summary feed recovers.',
@@ -872,6 +857,7 @@ export default async function HomePage() {
           {
             label: 'Ready to progress',
             value: metricDisplay(String(summary.learnersReadyToProgress), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #F4EDFF 0%, #DDD0FF 100%)',
             note: summaryAvailable
               ? 'Pulled from the live progression workboard'
               : 'Unavailable until the live dashboard summary feed recovers.',
@@ -879,6 +865,7 @@ export default async function HomePage() {
           {
             label: 'Active assignments',
             value: metricDisplay(String(summary.activeAssignments), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #FFF2DE 0%, #FFD59A 100%)',
             note: summaryAvailable
               ? 'Delivery workload still in flight'
               : 'Unavailable until the live dashboard summary feed recovers.',
@@ -886,6 +873,7 @@ export default async function HomePage() {
           {
             label: 'Sync success',
             value: metricDisplay(formatPercent(summary.syncSuccessRate), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #E9F7FF 0%, #BFE8FF 100%)',
             note: summaryAvailable
               ? 'Dashboard transport confidence, not vibes'
               : 'Unavailable until the live dashboard summary feed recovers.',
@@ -893,6 +881,7 @@ export default async function HomePage() {
           {
             label: 'Active pods',
             value: metricDisplay(String(summary.activePods), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #FFF0F7 0%, #FFC9E2 100%)',
             note: summaryAvailable
               ? 'Pods currently represented in the live feed'
               : 'Unavailable until the live dashboard summary feed recovers.',
@@ -900,13 +889,14 @@ export default async function HomePage() {
           {
             label: 'Assessments live',
             value: metricDisplay(String(summary.assessmentsLive), summaryAvailable),
+            gradient: 'linear-gradient(135deg, #F4F9D9 0%, #DCEFA0 100%)',
             note: summaryAvailable
               ? 'Assessment gates available to operators now'
               : 'Unavailable until the live dashboard summary feed recovers.',
           },
         ].map((item) => (
-          <div key={item.label} style={{ ...panelStyle, padding: '18px 19px', display: 'grid', gap: 9, minHeight: 136, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 82, height: 82, borderBottomLeftRadius: 42, background: 'linear-gradient(135deg, rgba(111,99,255,0.12), rgba(116,213,187,0.10))' }} />
+          <div key={item.label} style={{ ...panelStyle, background: item.gradient, padding: '18px 19px', display: 'grid', gap: 9, minHeight: 136, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 82, height: 82, borderBottomLeftRadius: 42, background: 'rgba(255,255,255,0.34)' }} />
             <div style={{ fontSize: 11, color: '#8b93a8', textTransform: 'uppercase', letterSpacing: 1.15, fontWeight: 900, position: 'relative' }}>{item.label}</div>
             <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 900, color: '#151827', position: 'relative' }}>{item.value}</div>
             <div style={{ color: '#747b8f', lineHeight: 1.5, fontSize: 13, position: 'relative' }}>{item.note}</div>
