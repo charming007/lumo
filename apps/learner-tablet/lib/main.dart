@@ -288,6 +288,11 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
   }
 }
 
+String _shellEscapeSingleQuoted(String value) {
+  if (value.isEmpty) return "''";
+  return "'${value.replaceAll("'", "'\\''")}'";
+}
+
 class LearnerDeploymentBlockerPage extends StatelessWidget {
   const LearnerDeploymentBlockerPage({
     super.key,
@@ -324,6 +329,9 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                   )
                 : bootstrapProbeUri)
             .toString();
+    final bootstrapProbeCommand = bootstrapProbeUrl == null
+        ? null
+        : 'curl -i ${_shellEscapeSingleQuoted(bootstrapProbeUrl)}';
     final deviceIdentifierLabel =
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
@@ -339,13 +347,13 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final blockerHeroTitle = blockerMissingProvisionedIdentifier
         ? 'Deployment blocker: this release build was shipped without its tablet identity.'
         : blockerRegistrationMismatch
-        ? 'Deployment blocker: this tablet identity does not match the LMS registration.'
-        : 'Deployment blocker: learner app is offline and refusing to fake a live roster.';
+            ? 'Deployment blocker: this tablet identity does not match the LMS registration.'
+            : 'Deployment blocker: learner app is offline and refusing to fake a live roster.';
     final blockerHeroSummary = blockerMissingProvisionedIdentifier
         ? 'This tablet was deployed without the exact LMS device identifier baked into the release build. Until the app is rebuilt with LUMO_DEVICE_IDENTIFIER, the learner bootstrap cannot prove which tablet is asking, so retrying on-device is just theater.'
         : blockerRegistrationMismatch
-        ? 'The learner app reached deployment trust checks, but the backend could not match this tablet identity to a valid LMS registration. Until the identifier and LMS device record agree, the roster and pod scope are not safe to trust.'
-        : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.';
+            ? 'The learner app reached deployment trust checks, but the backend could not match this tablet identity to a valid LMS registration. Until the identifier and LMS device record agree, the roster and pod scope are not safe to trust.'
+            : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.';
 
     return Scaffold(
       body: SafeArea(
@@ -493,8 +501,8 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 blockerReason.contains('LUMO_API_BASE_URL')
                                     ? 'This build is blocked on release config, not learner content. Fix the API host, redeploy, then retry on the tablet.'
                                     : blockerMissingProvisionedIdentifier
-                                    ? 'The backend host may be fine. This release is blocked because the tablet identity was never provisioned into the build, so it needs a rebuild and redeploy before the learner bootstrap can succeed.'
-                                    : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
+                                        ? 'The backend host may be fine. This release is blocked because the tablet identity was never provisioned into the build, so it needs a rebuild and redeploy before the learner bootstrap can succeed.'
+                                        : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,
@@ -628,24 +636,90 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                     height: 1.45,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                FilledButton.tonalIcon(
-                                  onPressed: () async {
-                                    await ClipboardBridge.copy(
-                                        bootstrapProbeUrl);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Copied bootstrap probe endpoint.',
+                                if (bootstrapProbeCommand != null) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFC7D2FE),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Copy-paste bootstrap verification',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF312E81),
                                           ),
                                         ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.copy_all_rounded),
-                                  label: const Text('Copy bootstrap probe'),
+                                        const SizedBox(height: 8),
+                                        SelectableText(
+                                          bootstrapProbeCommand,
+                                          style: const TextStyle(
+                                            color: Color(0xFF312E81),
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    FilledButton.tonalIcon(
+                                      onPressed: () async {
+                                        await ClipboardBridge.copy(
+                                            bootstrapProbeUrl);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Copied bootstrap probe endpoint.',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(Icons.copy_all_rounded),
+                                      label: const Text('Copy bootstrap probe'),
+                                    ),
+                                    if (bootstrapProbeCommand != null)
+                                      FilledButton.tonalIcon(
+                                        onPressed: () async {
+                                          await ClipboardBridge.copy(
+                                            bootstrapProbeCommand,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied bootstrap verification command.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(
+                                          Icons.terminal_rounded,
+                                        ),
+                                        label: const Text(
+                                          'Copy bootstrap command',
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1354,7 +1428,9 @@ bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
 }
 
 String lessonSyncBlockerStatusLabel(LessonCardModel lesson) {
-  return lesson.isAssignmentPlaceholder ? 'Waiting for sync' : 'Sync incomplete';
+  return lesson.isAssignmentPlaceholder
+      ? 'Waiting for sync'
+      : 'Sync incomplete';
 }
 
 String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
@@ -1544,11 +1620,12 @@ class HomePage extends StatelessWidget {
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null;
-    final forceTrustBannerOnUltraShort = state.deploymentBlockerReason != null ||
-        state.backendError != null ||
-        state.hasPendingRecoveredSession ||
-        state.pendingSyncEvents.isNotEmpty ||
-        state.lastSyncedAt != null;
+    final forceTrustBannerOnUltraShort =
+        state.deploymentBlockerReason != null ||
+            state.backendError != null ||
+            state.hasPendingRecoveredSession ||
+            state.pendingSyncEvents.isNotEmpty ||
+            state.lastSyncedAt != null;
     final showTrustBanner =
         hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
@@ -2169,8 +2246,7 @@ class _HomeTrustBanner extends StatelessWidget {
     final assignmentGapCount =
         state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
     final criticalSyncBlocker = state.criticalSyncTrustBlockerReason;
-    final hasPriorityWarning =
-        registrationBlocked != null ||
+    final hasPriorityWarning = registrationBlocked != null ||
         criticalSyncBlocker != null ||
         assignmentGapCount > 0;
 
@@ -2189,8 +2265,8 @@ class _HomeTrustBanner extends StatelessWidget {
 
     final compactWarning = registrationBlocked != null
         ? '$registrationBlocked Fix backend reachability first.'
-        : criticalSyncBlocker
-            ?? (assignmentGapCount == 1
+        : criticalSyncBlocker ??
+            (assignmentGapCount == 1
                 ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
                 : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
 
@@ -4061,16 +4137,15 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             ),
                                             const SizedBox(width: 12),
                                             StatusPill(
-                                              text:
-                                                  lessonRequiresSyncBeforeStarting(
+                                              text: lessonRequiresSyncBeforeStarting(
                                                 lesson,
                                               )
-                                                      ? lessonSyncBlockerStatusLabel(
-                                                          lesson,
-                                                        )
-                                                      : matchesResumableSession
-                                                          ? 'Resume ready'
-                                                          : 'Ready',
+                                                  ? lessonSyncBlockerStatusLabel(
+                                                      lesson,
+                                                    )
+                                                  : matchesResumableSession
+                                                      ? 'Resume ready'
+                                                      : 'Ready',
                                               color:
                                                   lessonRequiresSyncBeforeStarting(
                                                 lesson,

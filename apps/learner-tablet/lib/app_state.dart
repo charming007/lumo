@@ -305,17 +305,29 @@ class LumoAppState {
   bool get hasUsableOfflineSnapshot =>
       hasOfflineSnapshotPayload && offlineSnapshotTrustProblem == null;
 
+  bool get hasHardDeploymentIdentityBlocker =>
+      _isHardDeploymentIdentityBlocker(deploymentBlockerReason);
+
   bool get shouldBlockProductionDeployment =>
       kReleaseBuild &&
       deploymentBlockerReason != null &&
-      !hasUsableOfflineSnapshot &&
-      usingFallbackData;
+      usingFallbackData &&
+      (!hasUsableOfflineSnapshot || hasHardDeploymentIdentityBlocker);
 
-  String? productionDeviceIdentifierIssue({bool isReleaseBuild = kReleaseBuild}) {
+  String? productionDeviceIdentifierIssue(
+      {bool isReleaseBuild = kReleaseBuild}) {
     if (!isReleaseBuild || _includeSeedDemoContent) return null;
     final configured = _configuredDeviceIdentifier?.trim();
     if (configured != null && configured.isNotEmpty) return null;
     return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+  }
+
+  bool _isHardDeploymentIdentityBlocker(String? reason) {
+    final normalized = reason?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return false;
+    return normalized.contains('lumo_device_identifier') ||
+        normalized.contains('tablet registration') ||
+        normalized.contains('device identifier');
   }
 
   String? _liveBootstrapRuntimeBlockerReason(LumoBootstrap data) {
@@ -1188,7 +1200,9 @@ class LumoAppState {
         ),
       );
       final restoringTrustedOfflineSnapshot =
-          liveBootstrapRuntimeBlocker != null && hadUsableOfflineSnapshot;
+          liveBootstrapRuntimeBlocker != null &&
+              hadUsableOfflineSnapshot &&
+              !_isHardDeploymentIdentityBlocker(liveBootstrapRuntimeBlocker);
       if (restoringTrustedOfflineSnapshot) {
         learners
           ..clear()

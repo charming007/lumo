@@ -22,3 +22,11 @@ test('devices page still keeps an honest empty-state warning once feeds recover'
   assert.match(devicesPageSource, /Promise\.allSettled\(\[/, 'devices page should use Promise.allSettled for feed recovery');
   assert.match(devicesPageSource, /No tablet registrations are loading right now\./, 'devices page should keep the honest empty-state warning');
 });
+
+test('devices page duplicate-pod metric matches the active-only rollout handoff rules', () => {
+  assert.match(devicesPageSource, /import \{ getDeviceDeploymentReadiness \} from '\.\.\/\.\.\/lib\/device-deployment';/, 'devices page should reuse the shared rollout-readiness helper');
+  assert.match(devicesPageSource, /const deviceDeploymentReadiness = getDeviceDeploymentReadiness\(registrations\);/, 'devices page should derive duplicate rollout scope from the shared readiness helper');
+  assert.match(devicesPageSource, /filter\(\(entry\) => entry\.blockingReasons\.includes\('duplicate-live-scope'\) && entry\.registration\.podId\)/, 'devices page should only count pods that the shared rollout rules mark as duplicate live scope');
+  assert.match(devicesPageSource, /\['Pods with duplicate tablets', String\(duplicateActivePodCount\)\]/, 'devices page duplicate metric should reflect the active-only rollout blocker count');
+  assert.doesNotMatch(devicesPageSource, /item\.status \|\| ''\)\.toLowerCase\(\) !== 'retired'/, 'devices page should stop treating every non-retired extra tablet as a duplicate live-scope blocker');
+});

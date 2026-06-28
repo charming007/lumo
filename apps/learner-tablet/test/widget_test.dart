@@ -968,7 +968,7 @@ void main() {
   );
 
   testWidgets(
-    'deployment blocker page exposes copy actions for backend target, bootstrap probe, and tablet identifier',
+    'deployment blocker page exposes copy actions for backend target, bootstrap probe, bootstrap command, and tablet identifier',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       tester.view.physicalSize = const Size(1400, 1000);
@@ -998,7 +998,14 @@ void main() {
 
       expect(find.text('Copy backend target'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
+      expect(find.text('Copy bootstrap command'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
+      expect(find.text('Copy-paste bootstrap verification'), findsOneWidget);
+      expect(find.textContaining('curl -i'), findsOneWidget);
+      expect(
+        find.textContaining('deviceIdentifier=tablet-pod-a-007'),
+        findsWidgets,
+      );
     },
   );
 
@@ -6028,7 +6035,8 @@ void main() {
       status: 'Assigned',
       mascotName: 'Mallam',
       readinessFocus: 'Ignore invalid drag payloads safely.',
-      scenario: 'A stale drag payload lands after the lesson state has moved on.',
+      scenario:
+          'A stale drag payload lands after the lesson state has moved on.',
       steps: [
         LessonStep(
           id: 'drag-stale-step',

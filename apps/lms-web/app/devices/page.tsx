@@ -6,6 +6,7 @@ import { AdminDirectory } from '../../components/admin-directory';
 import { updateDeviceRegistrationAction } from '../actions';
 import { fetchDeviceRegistrations, fetchPods } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { getDeviceDeploymentReadiness } from '../../lib/device-deployment';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../lib/ui';
 
 function formatDateTime(value?: string | null) {
@@ -178,6 +179,12 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
 
   const activeCount = registrations.filter((item) => (item.status || '').toLowerCase() === 'active').length;
   const assignedCount = registrations.filter((item) => item.podId).length;
+  const deviceDeploymentReadiness = getDeviceDeploymentReadiness(registrations);
+  const duplicateActivePodCount = new Set(
+    deviceDeploymentReadiness.annotated
+      .filter((entry) => entry.blockingReasons.includes('duplicate-live-scope') && entry.registration.podId)
+      .map((entry) => entry.registration.podId),
+  ).size;
 
   return (
     <PageShell
@@ -208,7 +215,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
           ['Pods receiving devices', String(new Set(registrations.map((item) => item.podId).filter(Boolean)).size)],
-          ['Pods with duplicate tablets', String(Array.from(new Set(registrations.map((item) => item.podId).filter(Boolean))).filter((podId) => registrations.filter((item) => item.podId === podId && (item.status || '').toLowerCase() !== 'retired').length > 1).length)],
+          ['Pods with duplicate tablets', String(duplicateActivePodCount)],
           ['Repair queue', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'repair').length)],
           ['Retired devices', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'retired').length)],
         ].map(([label, value]) => (
