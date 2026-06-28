@@ -453,6 +453,21 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /curl -fsS -G \\\"\$API_BASE\/api\/v1\/learner-app\/bootstrap\\\" \\\\/,
+    'bootstrap curl smoke test should hit the learner bootstrap with curl -G so query parameters stay explicit',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--data-urlencode \\\"deviceIdentifier=\$DEVICE_IDENTIFIER\\\" \\\\/,
+    'bootstrap curl smoke test should URL-encode the device identifier instead of trusting raw shell interpolation in the query string',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /bootstrap\?deviceIdentifier=\$DEVICE_IDENTIFIER/,
+    'bootstrap curl smoke test should stop inlining raw device identifiers into the query string',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
     'duplicate live scope should only count active tablets in the handoff UI',
   );

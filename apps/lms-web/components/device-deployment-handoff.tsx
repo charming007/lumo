@@ -47,7 +47,8 @@ function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
   return [
     `export API_BASE=${shellEscape(base)}`,
     `export DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-    "curl -fsS \"$API_BASE/api/v1/learner-app/bootstrap?deviceIdentifier=$DEVICE_IDENTIFIER\" \\",
+    "curl -fsS -G \"$API_BASE/api/v1/learner-app/bootstrap\" \\",
+    "  --data-urlencode \"deviceIdentifier=$DEVICE_IDENTIFIER\" \\",
     "  -H 'Accept: application/json'",
   ].join('\n');
 }
