@@ -1053,7 +1053,7 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
-  testWidgets('home screen stays usable on 800x600 pilot tablets', (
+  testWidgets('home screen keeps core handoff actions usable on 800x600 pilot tablets', (
     tester,
   ) async {
     await pumpAppAtSize(tester, const Size(800, 600));
@@ -1062,8 +1062,13 @@ void main() {
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
-    expect(find.text('Register'), findsNothing);
-    expect(find.text('Student list'), findsNothing);
+    expect(find.text('Register'), findsOneWidget);
+    expect(find.text('Student list'), findsOneWidget);
+
+    await tester.tap(find.text('Register'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Guide registration from here'), findsOneWidget);
   });
 
   testWidgets(

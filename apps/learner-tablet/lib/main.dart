@@ -1755,14 +1755,10 @@ class HomePage extends StatelessWidget {
                       );
                     }
 
-                    Widget buildActionPanel() {
-                      if (ultraShortHeight) {
-                        return const SizedBox.shrink();
-                      }
-
+                    List<Widget> buildQuickActions() {
                       final registrationBlocked =
                           state.registrationBlockerReason != null;
-                      final actions = [
+                      return [
                         _HomeQuickAction(
                           title: registrationBlocked
                               ? 'Register blocked'
@@ -1782,6 +1778,33 @@ class HomePage extends StatelessWidget {
                           onTap: openLearners,
                         ),
                       ];
+                    }
+
+                    Widget buildActionPanel() {
+                      final actions = buildQuickActions();
+
+                      if (ultraShortHeight) {
+                        return Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (var index = 0;
+                                      index < actions.length;
+                                      index++) ...[
+                                    actions[index],
+                                    if (index < actions.length - 1)
+                                      const SizedBox(width: 10),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
 
                       return Align(
                         alignment: Alignment.topRight,
