@@ -1053,6 +1053,19 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
+  testWidgets('home screen stays usable on 800x600 pilot tablets', (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(800, 600));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
+    expect(find.text('Life Skills'), findsOneWidget);
+    expect(find.text('Register'), findsNothing);
+    expect(find.text('Student list'), findsNothing);
+  });
+
   testWidgets(
     'home screen keeps a completed-for-today subject visible instead of falling back to the empty state',
     (tester) async {
