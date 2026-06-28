@@ -6013,6 +6013,91 @@ void main() {
   });
 
   testWidgets(
+      'drag to match ignores stale drag payloads instead of crashing the lesson',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'drag-match-stale-payload',
+      moduleId: 'english',
+      title: 'Drag to match stale payload guard',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Ignore invalid drag payloads safely.',
+      scenario: 'A stale drag payload lands after the lesson state has moved on.',
+      steps: [
+        LessonStep(
+          id: 'drag-stale-step',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'The lesson should stay alive even if a stale drag event arrives.',
+          realWorldCheck:
+              'Invalid payloads do not crash the screen or unlock the CTA.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                  id: 'banana-zone', prompt: 'Drag Banana card here'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    final targetWidget = tester.widget<DragTarget<String>>(
+      find.byType(DragTarget<String>).first,
+    );
+
+    expect(
+      () => targetWidget.onAcceptWithDetails?.call(
+        DragTargetDetails<String>(
+          data: 'missing-card',
+          offset: Offset.zero,
+        ),
+      ),
+      returnsNormally,
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Banana'), findsOneWidget);
+    expect(find.text('Drag Banana card here'), findsOneWidget);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    state.dispose();
+  });
+
+  testWidgets(
       'drag to match gates CTA until every card lands in the correct zone',
       (tester) async {
     tester.view.physicalSize = const Size(1280, 900);

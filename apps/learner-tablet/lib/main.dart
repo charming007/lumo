@@ -8850,9 +8850,23 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     String itemId,
     LessonActivityDragTarget target,
   ) {
-    final itemForTarget = activity.dragItems.firstWhere(
-      (candidate) => candidate.id == itemId,
-    );
+    final itemForTarget = activity.dragItems
+        .where((candidate) => candidate.id == itemId)
+        .cast<LessonActivityDragItem?>()
+        .firstWhere((candidate) => candidate != null, orElse: () => null);
+    if (itemForTarget == null) {
+      _playUiFeedback(
+        UiFeedbackSound.incorrect,
+        minGap: const Duration(milliseconds: 140),
+      );
+      setState(() {
+        _selectedDragItemId = null;
+        microphoneStatus =
+            'That card is no longer available. Try picking it up again.';
+      });
+      return;
+    }
+
     final placementIsCorrect = itemForTarget.targetId == target.id;
     _playUiFeedback(
       placementIsCorrect ? UiFeedbackSound.correct : UiFeedbackSound.incorrect,
