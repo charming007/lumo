@@ -433,13 +433,33 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
-    /LUMO_API_BASE_URL=\$\{shellEscape\(normalizeBaseUrl\(apiBase\)\)\}/,
-    'learner release env bundle should shell-escape the API base',
+    /cd apps\/learner-tablet/,
+    'learner provisioning bundle should start in the Flutter app directory instead of assuming imaginary root npm scripts',
   );
   assert.match(
     deviceDeploymentHandoffSource,
-    /LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
-    'learner release env bundle should shell-escape the device identifier',
+    /flutter build web --release/,
+    'learner web provisioning bundle should use the real Flutter release build command',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /flutter build apk --release/,
+    'learner APK provisioning bundle should use the real Flutter release build command',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--dart-define=LUMO_API_BASE_URL=\$\{shellEscape\(normalizedApiBase\)\}/,
+    'learner release build command should pass the API base through Flutter dart-define',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--dart-define=LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
+    'learner release build command should pass the device identifier through Flutter dart-define',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /npm run build:learner:(web|apk)/,
+    'learner deployment handoff should stop advertising nonexistent root npm build scripts',
   );
   assert.match(
     deviceDeploymentHandoffSource,

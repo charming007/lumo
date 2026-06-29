@@ -34,11 +34,17 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
   return probe.toString();
 }
 
-function buildReleaseEnv(apiBase: string, deviceIdentifier: string, buildCommand: 'npm run build:learner:web' | 'npm run build:learner:apk') {
+function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk') {
+  const normalizedApiBase = normalizeBaseUrl(apiBase);
+  const buildCommand = buildTarget === 'web'
+    ? 'flutter build web --release'
+    : 'flutter build apk --release';
+
   return [
-    `LUMO_API_BASE_URL=${shellEscape(normalizeBaseUrl(apiBase))}`,
-    `LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
+    'cd apps/learner-tablet',
     buildCommand,
+    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)}`,
+    `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
   ].join(' \\\n');
 }
 
@@ -156,8 +162,8 @@ export function DeviceDeploymentHandoff({
             ? `${registration.stateName} / ${registration.localGovernmentName}`
             : registration.centerName || registration.podLabel || 'Geography pending';
           const bootstrapProbe = buildBootstrapProbe(apiBase, registration.deviceIdentifier);
-          const releaseWebEnv = buildReleaseEnv(apiBase, registration.deviceIdentifier, 'npm run build:learner:web');
-          const releaseApkEnv = buildReleaseEnv(apiBase, registration.deviceIdentifier, 'npm run build:learner:apk');
+          const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
+          const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
           const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
 
           return (
@@ -194,8 +200,8 @@ export function DeviceDeploymentHandoff({
 
               {rolloutReady ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
-                  <CopyableTextCard eyebrow="Learner release env" title="Copy web provisioning bundle" text={releaseWebEnv} tone="white" border={tone.border} />
-                  <CopyableTextCard eyebrow="Learner release env" title="Copy APK provisioning bundle" text={releaseApkEnv} tone="white" border={tone.border} />
+                  <CopyableTextCard eyebrow="Learner release build" title="Copy web provisioning command" text={releaseWebCommand} tone="white" border={tone.border} />
+                  <CopyableTextCard eyebrow="Learner release build" title="Copy APK provisioning command" text={releaseApkCommand} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy bootstrap probe" text={bootstrapProbe} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy curl smoke test" text={bootstrapCurl} tone="white" border={tone.border} />
                 </div>
