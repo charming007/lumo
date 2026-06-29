@@ -1760,16 +1760,14 @@ class HomePage extends StatelessWidget {
                           state.registrationBlockerReason != null;
                       return [
                         _HomeQuickAction(
-                          title: registrationBlocked
-                              ? 'Register blocked'
-                              : 'Register',
+                          title: 'Register',
                           icon: registrationBlocked
                               ? Icons.sync_problem_rounded
                               : Icons.person_add_alt_1_rounded,
                           color: registrationBlocked
                               ? LumoTheme.accentOrange
                               : LumoTheme.primary,
-                          onTap: registrationBlocked ? null : openRegister,
+                          onTap: openRegister,
                         ),
                         _HomeQuickAction(
                           title: 'Student list',

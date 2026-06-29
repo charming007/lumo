@@ -1461,7 +1461,7 @@ void main() {
   );
 
   testWidgets(
-    'home screen keeps registration quick action read-only while backend registration is blocked',
+    'home screen still opens registration guidance while backend registration is blocked',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -1480,14 +1480,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Register blocked'), findsOneWidget);
+      expect(find.text('Register'), findsOneWidget);
       expect(find.byType(RegisterPage), findsNothing);
 
-      await tester.tap(find.text('Register blocked'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Register'));
+      await pumpForUi(tester);
 
-      expect(find.byType(HomePage), findsOneWidget);
-      expect(find.byType(RegisterPage), findsNothing);
+      expect(find.byType(RegisterPage), findsOneWidget);
+      expect(find.text('Guide registration from here'), findsOneWidget);
     },
   );
 
