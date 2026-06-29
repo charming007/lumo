@@ -177,8 +177,11 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
     );
   }
 
-  const activeCount = registrations.filter((item) => (item.status || '').toLowerCase() === 'active').length;
+  const activeRegistrations = registrations.filter((item) => (item.status || '').toLowerCase() === 'active');
+  const activeCount = activeRegistrations.length;
   const assignedCount = registrations.filter((item) => item.podId).length;
+  const activeAssignedCount = activeRegistrations.filter((item) => item.podId).length;
+  const activePodCount = new Set(activeRegistrations.map((item) => item.podId).filter(Boolean)).size;
   const deviceDeploymentReadiness = getDeviceDeploymentReadiness(registrations);
   const duplicateActivePodCount = new Set(
     deviceDeploymentReadiness.annotated
@@ -201,7 +204,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
           <Card title="Device snapshot" eyebrow="Live API">
             <MetricList items={[
               { label: 'Registered tablets', value: String(registrations.length) },
-              { label: 'Assigned to pods', value: String(assignedCount) },
+              { label: 'Active tablets assigned to pods', value: String(activeAssignedCount) },
               { label: 'Records missing pod linkage', value: String(registrations.length - assignedCount) },
               { label: 'Active status', value: String(activeCount) },
             ]} />
@@ -214,7 +217,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
-          ['Pods receiving devices', String(new Set(registrations.map((item) => item.podId).filter(Boolean)).size)],
+          ['Pods receiving active tablets', String(activePodCount)],
           ['Pods with duplicate tablets', String(duplicateActivePodCount)],
           ['Repair queue', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'repair').length)],
           ['Retired devices', String(registrations.filter((item) => (item.status || '').toLowerCase() === 'retired').length)],

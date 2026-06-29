@@ -23,6 +23,15 @@ test('devices page still keeps an honest empty-state warning once feeds recover'
   assert.match(devicesPageSource, /No tablet registrations are loading right now\./, 'devices page should keep the honest empty-state warning');
 });
 
+test('devices page rollout coverage metrics stay honest about active tablets only', () => {
+  assert.match(devicesPageSource, /const activeRegistrations = registrations\.filter\(\(item\) => \(item\.status \|\| ''\)\.toLowerCase\(\) === 'active'\);/, 'devices page should derive active registrations before rollout coverage metrics');
+  assert.match(devicesPageSource, /const activeAssignedCount = activeRegistrations\.filter\(\(item\) => item\.podId\)\.length;/, 'devices page should count pod assignment coverage from active tablets only');
+  assert.match(devicesPageSource, /const activePodCount = new Set\(activeRegistrations\.map\(\(item\) => item\.podId\)\.filter\(Boolean\)\)\.size;/, 'devices page should count receiving pods from active tablets only');
+  assert.match(devicesPageSource, /\{ label: 'Active tablets assigned to pods', value: String\(activeAssignedCount\) \}/, 'devices snapshot should call out active pod-linked tablets instead of every pod-linked record');
+  assert.match(devicesPageSource, /\['Pods receiving active tablets', String\(activePodCount\)\]/, 'devices page should label pod coverage as active-tablet coverage');
+  assert.doesNotMatch(devicesPageSource, /\['Pods receiving devices', String\(new Set\(registrations\.map\(\(item\) => item\.podId\)\.filter\(Boolean\)\)\.size\)\]/, 'devices page should stop counting retired or inactive pod links as active rollout coverage');
+});
+
 test('devices page duplicate-pod metric matches the active-only rollout handoff rules', () => {
   assert.match(devicesPageSource, /import \{ getDeviceDeploymentReadiness \} from '\.\.\/\.\.\/lib\/device-deployment';/, 'devices page should reuse the shared rollout-readiness helper');
   assert.match(devicesPageSource, /const deviceDeploymentReadiness = getDeviceDeploymentReadiness\(registrations\);/, 'devices page should derive duplicate rollout scope from the shared readiness helper');
