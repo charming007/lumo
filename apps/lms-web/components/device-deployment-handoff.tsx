@@ -248,12 +248,27 @@ export function DeviceDeploymentHandoff({
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy curl smoke test" text={bootstrapCurl} tone="white" border={tone.border} />
                 </div>
               ) : (
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {deploymentBlockingReasons.map((reason) => (
-                    <div key={reason} style={{ padding: '12px 14px', borderRadius: 14, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, lineHeight: 1.6 }}>
-                      {reason}
-                    </div>
-                  ))}
+                <div style={{ display: 'grid', gap: 14 }}>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {deploymentBlockingReasons.map((reason) => (
+                      <div key={reason} style={{ padding: '12px 14px', borderRadius: 14, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, lineHeight: 1.6 }}>
+                        {reason}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ color: tone.accent, lineHeight: 1.6, fontWeight: 700 }}>
+                    Keep the diagnostics copyable even while provisioning is blocked so ops can fix the exact tablet record instead of retyping device ids, bootstrap probes, or backend targets from screenshots.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 14 }}>
+                    <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy device identifier" text={registration.deviceIdentifier || 'Unassigned device identifier'} tone="white" border={tone.border} />
+                    <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy LMS API target" text={normalizeBaseUrl(apiBase)} tone="white" border={tone.border} />
+                    {normalizeDeviceIdentifier(registration.deviceIdentifier) ? (
+                      <>
+                        <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy bootstrap probe" text={bootstrapProbe} tone="white" border={tone.border} />
+                        <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy curl smoke test" text={bootstrapCurl} tone="white" border={tone.border} />
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>

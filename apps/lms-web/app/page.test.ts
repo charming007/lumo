@@ -528,6 +528,36 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /Keep the diagnostics copyable even while provisioning is blocked so ops can fix the exact tablet record instead of retyping device ids, bootstrap probes, or backend targets from screenshots\./,
+    'blocked handoff rows should stay operational by surfacing copyable diagnostics instead of dead-ending at prose',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy device identifier/,
+    'blocked handoff rows should expose the tablet identifier as copyable repair data',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy LMS API target/,
+    'blocked handoff rows should expose the normalized LMS API target for repair and cross-checking',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /normalizeDeviceIdentifier\(registration\.deviceIdentifier\) \? \(/,
+    'blocked handoff diagnostics should only surface bootstrap probes when a real device identifier exists',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy bootstrap probe/,
+    'blocked handoff rows should keep the learner bootstrap probe copyable for rollout debugging',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy curl smoke test/,
+    'blocked handoff rows should keep the curl smoke test copyable for rollout debugging',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /multiple active tablets attached/,
     'handoff blocker copy should describe duplicate active tablets explicitly',
   );
