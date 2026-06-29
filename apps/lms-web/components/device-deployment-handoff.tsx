@@ -59,9 +59,21 @@ function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
   ].join('\n');
 }
 
-function getDeploymentBlockingReasons(registration: DeviceRegistration, duplicateScopeCount: number) {
+function normalizeDeviceIdentifier(value: string | null | undefined) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getDeploymentBlockingReasons(
+  registration: DeviceRegistration,
+  duplicateScopeCount: number,
+  duplicateDeviceIdentifierCount: number,
+) {
   const reasons: string[] = [];
   const normalizedStatus = String(registration.status || '').trim().toLowerCase();
+
+  if (!normalizeDeviceIdentifier(registration.deviceIdentifier)) {
+    reasons.push('Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet.');
+  }
 
   if (!registration.podId) {
     reasons.push('Pod ownership is missing, so geography and mallam handoff are not trustworthy yet.');
@@ -73,6 +85,10 @@ function getDeploymentBlockingReasons(registration: DeviceRegistration, duplicat
 
   if (registration.podId && duplicateScopeCount > 1) {
     reasons.push('This pod currently has multiple active tablets attached. Resolve the duplicate live device scope before provisioning another learner build.');
+  }
+
+  if (normalizeDeviceIdentifier(registration.deviceIdentifier) && duplicateDeviceIdentifierCount > 1) {
+    reasons.push('This device identifier is duplicated across active tablet records. Fix the collision before copying any learner release env bundle from this dashboard.');
   }
 
   return reasons;
@@ -91,10 +107,21 @@ export function DeviceDeploymentHandoff({
     accumulator[registration.podId] = (accumulator[registration.podId] || 0) + 1;
     return accumulator;
   }, {});
+  const duplicateDeviceIdentifierCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
+    const normalizedStatus = String(registration.status || '').trim().toLowerCase();
+    const normalizedIdentifier = normalizeDeviceIdentifier(registration.deviceIdentifier);
+    if (!normalizedIdentifier || normalizedStatus !== 'active') return accumulator;
+    accumulator[normalizedIdentifier] = (accumulator[normalizedIdentifier] || 0) + 1;
+    return accumulator;
+  }, {});
 
   const prioritized = [...registrations]
     .map((registration) => {
-      const deploymentBlockingReasons = getDeploymentBlockingReasons(registration, duplicateScopeCounts[registration.podId || ''] || 0);
+      const deploymentBlockingReasons = getDeploymentBlockingReasons(
+        registration,
+        duplicateScopeCounts[registration.podId || ''] || 0,
+        duplicateDeviceIdentifierCounts[normalizeDeviceIdentifier(registration.deviceIdentifier)] || 0,
+      );
       return {
         registration,
         deploymentBlockingReasons,
@@ -109,19 +136,31 @@ export function DeviceDeploymentHandoff({
       const leftActive = String(left.registration.status || '').toLowerCase() === 'active' ? 0 : 1;
       const rightActive = String(right.registration.status || '').toLowerCase() === 'active' ? 0 : 1;
       if (leftActive !== rightActive) return leftActive - rightActive;
-      return left.registration.deviceIdentifier.localeCompare(right.registration.deviceIdentifier);
+      return (left.registration.deviceIdentifier || left.registration.tabletName || left.registration.id).localeCompare(
+        right.registration.deviceIdentifier || right.registration.tabletName || right.registration.id,
+      );
     });
 
   if (!prioritized.length) return null;
 
   const blockedRegistrations = prioritized.filter((entry) => !entry.rolloutReady);
   const readyRegistrations = prioritized.filter((entry) => entry.rolloutReady);
+  const missingDeviceIdentifierCount = blockedRegistrations.filter((entry) => !normalizeDeviceIdentifier(entry.registration.deviceIdentifier)).length;
   const missingPodCount = blockedRegistrations.filter((entry) => !entry.registration.podId).length;
   const nonActiveCount = blockedRegistrations.filter((entry) => String(entry.registration.status || '').trim().toLowerCase() !== 'active').length;
   const duplicateScopePodCount = new Set(
     blockedRegistrations
       .filter((entry) => entry.registration.podId && (duplicateScopeCounts[entry.registration.podId || ''] || 0) > 1)
       .map((entry) => entry.registration.podId || '')
+      .filter(Boolean),
+  ).size;
+  const duplicateDeviceIdentifierCount = new Set(
+    blockedRegistrations
+      .filter((entry) => {
+        const normalizedIdentifier = normalizeDeviceIdentifier(entry.registration.deviceIdentifier);
+        return normalizedIdentifier && (duplicateDeviceIdentifierCounts[normalizedIdentifier] || 0) > 1;
+      })
+      .map((entry) => normalizeDeviceIdentifier(entry.registration.deviceIdentifier))
       .filter(Boolean),
   ).size;
 
@@ -148,9 +187,11 @@ export function DeviceDeploymentHandoff({
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {missingDeviceIdentifierCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{missingDeviceIdentifierCount} blank device ID{missingDeviceIdentifierCount === 1 ? '' : 's'}</div> : null}
             {missingPodCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{missingPodCount} missing pod link{missingPodCount === 1 ? '' : 's'}</div> : null}
             {nonActiveCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{nonActiveCount} non-active tablet{nonActiveCount === 1 ? '' : 's'}</div> : null}
             {duplicateScopePodCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{duplicateScopePodCount} pod scope conflict{duplicateScopePodCount === 1 ? '' : 's'}</div> : null}
+            {duplicateDeviceIdentifierCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{duplicateDeviceIdentifierCount} duplicate device ID{duplicateDeviceIdentifierCount === 1 ? '' : 's'}</div> : null}
           </div>
         </div>
       ) : null}
@@ -161,6 +202,7 @@ export function DeviceDeploymentHandoff({
           const geography = registration.stateName && registration.localGovernmentName
             ? `${registration.stateName} / ${registration.localGovernmentName}`
             : registration.centerName || registration.podLabel || 'Geography pending';
+          const deviceLabel = registration.deviceIdentifier || registration.tabletName || 'Device identifier missing';
           const bootstrapProbe = buildBootstrapProbe(apiBase, registration.deviceIdentifier);
           const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
           const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
@@ -181,7 +223,7 @@ export function DeviceDeploymentHandoff({
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{ color: '#64748b', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1 }}>Provisioning target</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: '#0f172a' }}>{registration.deviceIdentifier}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: '#0f172a' }}>{deviceLabel}</div>
                   <div style={{ color: '#475569', lineHeight: 1.5 }}>
                     {registration.podLabel || 'Unassigned pod'}
                     {registration.assignedMallamName ? ` • ${registration.assignedMallamName}` : ''}

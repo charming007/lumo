@@ -493,6 +493,41 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /const normalizedIdentifier = normalizeDeviceIdentifier\(registration\.deviceIdentifier\);/,
+    'handoff should normalize tablet identifiers before duplicate checks so case or whitespace drift does not sneak through rollout review',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /if \(!normalizedIdentifier \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'handoff should only treat active non-blank tablet identifiers as rollout-safe duplicate signals',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet\./,
+    'handoff should block blank learner rollout identifiers instead of generating a bogus provisioning bundle',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /This device identifier is duplicated across active tablet records\./,
+    'handoff should hard-block duplicate live tablet identifiers before release commands get copied',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /blank device ID/,
+    'handoff blocker summary should count blank device identifiers explicitly',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /duplicate device ID/,
+    'handoff blocker summary should count duplicate device identifiers explicitly',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device identifier missing/,
+    'handoff card should fall back to an explicit missing-identifier label instead of rendering an empty heading',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /multiple active tablets attached/,
     'handoff blocker copy should describe duplicate active tablets explicitly',
   );
@@ -505,6 +540,16 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHelperSource,
     /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
     'shared rollout readiness helper should only count active tablets in duplicate live scope',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(!normalizeDeviceIdentifier\(registration\.deviceIdentifier\)\) reasons\.push\('missing-device-identifier'\);/,
+    'shared rollout readiness helper should mark blank tablet identifiers as deployment blockers',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(normalizeDeviceIdentifier\(registration\.deviceIdentifier\) && duplicateDeviceIdentifierCount > 1\) reasons\.push\('duplicate-device-identifier'\);/,
+    'shared rollout readiness helper should block duplicate live tablet identifiers before the dashboard reports a rollout-ready registration',
   );
 });
 
