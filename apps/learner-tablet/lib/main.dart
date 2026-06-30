@@ -2169,6 +2169,36 @@ class _HomeFreshnessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trustBlocked =
+        state.criticalSyncTrustBlockerReason != null ||
+        (state.usingFallbackData && state.offlineSnapshotTrustProblem != null);
+    final needsAttention =
+        trustBlocked ||
+        state.usingFallbackData ||
+        state.lastSyncError != null ||
+        state.isOperatorSyncStale ||
+        state.isOperatorRosterStale;
+    final bannerAccent = trustBlocked
+        ? const Color(0xFF9A3412)
+        : needsAttention
+            ? LumoTheme.accentOrange
+            : const Color(0xFF166534);
+    final bannerSurface = trustBlocked
+        ? const Color(0xFFFFF7ED)
+        : needsAttention
+            ? const Color(0xFFFFFBEB)
+            : const Color(0xFFF0FDF4);
+    final bannerTitle = trustBlocked
+        ? 'Sync trust blocked'
+        : needsAttention
+            ? 'Sync needs attention'
+            : 'Sync freshness';
+    final bannerIcon = trustBlocked
+        ? Icons.sync_problem_rounded
+        : needsAttention
+            ? Icons.warning_amber_rounded
+            : Icons.schedule_rounded;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 14 : 16),
@@ -2184,12 +2214,12 @@ class _HomeFreshnessBanner extends StatelessWidget {
             width: compact ? 36 : 40,
             height: compact ? 36 : 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: bannerSurface,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: const Icon(
-              Icons.schedule_rounded,
-              color: Color(0xFF166534),
+            child: Icon(
+              bannerIcon,
+              color: bannerAccent,
             ),
           ),
           SizedBox(width: compact ? 10 : 12),
@@ -2198,7 +2228,7 @@ class _HomeFreshnessBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sync freshness',
+                  bannerTitle,
                   style: TextStyle(
                     fontSize: compact ? 16 : 18,
                     fontWeight: FontWeight.w900,
@@ -2208,8 +2238,8 @@ class _HomeFreshnessBanner extends StatelessWidget {
                 SizedBox(height: compact ? 4 : 6),
                 Text(
                   state.trustedSyncHeadline,
-                  style: const TextStyle(
-                    color: Color(0xFF166534),
+                  style: TextStyle(
+                    color: bannerAccent,
                     fontWeight: FontWeight.w800,
                     height: 1.35,
                   ),
@@ -2229,15 +2259,15 @@ class _HomeFreshnessBanner extends StatelessWidget {
                   children: [
                     StatusPill(
                       text: state.rosterFreshnessLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                     StatusPill(
                       text: state.syncQueueLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                     StatusPill(
                       text: state.lastSyncSummaryLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                   ],
                 ),
