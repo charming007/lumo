@@ -13666,6 +13666,37 @@ class _BackendStatusBanner extends StatelessWidget {
                     height: 1.35,
                   ),
                 ),
+                if (state.criticalSyncTrustBlockerEvidence.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...state.criticalSyncTrustBlockerEvidence.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Icon(
+                              Icons.error_outline_rounded,
+                              size: 16,
+                              color: Color(0xFFB91C1C),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                color: Color(0xFF7F1D1D),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 ...state.runtimeSyncActionItems().take(2).map(
                       (action) => Padding(

@@ -5226,6 +5226,78 @@ class LumoAppState {
     return null;
   }
 
+  List<String> get criticalSyncTrustBlockerEvidence {
+    final evidence = <String>[];
+    final pendingTypeCounts = <String, int>{};
+    for (final event in pendingSyncEvents) {
+      pendingTypeCounts[event.type] = (pendingTypeCounts[event.type] ?? 0) + 1;
+    }
+
+    final unsupportedWarningTypes = <String>{};
+    for (final warning in lastSyncWarnings) {
+      final normalized = warning.toLowerCase();
+      if (normalized.contains('unsupported_event_type')) {
+        final match = RegExp(r'^([^ ]+) was ignored \(').firstMatch(warning);
+        final eventType = match?.group(1)?.trim();
+        if (eventType != null && eventType.isNotEmpty) {
+          unsupportedWarningTypes.add(eventType);
+        }
+      }
+    }
+
+    final fallbackRegistrationCount =
+        pendingTypeCounts['learner_registered_local_fallback'] ?? 0;
+    if (fallbackRegistrationCount > 0 ||
+        unsupportedWarningTypes.contains('learner_registered_local_fallback')) {
+      final pendingCountLabel = fallbackRegistrationCount > 0
+          ? '$fallbackRegistrationCount pending local registration${fallbackRegistrationCount == 1 ? '' : 's'}'
+          : 'local registration receipts';
+      evidence.add(
+        'Offline learner registration is still using learner_registered_local_fallback ($pendingCountLabel). The backend sync contract does not reliably honor that path yet, so those learners need live reconciliation before roster or progress is trustworthy.',
+      );
+    }
+
+    final rewardRedemptionCount = pendingTypeCounts['learner_reward_redeemed'] ?? 0;
+    if (rewardRedemptionCount > 0 ||
+        unsupportedWarningTypes.contains('learner_reward_redeemed')) {
+      final pendingCountLabel = rewardRedemptionCount > 0
+          ? '$rewardRedemptionCount pending reward redemption event${rewardRedemptionCount == 1 ? '' : 's'}'
+          : 'reward redemption receipts';
+      evidence.add(
+        'Reward redemption sync is drifting ($pendingCountLabel). The learner app is still queueing learner_reward_redeemed, but the backend does not fully honor it yet, so reward history should not be treated as backend truth.',
+      );
+    }
+
+    final error = lastSyncError?.trim();
+    if (error != null && error.isNotEmpty) {
+      final normalized = error.toLowerCase();
+      if (normalized.contains('unknown learner for sync event') ||
+          normalized.contains('unknown learner')) {
+        final latest = pendingSyncEvents.reversed.cast<SyncEvent?>().firstWhere(
+              (event) =>
+                  event != null &&
+                  event.payload['learnerCode']?.toString().trim().isNotEmpty ==
+                      true,
+              orElse: () => null,
+            );
+        final learnerCode = latest?.payload['learnerCode']?.toString().trim();
+        if (learnerCode != null && learnerCode.isNotEmpty) {
+          evidence.add(
+            'Latest blocked learner reference: $learnerCode. Check that learner in LMS before trusting any queued progress tied to this tablet.',
+          );
+        }
+      }
+    }
+
+    if (evidence.isEmpty && unsupportedWarningTypes.isNotEmpty) {
+      evidence.add(
+        'Unsupported sync receipts are hitting: ${unsupportedWarningTypes.toList()..sort()}. Fix the backend contract or stop queueing those event types before calling this tablet pilot-ready.',
+      );
+    }
+
+    return evidence.take(3).toList(growable: false);
+  }
+
   String get runtimeSyncFeedbackLabel {
     if (isSyncingEvents) {
       return 'Syncing ${pendingSyncEvents.length} queued learner event(s) now.';

@@ -612,6 +612,62 @@ void main() {
           'An unknown learner sync failure usually means local-only registration never reconciled.'),
       findsOneWidget,
     );
+    expect(
+      find.textContaining('Latest blocked learner reference:'),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+      'backend banner surfaces concrete sync trust evidence for drifting learner contracts',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event'
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      )
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-reward-1',
+          type: 'learner_reward_redeemed',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.textContaining('learner_registered_local_fallback'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('learner_reward_redeemed'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Latest blocked learner reference: AMI-001'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
