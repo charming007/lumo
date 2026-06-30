@@ -1096,6 +1096,14 @@ export default async function HomePage() {
                     <Pill label="0 rollout-ready" tone="#FEE2E2" text="#991B1B" />
                     <Pill label="0 tablet registrations" tone="#FEF3C7" text="#92400E" />
                   </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <Link href="/devices" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
+                      Register first tablet
+                    </Link>
+                    <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5', padding: '10px 12px' }}>
+                      Check deployment settings
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: 14 }}>

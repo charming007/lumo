@@ -415,6 +415,16 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
+    /<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>\s*Register first tablet\s*<\/Link>/,
+    'dashboard should give zero-tablet rollout blockers a direct CTA into device registration',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Link href="\/settings" style=\{\{ \.\.\.quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5', padding: '10px 12px' \}\}>\s*Check deployment settings\s*<\/Link>/,
+    'dashboard should keep deployment config recovery one click away when learner rollout is fully blocked',
+  );
+  assert.match(
+    dashboardPageSource,
     /Tablet deployment handoff is blind right now because device registrations failed to load\./,
     'dashboard should warn loudly when learner rollout targeting is blind',
   );
