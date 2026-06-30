@@ -65,6 +65,21 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     /The dashboard passed moduleId <code style=\{\{ color: 'white', fontWeight: 900 \}\}>\{moduleIdFilter\}<\/code>, but this board cannot find that module in the live curriculum feed\./,
     'content board should treat a missing focused module as stale or mismatched deployment evidence',
   );
+  assert.match(
+    contentPageSource,
+    /Dashboard, content board, and settings blocker evidence all agree on the same module once the handoff is repaired/,
+    'scoped module handoff recovery should keep operators inside the pilot-safe routes instead of telling them to cross-check the blocked canvas route',
+  );
+  assert.match(
+    contentPageSource,
+    /\{ label: 'Open blocker board', href: '\/content\?view=blocked'/,
+    'scoped module handoff blocker should route operators back to the live blocker board instead of the deferred canvas route',
+  );
+  assert.doesNotMatch(
+    contentPageSource,
+    /\{ label: 'Open canvas', href: '\/canvas'/,
+    'scoped module handoff blocker should not point at the pilot-blocked canvas route during deployment review',
+  );
 });
 
 test('content board normalizes status filters so legacy live module states still stay visible', () => {
