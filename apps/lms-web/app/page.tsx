@@ -1017,8 +1017,8 @@ export default async function HomePage() {
                           modules={[{
                             id: topReleaseBlocker.id,
                             title: topReleaseBlocker.title,
-                            subjectId: topReleaseBlocker.subjectId,
-                            subjectName: topReleaseBlocker.subjectName,
+                            subjectId: topReleaseBlockerWithRecoveredSubject?.subjectId ?? topReleaseBlocker.subjectId,
+                            subjectName: topReleaseBlockerAssessmentSubject?.name ?? topReleaseBlocker.subjectName,
                             strandName: '',
                             level: '',
                             lessonCount: Math.max(topReleaseBlocker.missingLessons, 0),

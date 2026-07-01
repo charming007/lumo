@@ -174,8 +174,8 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /<CreateAssessmentForm[\s\S]*returnPath="\/"/,
-    'dashboard should wire the direct top-blocker gate action back to the dashboard after create',
+    /<CreateAssessmentForm[\s\S]*subjectId: topReleaseBlockerWithRecoveredSubject\?\.subjectId \?\? topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlockerAssessmentSubject\?\.name \?\? topReleaseBlocker\.subjectName,[\s\S]*returnPath="\/"/,
+    'dashboard should pass the recovered subject scope into direct top-blocker gate creation so subject-id drift does not create the gate on the wrong subject',
   );
   assert.match(
     dashboardPageSource,
