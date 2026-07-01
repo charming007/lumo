@@ -32,6 +32,11 @@ function initials(value: string) {
   return value.split(/[-_\s]+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'D';
 }
 
+function displayDeviceIdentifier(value?: string | null) {
+  const normalized = String(value || '').trim();
+  return normalized || 'Device identifier missing';
+}
+
 function DeviceEditForm({ registration, pods }: { registration: Awaited<ReturnType<typeof fetchDeviceRegistrations>>[number]; pods: Awaited<ReturnType<typeof fetchPods>> }) {
   return (
     <form action={updateDeviceRegistrationAction} style={{ display: 'grid', gap: 16 }}>
@@ -45,7 +50,7 @@ function DeviceEditForm({ registration, pods }: { registration: Awaited<ReturnTy
         </select>
       </label>
       <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.6 }}>
-        <strong style={{ color: '#0f172a' }}>Device identifier:</strong> {registration.deviceIdentifier}
+        <strong style={{ color: '#0f172a' }}>Device identifier:</strong> {displayDeviceIdentifier(registration.deviceIdentifier)}
         <div style={{ marginTop: 4 }}>Tablet identity is stable here. Re-point the pod if ops moved the device; mallam and geography should follow from that pod.</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -233,14 +238,15 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
               {registrations.map((registration) => {
                 const [tone, text] = toneForStatus(registration.status);
                 const geography = registration.stateName && registration.localGovernmentName ? `${registration.stateName} / ${registration.localGovernmentName}` : registration.centerName || 'Derived from selected pod';
-                const search = [registration.deviceIdentifier, registration.serialNumber, registration.platform, registration.appVersion, registration.status, registration.podLabel, registration.assignedMallamName, geography].filter(Boolean).join(' ');
+                const deviceLabel = displayDeviceIdentifier(registration.deviceIdentifier);
+                const search = [deviceLabel, registration.serialNumber, registration.platform, registration.appVersion, registration.status, registration.podLabel, registration.assignedMallamName, geography].filter(Boolean).join(' ');
                 return (
                   <article key={registration.id} data-directory-item data-search={search} style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, border: '1px solid #e4e8ef', background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)', padding: 22, display: 'grid', gap: 18, boxShadow: '0 18px 45px rgba(76, 83, 112, 0.06)' }}>
                     <div aria-hidden="true" style={{ position: 'absolute', inset: '0 0 auto 0', height: 5, background: 'linear-gradient(90deg, #6D5DF7, #FF79C8, #9EE7F2)' }} />
                     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                      <div style={{ width: 58, height: 58, borderRadius: 999, background: '#E5E7EB', color: '#202436', display: 'grid', placeItems: 'center', fontWeight: 850, fontSize: 20, flex: '0 0 auto' }}>{initials(registration.deviceIdentifier)}</div>
+                      <div style={{ width: 58, height: 58, borderRadius: 999, background: '#E5E7EB', color: '#202436', display: 'grid', placeItems: 'center', fontWeight: 850, fontSize: 20, flex: '0 0 auto' }}>{initials(deviceLabel)}</div>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <h3 style={{ margin: 0, fontSize: 20, color: '#151827' }}>{registration.deviceIdentifier}</h3>
+                        <h3 style={{ margin: 0, fontSize: 20, color: '#151827' }}>{deviceLabel}</h3>
                         <div style={{ color: '#7b8496', marginTop: 4 }}>{registration.serialNumber || registration.platform}{registration.appVersion ? ` - app ${registration.appVersion}` : ''}</div>
                       </div>
                     </div>
@@ -253,11 +259,11 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                       <Pill label={registration.status || 'Unknown'} tone={tone} text={text} />
                       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                        <ModalLauncher buttonLabel="Edit" title={`Edit ${registration.deviceIdentifier}`} description="Update pod assignment, status, and app version." eyebrow="Device admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                        <ModalLauncher buttonLabel="Edit" title={`Edit ${deviceLabel}`} description="Update pod assignment, status, and app version." eyebrow="Device admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
                           <DeviceEditForm registration={registration} pods={pods} />
                         </ModalLauncher>
-                        <ModalLauncher buttonLabel="Remove" title={`Remove ${registration.deviceIdentifier}`} description="Delete this device registration from the admin surface." eyebrow="Device admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
-                          <DeleteDeviceRegistrationForm registrationId={registration.id} deviceIdentifier={registration.deviceIdentifier} />
+                        <ModalLauncher buttonLabel="Remove" title={`Remove ${deviceLabel}`} description="Delete this device registration from the admin surface." eyebrow="Device admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                          <DeleteDeviceRegistrationForm registrationId={registration.id} deviceIdentifier={deviceLabel} />
                         </ModalLauncher>
                       </div>
                     </div>
@@ -269,20 +275,21 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
               {registrations.map((registration) => {
                 const [tone, text] = toneForStatus(registration.status);
                 const geography = registration.stateName && registration.localGovernmentName ? `${registration.stateName} / ${registration.localGovernmentName}` : registration.centerName || 'Derived from selected pod';
-                const search = [registration.deviceIdentifier, registration.serialNumber, registration.platform, registration.status, registration.podLabel, registration.assignedMallamName, geography].filter(Boolean).join(' ');
+                const deviceLabel = displayDeviceIdentifier(registration.deviceIdentifier);
+                const search = [deviceLabel, registration.serialNumber, registration.platform, registration.status, registration.podLabel, registration.assignedMallamName, geography].filter(Boolean).join(' ');
                 return (
                   <div key={registration.id} data-directory-item data-search={search} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) 110px minmax(150px, 0.9fr) minmax(180px, 1fr)', gap: 16, alignItems: 'center', padding: '16px 18px', borderRadius: 18, border: '1px solid #edf0f6', background: '#ffffff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ width: 44, height: 44, borderRadius: 999, background: '#E5E7EB', display: 'grid', placeItems: 'center', fontWeight: 800 }}>{initials(registration.deviceIdentifier)}</span><strong>{registration.deviceIdentifier}</strong></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ width: 44, height: 44, borderRadius: 999, background: '#E5E7EB', display: 'grid', placeItems: 'center', fontWeight: 800 }}>{initials(deviceLabel)}</span><strong>{deviceLabel}</strong></div>
                     <div>{registration.podLabel || 'Unassigned'}</div>
                     <div>{registration.assignedMallamName || '—'}</div>
                     <Pill label={registration.status || 'Unknown'} tone={tone} text={text} />
                     <div>{formatDateTime(registration.lastSeenAt)}</div>
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      <ModalLauncher buttonLabel="Edit" title={`Edit ${registration.deviceIdentifier}`} description="Update pod assignment, status, and app version." eyebrow="Device admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                      <ModalLauncher buttonLabel="Edit" title={`Edit ${deviceLabel}`} description="Update pod assignment, status, and app version." eyebrow="Device admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
                         <DeviceEditForm registration={registration} pods={pods} />
                       </ModalLauncher>
-                      <ModalLauncher buttonLabel="Remove" title={`Remove ${registration.deviceIdentifier}`} description="Delete this device registration from the admin surface." eyebrow="Device admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
-                        <DeleteDeviceRegistrationForm registrationId={registration.id} deviceIdentifier={registration.deviceIdentifier} />
+                      <ModalLauncher buttonLabel="Remove" title={`Remove ${deviceLabel}`} description="Delete this device registration from the admin surface." eyebrow="Device admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                        <DeleteDeviceRegistrationForm registrationId={registration.id} deviceIdentifier={deviceLabel} />
                       </ModalLauncher>
                     </div>
                   </div>

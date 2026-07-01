@@ -39,3 +39,13 @@ test('devices page duplicate-pod metric matches the active-only rollout handoff 
   assert.match(devicesPageSource, /\['Pods with duplicate tablets', String\(duplicateActivePodCount\)\]/, 'devices page duplicate metric should reflect the active-only rollout blocker count');
   assert.doesNotMatch(devicesPageSource, /item\.status \|\| ''\)\.toLowerCase\(\) !== 'retired'/, 'devices page should stop treating every non-retired extra tablet as a duplicate live-scope blocker');
 });
+
+test('devices page keeps blank identifier records repairable instead of rendering empty labels', () => {
+  assert.match(devicesPageSource, /function displayDeviceIdentifier\(value\?: string \| null\) \{[\s\S]*return normalized \|\| 'Device identifier missing';[\s\S]*\}/, 'devices page should normalize blank device identifiers into an explicit repair label');
+  assert.match(devicesPageSource, /const deviceLabel = displayDeviceIdentifier\(registration\.deviceIdentifier\);/, 'devices page should centralize the repair label before rendering device rows');
+  assert.match(devicesPageSource, /<h3 style=\{\{ margin: 0, fontSize: 20, color: '#151827' \}\}>\{deviceLabel\}<\/h3>/, 'grid cards should show the explicit missing-identifier label instead of a blank heading');
+  assert.match(devicesPageSource, /<strong>\{deviceLabel\}<\/strong>/, 'list rows should show the explicit missing-identifier label instead of a blank title');
+  assert.match(devicesPageSource, /title=\{`Edit \$\{deviceLabel\}`\}/, 'edit modal titles should stay identifiable when the device identifier is blank');
+  assert.match(devicesPageSource, /title=\{`Remove \$\{deviceLabel\}`\}/, 'remove modal titles should stay identifiable when the device identifier is blank');
+  assert.match(devicesPageSource, /<DeleteDeviceRegistrationForm registrationId=\{registration\.id\} deviceIdentifier=\{deviceLabel\} \/>/, 'delete confirmation should use the explicit repair label so blank-id records are still removable');
+});
