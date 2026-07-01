@@ -20,15 +20,15 @@ test('buildContentReturnPath falls back to the root content board when no filter
   assert.equal(buildContentReturnPath(), '/content');
 });
 
-test('buildCanvasReturnPath preserves the exact canvas deep-link scope for blocker triage', () => {
+test('buildCanvasReturnPath preserves the exact module scope while recovering to the pilot-safe content blocker board', () => {
   assert.equal(
     buildCanvasReturnPath({ subject: 'subject-math', module: 'module-8', readiness: 'blocked', q: 'Addition & Subtraction Stories' }),
-    '/canvas?subject=subject-math&module=module-8&readiness=blocked&q=Addition+%26+Subtraction+Stories',
+    '/content?subject=subject-math&moduleId=module-8&q=Addition+%26+Subtraction+Stories&view=blocked',
   );
 });
 
-test('buildCanvasReturnPath falls back to the root canvas when no deep-link filters exist', () => {
-  assert.equal(buildCanvasReturnPath(), '/canvas');
+test('buildCanvasReturnPath falls back to the root content board when no deep-link filters exist', () => {
+  assert.equal(buildCanvasReturnPath(), '/content');
 });
 
 test('buildScopedLessonCreateHref keeps the full blocker-board return path instead of dumping operators into a generic board', () => {
@@ -86,5 +86,14 @@ test('buildAssessmentReviewHref recovers exact module + subject scope for non-co
       subjectId: 'subject-math',
     }),
     '/content?view=assessments&q=Numeracy+Gate&moduleId=module-numeracy-gate&subject=subject-math',
+  );
+});
+
+test('sanitizeInternalReturnPath recovers blocked canvas deep links back into pilot-safe content scope', async () => {
+  const { sanitizeInternalReturnPath } = await import('./safe-return-path.ts');
+
+  assert.equal(
+    sanitizeInternalReturnPath('/canvas?subject=subject-math&module=module-8&readiness=blocked&q=Addition'),
+    '/content?subject=subject-math&moduleId=module-8&q=Addition&view=blocked',
   );
 });

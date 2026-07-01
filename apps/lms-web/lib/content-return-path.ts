@@ -97,13 +97,15 @@ export function buildCanvasReturnPath(query?: {
   const params = new URLSearchParams();
   const subject = normalizeFilterValue(query?.subject).trim();
   const moduleId = normalizeFilterValue(query?.module).trim();
-  const readiness = normalizeFilterValue(query?.readiness).trim();
+  const readiness = normalizeFilterValue(query?.readiness).trim().toLowerCase();
   const q = normalizeFilterValue(query?.q).trim();
 
   if (subject) params.set('subject', subject);
-  if (moduleId) params.set('module', moduleId);
-  if (readiness) params.set('readiness', readiness);
+  if (moduleId) params.set('moduleId', moduleId);
   if (q) params.set('q', q);
+  if (readiness === 'blocked') params.set('view', 'blocked');
+  if (readiness === 'ready') params.set('status', 'published');
+  if (readiness === 'watch') params.set('status', 'draft');
 
-  return params.size ? `/canvas?${params.toString()}` : '/canvas';
+  return params.size ? `/content?${params.toString()}` : '/content';
 }

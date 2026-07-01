@@ -80,6 +80,11 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     /\{ label: 'Open canvas', href: '\/canvas'/,
     'scoped module handoff blocker should not point at the pilot-blocked canvas route during deployment review',
   );
+  assert.match(
+    contentPageSource,
+    /buildContentReturnPath/,
+    'content board should keep operator recovery inside the live content control plane',
+  );
 });
 
 test('content board normalizes status filters so legacy live module states still stay visible', () => {
