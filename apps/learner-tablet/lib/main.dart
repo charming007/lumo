@@ -1605,6 +1605,165 @@ class _OperatorStatusChip extends StatelessWidget {
   }
 }
 
+class _PendingRecoveredSessionBanner extends StatelessWidget {
+  const _PendingRecoveredSessionBanner({
+    required this.state,
+    required this.onChanged,
+    this.compact = false,
+  });
+
+  final LumoAppState state;
+  final VoidCallback onChanged;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    Future<void> refreshTabletSync() async {
+      await state.bootstrap();
+      onChanged();
+    }
+
+    void openRoster() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AllStudentsPage(state: state, onChanged: onChanged),
+        ),
+      );
+    }
+
+    if (compact) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.history_toggle_off_rounded,
+              color: Color(0xFFB45309),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Recovered lesson waiting for sync.',
+                    style: TextStyle(
+                      color: Color(0xFF78350F),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    state.pendingRecoveredSessionLabel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF92400E),
+                      height: 1.3,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: state.isBootstrapping
+                  ? null
+                  : () async {
+                      await refreshTabletSync();
+                    },
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              child: Text(state.isBootstrapping ? 'Refreshing…' : 'Refresh'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.history_toggle_off_rounded,
+                color: Color(0xFFB45309),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Recovered lesson is waiting for live lesson sync.',
+                  style: TextStyle(
+                    color: Color(0xFF78350F),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            state.pendingRecoveredSessionLabel,
+            style: const TextStyle(
+              color: Color(0xFF92400E),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: state.isBootstrapping
+                    ? null
+                    : () async {
+                        await refreshTabletSync();
+                      },
+                icon: const Icon(Icons.sync_rounded),
+                label: Text(
+                  state.isBootstrapping
+                      ? 'Refreshing live sync…'
+                      : 'Refresh live sync',
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: openRoster,
+                icon: const Icon(Icons.groups_rounded),
+                label: const Text('Open student list'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HomePage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -1669,45 +1828,9 @@ class HomePage extends StatelessWidget {
               ],
               if (state.hasPendingRecoveredSession && !ultraShortHeight) ...[
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.history_toggle_off_rounded,
-                            color: Color(0xFFB45309),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Recovered lesson is waiting for live lesson sync.',
-                              style: TextStyle(
-                                color: Color(0xFF78350F),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        state.pendingRecoveredSessionLabel,
-                        style: const TextStyle(
-                          color: Color(0xFF92400E),
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+                _PendingRecoveredSessionBanner(
+                  state: state,
+                  onChanged: onChanged,
                 ),
               ],
               SizedBox(height: ultraShortHeight ? 0 : 6),
@@ -2148,6 +2271,18 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                         buildActionPanel(),
+                        if (ultraShortHeight &&
+                            state.hasPendingRecoveredSession)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            child: _PendingRecoveredSessionBanner(
+                              state: state,
+                              onChanged: onChanged,
+                              compact: true,
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -2169,11 +2304,9 @@ class _HomeFreshnessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trustBlocked =
-        state.criticalSyncTrustBlockerReason != null ||
+    final trustBlocked = state.criticalSyncTrustBlockerReason != null ||
         (state.usingFallbackData && state.offlineSnapshotTrustProblem != null);
-    final needsAttention =
-        trustBlocked ||
+    final needsAttention = trustBlocked ||
         state.usingFallbackData ||
         state.lastSyncError != null ||
         state.isOperatorSyncStale ||

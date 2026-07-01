@@ -381,6 +381,63 @@ void main() {
   );
 
   testWidgets(
+    'home screen keeps recovered-session recovery actions visible on ultra-short tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 540);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingRecoveredSessionSnapshot = <String, dynamic>{
+          'lessonId': 'english-1',
+          'lessonTitle': 'Warm-up greeting',
+          'stepIndex': 1,
+        };
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Recovered lesson waiting for sync.'), findsOneWidget);
+      expect(find.textContaining('Warm-up greeting'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'home screen gives recovered-session banners a direct sync CTA on standard tablet heights',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingRecoveredSessionSnapshot = <String, dynamic>{
+          'lessonId': 'english-1',
+          'lessonTitle': 'Warm-up greeting',
+          'stepIndex': 0,
+        };
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Refresh live sync'), findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'home subject cards stay in a single 3-card row on the learner tablet layout',
     (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
@@ -1053,7 +1110,9 @@ void main() {
     expect(find.text('Life Skills'), findsOneWidget);
   });
 
-  testWidgets('home screen keeps core handoff actions usable on 800x600 pilot tablets', (
+  testWidgets(
+      'home screen keeps core handoff actions usable on 800x600 pilot tablets',
+      (
     tester,
   ) async {
     await pumpAppAtSize(tester, const Size(800, 600));
