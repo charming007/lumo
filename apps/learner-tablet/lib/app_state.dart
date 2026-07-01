@@ -1186,19 +1186,40 @@ class LumoAppState {
       backendAssignmentCount = data.assignmentCount;
       lastSyncError = null;
 
-      await _hydrateModuleBundles(mergedModules);
-      final liveBootstrapRuntimeBlocker = _liveBootstrapRuntimeBlockerReason(
-        LumoBootstrap(
-          learners: List<LearnerProfile>.from(learners),
-          modules: List<LearningModule>.from(modules),
-          lessons: List<LessonCardModel>.from(assignedLessons),
-          assignmentPacks: List<LearnerAssignmentPack>.from(assignmentPacks),
-          registrationContext: registrationContext,
-          generatedAt: data.generatedAt,
-          contractVersion: data.contractVersion,
-          assignmentCount: data.assignmentCount,
-        ),
+      final preHydrationBootstrapSnapshot = LumoBootstrap(
+        learners: List<LearnerProfile>.from(learners),
+        modules: List<LearningModule>.from(modules),
+        lessons: List<LessonCardModel>.from(assignedLessons),
+        assignmentPacks: List<LearnerAssignmentPack>.from(assignmentPacks),
+        registrationContext: registrationContext,
+        generatedAt: data.generatedAt,
+        contractVersion: data.contractVersion,
+        assignmentCount: data.assignmentCount,
       );
+      final preHydrationRuntimeBlocker = _liveBootstrapRuntimeBlockerReason(
+        preHydrationBootstrapSnapshot,
+      );
+      final shouldSkipModuleHydration =
+          _isHardDeploymentIdentityBlocker(preHydrationRuntimeBlocker);
+      if (!shouldSkipModuleHydration) {
+        await _hydrateModuleBundles(mergedModules);
+      }
+      final liveBootstrapRuntimeBlocker = shouldSkipModuleHydration
+          ? preHydrationRuntimeBlocker
+          : _liveBootstrapRuntimeBlockerReason(
+              LumoBootstrap(
+                learners: List<LearnerProfile>.from(learners),
+                modules: List<LearningModule>.from(modules),
+                lessons: List<LessonCardModel>.from(assignedLessons),
+                assignmentPacks: List<LearnerAssignmentPack>.from(
+                  assignmentPacks,
+                ),
+                registrationContext: registrationContext,
+                generatedAt: data.generatedAt,
+                contractVersion: data.contractVersion,
+                assignmentCount: data.assignmentCount,
+              ),
+            );
       final restoringTrustedOfflineSnapshot =
           liveBootstrapRuntimeBlocker != null &&
               hadUsableOfflineSnapshot &&

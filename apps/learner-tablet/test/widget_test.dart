@@ -108,20 +108,6 @@ class _FooterGateMismatchState extends LumoAppState {
   }
 }
 
-class _UnregisteredTabletBootstrapApiClient extends LumoApiClient {
-  @override
-  Future<LumoBootstrap> fetchBootstrap({
-    String? overrideDeviceIdentifier,
-  }) async {
-    return LumoBootstrap(
-      learners: learnerProfilesSeed,
-      modules: learningModules,
-      lessons: assignedLessonsSeed,
-      registrationContext: const RegistrationContext(),
-    );
-  }
-}
-
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -1116,35 +1102,6 @@ void main() {
         find.textContaining('deviceIdentifier=tablet-pod-a-007'),
         findsWidgets,
       );
-    },
-  );
-
-  test(
-    'unregistered live bootstrap does not get certified as a trusted offline snapshot',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      final state = LumoAppState(
-        apiClient: _UnregisteredTabletBootstrapApiClient(),
-        includeSeedDemoContent: false,
-        configuredDeviceIdentifier: 'tablet-pod-a-007',
-      );
-
-      await state.bootstrap();
-      await state.flushPersistence();
-
-      expect(
-        state.deploymentBlockerReason,
-        contains('did not return a tablet registration'),
-      );
-      expect(state.usingFallbackData, isTrue);
-      expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
-      expect(state.hasUsableOfflineSnapshot, isFalse);
-      expect(
-        state.offlineSnapshotTrustProblem,
-        contains('never confirmed by a successful live bootstrap'),
-      );
-
-      state.dispose();
     },
   );
 

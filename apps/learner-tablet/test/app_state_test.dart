@@ -9202,6 +9202,35 @@ void main() {
     );
 
     test(
+      'unregistered live bootstrap does not certify a first-run offline snapshot as trusted',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          configuredDeviceIdentifier: 'tablet-pod-a-007',
+          apiClient: _UnregisteredTabletBootstrapApiClientLiveLessons(),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+        await state.flushPersistence();
+
+        expect(
+          state.deploymentBlockerReason,
+          contains('did not return a tablet registration'),
+        );
+        expect(state.usingFallbackData, isTrue);
+        expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
+        expect(state.hasUsableOfflineSnapshot, isFalse);
+        expect(
+          state.offlineSnapshotTrustProblem,
+          contains('never confirmed by a successful live bootstrap'),
+        );
+      },
+    );
+
+    test(
       'healthy live bootstrap does not report bundled fundamentals as curriculum mixed',
       () async {
         final bundledLesson = LessonCardModel(
