@@ -553,6 +553,31 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /Collision evidence/,
+    'blocked handoff rows should surface exact collision evidence instead of generic duplicate warnings',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Pod conflict: \{peer\}/,
+    'blocked handoff rows should name the exact pod-conflicting tablet peers',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device ID collision: \{peer\}/,
+    'blocked handoff rows should name the exact duplicate device-id peers',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy pod collision peers/,
+    'blocked handoff rows should keep pod collision peers copyable for ops handoff',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy device ID collision peers/,
+    'blocked handoff rows should keep duplicate device-id peers copyable for ops handoff',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /normalizeDeviceIdentifier\(registration\.deviceIdentifier\) \? \(/,
     'blocked handoff diagnostics should only surface bootstrap probes when a real device identifier exists',
   );

@@ -94,6 +94,10 @@ function getDeploymentBlockingReasons(
   return reasons;
 }
 
+function describeTabletTarget(registration: DeviceRegistration) {
+  return registration.deviceIdentifier || registration.tabletName || registration.id;
+}
+
 export function DeviceDeploymentHandoff({
   registrations,
   apiBase,
@@ -112,6 +116,19 @@ export function DeviceDeploymentHandoff({
     const normalizedIdentifier = normalizeDeviceIdentifier(registration.deviceIdentifier);
     if (!normalizedIdentifier || normalizedStatus !== 'active') return accumulator;
     accumulator[normalizedIdentifier] = (accumulator[normalizedIdentifier] || 0) + 1;
+    return accumulator;
+  }, {});
+  const activePodCollisions = registrations.reduce<Record<string, string[]>>((accumulator, registration) => {
+    const normalizedStatus = String(registration.status || '').trim().toLowerCase();
+    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
+    accumulator[registration.podId] = [...(accumulator[registration.podId] || []), describeTabletTarget(registration)];
+    return accumulator;
+  }, {});
+  const activeDeviceIdentifierCollisions = registrations.reduce<Record<string, string[]>>((accumulator, registration) => {
+    const normalizedStatus = String(registration.status || '').trim().toLowerCase();
+    const normalizedIdentifier = normalizeDeviceIdentifier(registration.deviceIdentifier);
+    if (!normalizedIdentifier || normalizedStatus !== 'active') return accumulator;
+    accumulator[normalizedIdentifier] = [...(accumulator[normalizedIdentifier] || []), describeTabletTarget(registration)];
     return accumulator;
   }, {});
 
@@ -207,6 +224,13 @@ export function DeviceDeploymentHandoff({
           const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
           const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
           const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
+          const podCollisionPeers = registration.podId
+            ? (activePodCollisions[registration.podId] || []).filter((candidate) => candidate !== describeTabletTarget(registration))
+            : [];
+          const deviceIdentifierCollisionPeers = normalizeDeviceIdentifier(registration.deviceIdentifier)
+            ? (activeDeviceIdentifierCollisions[normalizeDeviceIdentifier(registration.deviceIdentifier)] || [])
+              .filter((candidate) => candidate !== describeTabletTarget(registration))
+            : [];
 
           return (
             <div
@@ -259,9 +283,30 @@ export function DeviceDeploymentHandoff({
                   <div style={{ color: tone.accent, lineHeight: 1.6, fontWeight: 700 }}>
                     Keep the diagnostics copyable even while provisioning is blocked so ops can fix the exact tablet record instead of retyping device ids, bootstrap probes, or backend targets from screenshots.
                   </div>
+                  {podCollisionPeers.length || deviceIdentifierCollisionPeers.length ? (
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ color: tone.accent, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 800 }}>
+                        Collision evidence
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {podCollisionPeers.map((peer) => (
+                          <div key={`pod-peer-${registration.id}-${peer}`} style={{ padding: '8px 10px', borderRadius: 999, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, fontWeight: 700 }}>
+                            Pod conflict: {peer}
+                          </div>
+                        ))}
+                        {deviceIdentifierCollisionPeers.map((peer) => (
+                          <div key={`device-peer-${registration.id}-${peer}`} style={{ padding: '8px 10px', borderRadius: 999, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, fontWeight: 700 }}>
+                            Device ID collision: {peer}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 14 }}>
                     <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy device identifier" text={registration.deviceIdentifier || 'Unassigned device identifier'} tone="white" border={tone.border} />
                     <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy LMS API target" text={normalizeBaseUrl(apiBase)} tone="white" border={tone.border} />
+                    {podCollisionPeers.length ? <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy pod collision peers" text={podCollisionPeers.join('\n')} tone="white" border={tone.border} /> : null}
+                    {deviceIdentifierCollisionPeers.length ? <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy device ID collision peers" text={deviceIdentifierCollisionPeers.join('\n')} tone="white" border={tone.border} /> : null}
                     {normalizeDeviceIdentifier(registration.deviceIdentifier) ? (
                       <>
                         <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy bootstrap probe" text={bootstrapProbe} tone="white" border={tone.border} />

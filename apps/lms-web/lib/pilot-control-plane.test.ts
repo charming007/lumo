@@ -4,34 +4,35 @@ import assert from 'node:assert/strict';
 import { isPilotControlPlaneEnabled } from './pilot-control-plane.ts';
 
 function withEnv(env: Record<string, string | undefined>, fn: () => void) {
-  const previousNodeEnv = process.env.NODE_ENV;
-  const previousPilotFlag = process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
+  const processEnv = process.env as Record<string, string | undefined>;
+  const previousNodeEnv = processEnv.NODE_ENV;
+  const previousPilotFlag = processEnv.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
 
   if (env.NODE_ENV === undefined) {
-    delete process.env.NODE_ENV;
+    delete processEnv.NODE_ENV;
   } else {
-    process.env.NODE_ENV = env.NODE_ENV;
+    processEnv.NODE_ENV = env.NODE_ENV;
   }
 
   if (env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE === undefined) {
-    delete process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
+    delete processEnv.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
   } else {
-    process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE = env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
+    processEnv.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE = env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
   }
 
   try {
     fn();
   } finally {
     if (previousNodeEnv === undefined) {
-      delete process.env.NODE_ENV;
+      delete processEnv.NODE_ENV;
     } else {
-      process.env.NODE_ENV = previousNodeEnv;
+      processEnv.NODE_ENV = previousNodeEnv;
     }
 
     if (previousPilotFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
+      delete processEnv.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE;
     } else {
-      process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE = previousPilotFlag;
+      processEnv.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE = previousPilotFlag;
     }
   }
 }
