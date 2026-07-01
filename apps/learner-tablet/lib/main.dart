@@ -6694,16 +6694,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   }
 
   LearnerProfile? get _resumeLearner {
-    final resumeFrom = _matchedResumeSession;
-    if (resumeFrom == null) return null;
-
-    for (final learner in widget.state.learners) {
-      if (learner.id == resumeFrom.studentId) {
-        return learner;
-      }
-    }
-
-    return null;
+    return widget.state.learnerForBackendSession(_matchedResumeSession);
   }
 
   bool get _resumeLocksLearner => _matchedResumeSession != null;

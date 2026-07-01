@@ -3057,16 +3057,25 @@ class LumoAppState {
     }
 
     if (resumeFrom != null) {
-      if (currentLearner?.id != resumeFrom.studentId) {
-        final resumeLearnerIndex = learners.indexWhere(
-          (item) => item.id == resumeFrom.studentId,
+      final selectedLearner = currentLearner;
+      final selectedLearnerCode = selectedLearner?.learnerCode.trim() ?? '';
+      final resumeLearnerCode = (resumeFrom.learnerCode ?? '').trim();
+      final selectedMatchesResume = selectedLearner != null &&
+          (selectedLearner.id == resumeFrom.studentId ||
+              (selectedLearnerCode.isNotEmpty &&
+                  resumeLearnerCode.isNotEmpty &&
+                  selectedLearnerCode.toLowerCase() ==
+                      resumeLearnerCode.toLowerCase()));
+      final resumeLearner = selectedMatchesResume
+          ? selectedLearner
+          : learnerForBackendSession(resumeFrom);
+      if (resumeLearner == null) {
+        throw StateError(
+          'Cannot resume lesson for learner ${resumeFrom.studentId} because that learner is not available on this tablet.',
         );
-        if (resumeLearnerIndex == -1) {
-          throw StateError(
-            'Cannot resume lesson for learner ${resumeFrom.studentId} because that learner is not available on this tablet.',
-          );
-        }
-        currentLearner = learners[resumeLearnerIndex];
+      }
+      if (currentLearner?.id != resumeLearner.id) {
+        currentLearner = resumeLearner;
       }
     } else if (currentLearner == null) {
       if (learners.length == 1) {
@@ -5052,6 +5061,35 @@ class LumoAppState {
         normalizedCompletion == 'skip';
   }
 
+  LearnerProfile? learnerForBackendSession(BackendLessonSession? session) {
+    if (session == null) return null;
+
+    final normalizedStudentId = session.studentId.trim();
+    if (normalizedStudentId.isNotEmpty) {
+      for (final learner in learners) {
+        if (learner.id == normalizedStudentId) {
+          return learner;
+        }
+      }
+    }
+
+    final normalizedLearnerCode = (session.learnerCode ?? '').trim();
+    if (normalizedLearnerCode.isEmpty) return null;
+
+    final codeMatches = learners
+        .where(
+          (learner) =>
+              learner.learnerCode.trim().toLowerCase() ==
+              normalizedLearnerCode.toLowerCase(),
+        )
+        .toList(growable: false);
+    if (codeMatches.length == 1) {
+      return codeMatches.first;
+    }
+
+    return null;
+  }
+
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
     if (session == null) return null;
 
@@ -5257,7 +5295,8 @@ class LumoAppState {
       );
     }
 
-    final rewardRedemptionCount = pendingTypeCounts['learner_reward_redeemed'] ?? 0;
+    final rewardRedemptionCount =
+        pendingTypeCounts['learner_reward_redeemed'] ?? 0;
     if (rewardRedemptionCount > 0 ||
         unsupportedWarningTypes.contains('learner_reward_redeemed')) {
       final pendingCountLabel = rewardRedemptionCount > 0

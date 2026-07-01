@@ -4262,6 +4262,76 @@ void main() {
   );
 
   testWidgets(
+    'resume launch setup rebinds the learner by learner code after live id churn',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final learner = state.learners.first;
+      state.learners[0] = learner.copyWith(id: 'learner-live-id');
+      final reboundLearner = state.learners.first;
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-learner-code-rebind',
+        sessionId: 'session-code-rebind',
+        studentId: 'learner-stale-id',
+        learnerCode: reboundLearner.learnerCode,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        moduleId: lesson.moduleId,
+        moduleTitle: module.title,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the learner session.',
+        currentStepIndex: 1,
+        stepsTotal: lesson.steps.length,
+        responsesCaptured: 2,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+            resumeFrom: runtimeSession,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Resume learner'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Resume ready from',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          '${reboundLearner.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Resume with ${reboundLearner.name}'), findsOneWidget);
+      expect(find.text('Sync learner to resume'), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson launch ignores a mismatched resume session instead of locking the wrong learner',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);

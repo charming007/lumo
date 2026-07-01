@@ -5504,6 +5504,43 @@ void main() {
     );
 
     test(
+      'resume flow rebinds the active learner by learner code after live id churn',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+        final originalLearner = state.learners.first;
+        final reboundLearner = originalLearner.copyWith(id: 'learner-live-id');
+        state.learners[0] = reboundLearner;
+        final runtimeSession = BackendLessonSession(
+          id: 'runtime-2b',
+          sessionId: 'session-77b',
+          studentId: 'learner-stale-id',
+          learnerCode: reboundLearner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          status: 'in_progress',
+          completionState: 'inProgress',
+          automationStatus: 'Resume the learner session.',
+          currentStepIndex: 1,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: 1,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+        );
+
+        state.startLesson(lesson, resumeFrom: runtimeSession);
+
+        expect(state.currentLearner?.id, reboundLearner.id);
+        expect(state.currentLearner?.learnerCode, reboundLearner.learnerCode);
+        expect(state.activeSession?.sessionId, 'session-77b');
+      },
+    );
+
+    test(
       'resume flow rebinds the active learner to the backend session learner',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -7286,7 +7323,8 @@ void main() {
       );
     });
 
-    test('critical sync trust blocker evidence names drifting contracts and learner code',
+    test(
+        'critical sync trust blocker evidence names drifting contracts and learner code',
         () {
       final state = LumoAppState(includeSeedDemoContent: true)
         ..pendingSyncEvents.add(
