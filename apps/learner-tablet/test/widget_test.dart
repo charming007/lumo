@@ -199,6 +199,59 @@ void main() {
   }
 
   testWidgets(
+    'session recovery gate rebuilds into the bootstrap loading screen during a live refresh',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1600, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final bootstrapCompleter = Completer<LumoBootstrap>();
+      final state = LumoAppState(
+        apiClient: _DelayedApiClient(bootstrapCompleter),
+        includeSeedDemoContent: false,
+      );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsNothing,
+      );
+
+      unawaited(state.bootstrap());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsOneWidget,
+      );
+
+      bootstrapCompleter.complete(
+        LumoBootstrap(
+          learners: learnerProfilesSeed,
+          modules: learningModules,
+          lessons: assignedLessonsSeed,
+        ),
+      );
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
     'subject page blocks lesson entry when no synced learner is available',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);

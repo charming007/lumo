@@ -124,6 +124,17 @@ class SessionRecoveryGate extends StatefulWidget {
 class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
   bool _recoveryLaunchHandled = false;
 
+  void _handleStateChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_handleStateChanged);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -133,7 +144,17 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
   @override
   void didUpdateWidget(covariant SessionRecoveryGate oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.removeListener(_handleStateChanged);
+      widget.state.addListener(_handleStateChanged);
+    }
     _launchRecoveredSessionIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_handleStateChanged);
+    super.dispose();
   }
 
   void _launchRecoveredSessionIfNeeded() {
