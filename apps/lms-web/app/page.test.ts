@@ -458,6 +458,31 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /function buildAndroidSigningEnvTemplate\(\)/,
+    'device deployment handoff should expose a reusable Android signing template instead of assuming APK signing is magically configured',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Android release signing is a hard deployment blocker/,
+    'handoff should call out missing Android release signing as a deployment blocker before operators copy APK commands',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /flutter build apk --release<\/code> will fail unless the learner app gets a real release keystore/,
+    'handoff should explain plainly that release APK builds fail without a real keystore',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /LUMO_ANDROID_STORE_FILE/,
+    'handoff should surface the Android signing env contract used by the learner release build',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy signing env template/,
+    'handoff should keep the signing env template copyable for deployment operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /--dart-define=LUMO_API_BASE_URL=\$\{shellEscape\(normalizedApiBase\)\}/,
     'learner release build command should pass the API base through Flutter dart-define',
   );

@@ -59,6 +59,18 @@ function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
   ].join('\n');
 }
 
+function buildAndroidSigningEnvTemplate() {
+  return [
+    '# Required for flutter build apk --release',
+    'export LUMO_ANDROID_STORE_FILE=/absolute/path/to/release-keystore.jks',
+    'export LUMO_ANDROID_STORE_PASSWORD=replace-with-real-store-password',
+    'export LUMO_ANDROID_KEY_ALIAS=replace-with-real-key-alias',
+    'export LUMO_ANDROID_KEY_PASSWORD=replace-with-real-key-password',
+    '',
+    '# Or provide the same values in android/key.properties',
+  ].join('\n');
+}
+
 function normalizeDeviceIdentifier(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
@@ -188,6 +200,18 @@ export function DeviceDeploymentHandoff({
         <p style={{ margin: 0, color: '#475569', lineHeight: 1.6 }}>
           Learner release builds are blocked unless ops ships the exact LMS device identifier with the real production API target. Copy the bundle for the tablet you are provisioning instead of freestyle-typing env vars at 2am.
         </p>
+      </div>
+
+      <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE', display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <strong style={{ color: '#1D4ED8', fontSize: 18 }}>Android release signing is a hard deployment blocker</strong>
+          <div style={{ color: '#1D4ED8', lineHeight: 1.6 }}>
+            <code>flutter build apk --release</code> will fail unless the learner app gets a real release keystore through <code>LUMO_ANDROID_STORE_FILE</code>, <code>LUMO_ANDROID_STORE_PASSWORD</code>, <code>LUMO_ANDROID_KEY_ALIAS</code>, and <code>LUMO_ANDROID_KEY_PASSWORD</code> or the matching <code>android/key.properties</code> file. A rollout bundle without signing is still not a deployable learner build.
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
+          <CopyableTextCard eyebrow="Android release signing" title="Copy signing env template" text={buildAndroidSigningEnvTemplate()} tone="white" border="#BFDBFE" />
+        </div>
       </div>
 
       {blockedRegistrations.length ? (
