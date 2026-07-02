@@ -7,7 +7,7 @@ import { fullNavigationItems, getNavigationItems, pilotNavigationItems } from '.
 
 const topbarSource = readFileSync(fileURLToPath(new URL('../components/topbar.tsx', import.meta.url)), 'utf8');
 
-test('default admin navigation restores the full LMS shell on main', () => {
+test('full admin navigation remains available when the full shell is explicitly enabled', () => {
   assert.deepEqual(
     fullNavigationItems.map((item) => [item.id, item.href]),
     [
@@ -32,7 +32,7 @@ test('default admin navigation restores the full LMS shell on main', () => {
   assert.deepEqual(getNavigationItems(false), fullNavigationItems);
 });
 
-test('pilot override keeps the narrowed control-plane nav behind the explicit env flag', () => {
+test('pilot navigation remains the default control-plane shell', () => {
   assert.deepEqual(
     pilotNavigationItems.map((item) => [item.id, item.href]),
     [
@@ -46,7 +46,7 @@ test('pilot override keeps the narrowed control-plane nav behind the explicit en
   assert.deepEqual(getNavigationItems(true), pilotNavigationItems);
 });
 
-test('topbar copy defaults to the full LMS shell and still keeps pilot copy for the override mode', () => {
+test('topbar keeps both full-shell and pilot-shell copy available', () => {
   assert.match(topbarSource, /Lumo LMS admin/);
   assert.match(topbarSource, /Full LMS shell live/);
   assert.match(topbarSource, /Lumo command center/);

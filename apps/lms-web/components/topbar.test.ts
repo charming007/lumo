@@ -7,7 +7,7 @@ const topbarSource = readFileSync(fileURLToPath(new URL('./topbar.tsx', import.m
 const shellSource = readFileSync(fileURLToPath(new URL('./shell.tsx', import.meta.url)), 'utf8');
 const pilotShellSource = readFileSync(fileURLToPath(new URL('../lib/pilot-shell.ts', import.meta.url)), 'utf8');
 
-test('pilot shell warnings only render when the pilot control-plane override is enabled', () => {
+test('pilot shell warnings only render when the pilot control-plane shell is enabled', () => {
   assert.match(
     shellSource,
     /const pilotRoute = pilotControlPlaneEnabled \? describePilotShellRoute\(pathname\) : undefined;/,
@@ -21,7 +21,7 @@ test('pilot shell warnings only render when the pilot control-plane override is 
   assert.match(
     topbarSource,
     /Full LMS shell live/,
-    'topbar should expose the full-shell chip in default mode',
+    'topbar should still expose the full-shell chip when the full LMS shell is explicitly enabled',
   );
   assert.match(
     pilotShellSource,
