@@ -2092,7 +2092,7 @@ void main() {
   );
 
   testWidgets(
-    'learner profile exposes quick lesson actions and honest lesson counts',
+    'learner profile prioritizes launchable quick picks and honest lesson counts',
     (tester) async {
       tester.view.physicalSize = const Size(900, 1200);
       tester.view.devicePixelRatio = 1.0;
@@ -2142,6 +2142,11 @@ void main() {
 
       expect(find.text('3 of 5 shown'), findsOneWidget);
       expect(find.text('Open lesson'), findsNWidgets(3));
+      expect(find.text('Greetings at the learning circle'), findsOneWidget);
+      expect(find.text('Handwashing before food'), findsOneWidget);
+      expect(find.text('Counting oranges at the market'), findsOneWidget);
+      expect(find.text('Story sounds'), findsNothing);
+      expect(find.text('Word match'), findsNothing);
       expect(
         find.text(
           '2 more assigned lessons still available after these quick picks.',
