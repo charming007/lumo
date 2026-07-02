@@ -3689,7 +3689,25 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final totalMinutes = learner.estimatedTotalMinutes;
     final totalPoints = learnerMotivationPoints(learner);
     final allAssignedLessons = state.lessonsForLearner(learner);
-    final assignedLessons = allAssignedLessons.take(3).toList();
+    final rankedAssignedLessons =
+        allAssignedLessons.asMap().entries.toList()..sort((left, right) {
+          final leftAvailability = learnerLessonAvailability(
+            state: state,
+            learner: learner,
+            lesson: left.value,
+          );
+          final rightAvailability = learnerLessonAvailability(
+            state: state,
+            learner: learner,
+            lesson: right.value,
+          );
+          if (leftAvailability.canLaunch != rightAvailability.canLaunch) {
+            return leftAvailability.canLaunch ? -1 : 1;
+          }
+          return left.key.compareTo(right.key);
+        });
+    final assignedLessons =
+        rankedAssignedLessons.take(3).map((entry) => entry.value).toList();
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
