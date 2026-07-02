@@ -27,36 +27,31 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard defaults to the full LMS route map and keeps the pilot route map behind the override', () => {
+test('dashboard keeps the pilot route map live for production and leaves the full LMS shell as an explicit override path', () => {
   assert.match(
     dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
-    'dashboard should derive the pilot shell override from env instead of assuming pilot mode on main',
-  );
-  assert.match(
-    dashboardPageSource,
-    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
-    'dashboard should restore the default route map to the full LMS shell',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Visible LMS routes/,
-    'dashboard should label the default visible nav as LMS routes',
-  );
-  assert.match(
-    dashboardPageSource,
-    /The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main\./,
-    'dashboard should say plainly that main is back on the full LMS shell',
-  );
-  assert.doesNotMatch(
-    dashboardPageSource,
-    /Pilot control plane override[\s\S]*NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
-    'default dashboard shell copy should not surface pilot override messaging on the main LMS route map card',
+    'dashboard should still derive shell mode from the shared pilot control-plane helper',
   );
   assert.match(
     dashboardPageSource,
     /<Card title="Pilot route map" eyebrow="Visible shell">/,
-    'dashboard should keep the pilot route map code path available for the override mode',
+    'dashboard should keep the pilot route map code path available for the production-safe shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Visible pilot routes/,
+    'dashboard should label the production-safe visible nav as pilot routes',
+  );
+  assert.match(
+    dashboardPageSource,
+    /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
+    'dashboard should say plainly that production points operators at the pilot-safe route set',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
+    'dashboard should keep the full LMS route map code path available for the explicit override mode',
   );
   assert.match(
     dashboardPageSource,

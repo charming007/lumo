@@ -37,13 +37,13 @@ function withEnv(env: Record<string, string | undefined>, fn: () => void) {
   }
 }
 
-test('pilot control plane stays off by default in production deploys', () => {
+test('pilot control plane stays on by default in production deploys', () => {
   withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: undefined }, () => {
-    assert.equal(isPilotControlPlaneEnabled(), false);
+    assert.equal(isPilotControlPlaneEnabled(), true);
   });
 });
 
-test('pilot control plane stays off by default outside production too', () => {
+test('pilot control plane stays off by default outside production', () => {
   withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: undefined }, () => {
     assert.equal(isPilotControlPlaneEnabled(), false);
   });
