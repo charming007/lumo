@@ -8,5 +8,5 @@ export function isPilotControlPlaneEnabled() {
   if (explicitFlag === 'true') return true;
   if (explicitFlag === 'false') return false;
 
-  return process.env.NODE_ENV === 'production';
+  return false;
 }

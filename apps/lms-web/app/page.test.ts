@@ -27,7 +27,7 @@ test('dashboard does not hard-block on subject metadata degradation alone', () =
   );
 });
 
-test('dashboard keeps the pilot route map live for production and leaves the full LMS shell as an explicit override path', () => {
+test('dashboard keeps the pilot route map available for the explicit override and leaves the full LMS shell as the default path', () => {
   assert.match(
     dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
@@ -46,7 +46,7 @@ test('dashboard keeps the pilot route map live for production and leaves the ful
   assert.match(
     dashboardPageSource,
     /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
-    'dashboard should say plainly that production points operators at the pilot-safe route set',
+    'dashboard should keep the pilot-safe route map copy available for the explicit override mode',
   );
   assert.match(
     dashboardPageSource,
