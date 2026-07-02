@@ -5,9 +5,10 @@ import { ModalLauncher } from '../../components/modal-launcher';
 import { AdminDirectory } from '../../components/admin-directory';
 import { updateDeviceRegistrationAction } from '../actions';
 import { fetchDeviceRegistrations, fetchPods } from '../../lib/api';
-import { API_BASE_DIAGNOSTIC } from '../../lib/config';
+import { API_BASE, API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { getDeviceDeploymentReadiness } from '../../lib/device-deployment';
 import { Card, MetricList, PageShell, Pill, responsiveGrid } from '../../lib/ui';
+import { DeviceDeploymentHandoff } from '../../components/device-deployment-handoff';
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—';
@@ -203,76 +204,22 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   const missingPodCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('missing-pod')).length;
   const inactiveBlockingCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('non-active-status')).length;
 
-  if (!deviceDeploymentReadiness.hasRolloutReadyRegistration || duplicateActivePodCount || duplicateDeviceIdentifierCount) {
-    return (
-      <DeploymentBlockerCard
-        title="Devices"
-        subtitle="Tablet deployment control should stop cold until at least one learner rollout target is genuinely safe to provision."
-        blockerHeadline={!deviceDeploymentReadiness.hasRolloutReadyRegistration
-          ? 'Deployment blocker: learner rollout handoff has no safe tablet target.'
-          : duplicateActivePodCount
-            ? 'Deployment blocker: duplicate active tablet scope is still live.'
-            : 'Deployment blocker: duplicate active device identifiers are still live.'}
-        blockerDetail={
-          !deviceDeploymentReadiness.hasRolloutReadyRegistration
-            ? (
-              <>
-                The LMS can see tablet records, but none currently satisfy the rollout rules. Only tablets with a real pod owner, active status, a non-blank device identifier, and no duplicate live scope or device ID should get a learner release bundle.
-              </>
-            )
-            : duplicateActivePodCount
-              ? (
-                <>
-                  Multiple active tablets are still attached to the same live pod scope. That makes learner build targeting ambiguous, so this route should block before anyone copies the wrong device identifier into a release build.
-                </>
-              )
-              : (
-                <>
-                  The live registry still contains duplicated active device identifiers. Until each learner tablet proves a unique backend identity, this route should block instead of pretending rollout handoff is trustworthy.
-                </>
-              )
-        }
-        whyBlocked={[
-          'The dashboard already treats learner deployment handoff as a release gate. Devices should not leave registration and repair controls open while that same rollout target is ambiguous or missing.',
-          'A duplicate live pod scope or duplicated device identifier can ship the wrong learner build to the wrong tablet even when the table itself looks healthy.',
-          'A loud blocker is safer than an interactive fleet console that invites people to trust rows the rollout rules already reject.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Rollout-ready tablet target',
-            expected: 'At least one tablet is active, pod-linked, uniquely scoped, and has a non-blank unique device identifier',
-            failure: 'Ops can still treat Devices as a release handoff surface even though learner build targeting is ambiguous or impossible',
-          },
-          {
-            surface: 'Live scope uniqueness',
-            expected: 'Each active pod scope maps to at most one active learner tablet before release provisioning begins',
-            failure: 'Multiple active tablets remain attached to the same pod and the route still looks safe for rollout handoff',
-          },
-          {
-            surface: 'Device identity trust',
-            expected: 'Every rollout-safe tablet keeps a unique live device identifier before any learner bundle is built',
-            failure: 'Duplicate or blank device identifiers can still slip into learner provisioning commands',
-          },
-        ]}
-        fixItems={[
-          { label: 'Rollout-ready tablets', value: String(deviceDeploymentReadiness.rolloutReadyCount) },
-          { label: 'Blocked tablet records', value: String(deviceDeploymentReadiness.blockedCount) },
-          { label: 'Duplicate live pod scopes', value: String(duplicateActivePodCount) },
-          { label: 'Duplicate active device IDs', value: String(duplicateDeviceIdentifierCount) },
-          { label: 'Blank device IDs', value: String(missingIdentifierCount) },
-          { label: 'Missing pod links', value: String(missingPodCount) },
-          { label: 'Non-active blocking records', value: String(inactiveBlockingCount) },
-          { label: 'Operator action', value: !deviceDeploymentReadiness.hasRolloutReadyRegistration ? 'Repair or register at least one active, uniquely scoped tablet with a real device identifier before trusting rollout handoff' : duplicateActivePodCount ? 'Resolve duplicate active pod assignments so each live rollout scope points at exactly one active learner tablet' : 'Repair duplicated live device identifiers before generating any learner release bundle' },
-          { label: 'Cross-check', value: 'Verify / and /devices agree on the safe rollout tablet before provisioning learner builds' },
-        ]}
-        docs={[
-          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Settings blocker', href: '/settings', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
-          { label: 'Pods', href: '/pods', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-        ]}
-      />
-    );
-  }
+  const rolloutProvisioningBlocked = !deviceDeploymentReadiness.hasRolloutReadyRegistration || duplicateActivePodCount || duplicateDeviceIdentifierCount;
+  const rolloutBlockerHeadline = !deviceDeploymentReadiness.hasRolloutReadyRegistration
+    ? 'Deployment blocker: learner rollout handoff has no safe tablet target.'
+    : duplicateActivePodCount
+      ? 'Deployment blocker: duplicate active tablet scope is still live.'
+      : 'Deployment blocker: duplicate active device identifiers are still live.';
+  const rolloutBlockerDetail = !deviceDeploymentReadiness.hasRolloutReadyRegistration
+    ? 'The LMS can see tablet records, but none currently satisfy the rollout rules. Only tablets with a real pod owner, active status, a non-blank device identifier, and no duplicate live scope or device ID should get a learner release bundle.'
+    : duplicateActivePodCount
+      ? 'Multiple active tablets are still attached to the same live pod scope. That makes learner build targeting ambiguous, so provisioning should stay blocked until each live pod points at exactly one active learner tablet.'
+      : 'The live registry still contains duplicated active device identifiers. Until each learner tablet proves a unique backend identity, provisioning should stay blocked instead of pretending rollout handoff is trustworthy.';
+  const rolloutOperatorAction = !deviceDeploymentReadiness.hasRolloutReadyRegistration
+    ? 'Repair or register at least one active, uniquely scoped tablet with a real device identifier before trusting rollout handoff.'
+    : duplicateActivePodCount
+      ? 'Resolve duplicate active pod assignments so each live rollout scope points at exactly one active learner tablet.'
+      : 'Repair duplicated live device identifiers before generating any learner release bundle.';
 
   return (
     <PageShell
@@ -298,7 +245,10 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
+      {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check / before provisioning learner builds.`, 'error') : null}
       {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the rollout has not started yet. Verify the pod registry before calling the fleet clean.', 'warning') : null}
+
+      <DeviceDeploymentHandoff registrations={registrations} apiBase={API_BASE} />
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
