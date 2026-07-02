@@ -24,6 +24,12 @@ typedef VoiceReplayStop = Future<void> Function();
 const bool kEnableSeedDemoContent = bool.fromEnvironment(
   'LUMO_ENABLE_SEED_DEMO_CONTENT',
 );
+
+bool learnerNeedsBackendSyncBeforeLaunch(LearnerProfile learner) {
+  final status = learner.enrollmentStatus.toLowerCase();
+  return status.contains('sync') || status.contains('pending');
+}
+
 const bool kReleaseBuild = bool.fromEnvironment('dart.vm.product');
 const bool kEnableQaLessonUnlockToggle = !kReleaseBuild &&
     (bool.fromEnvironment('LUMO_ENABLE_QA_LESSON_UNLOCK_TOGGLE') ||
@@ -1884,6 +1890,9 @@ class LumoAppState {
   }
 
   bool learnerCanOpenLesson(LearnerProfile learner, LessonCardModel lesson) {
+    if (learnerNeedsBackendSyncBeforeLaunch(learner)) {
+      return false;
+    }
     if (_lessonRequiresSyncBeforeStarting(lesson)) {
       return false;
     }

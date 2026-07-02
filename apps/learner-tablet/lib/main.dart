@@ -992,6 +992,7 @@ enum _SubjectLessonAvailabilitySummary {
   locked,
   waitingForSync,
   syncIncomplete,
+  backendSyncPending,
   unavailable,
 }
 
@@ -1016,6 +1017,9 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     }
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       return _SubjectLessonAvailabilitySummary.locked;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.backendSyncPending) {
+      return _SubjectLessonAvailabilitySummary.backendSyncPending;
     }
     if (availability.label == 'Waiting for sync') {
       return _SubjectLessonAvailabilitySummary.waitingForSync;
@@ -1094,6 +1098,7 @@ String _subjectCardStatusLabel({
   required int lockedLessonCount,
   required int waitingForSyncLessonCount,
   required int syncIncompleteLessonCount,
+  required int backendSyncPendingLessonCount,
   required bool hasEligibleLearner,
 }) {
   if (!hasEligibleLearner) {
@@ -1121,6 +1126,9 @@ String _subjectCardStatusLabel({
   }
   if (syncIncompleteLessonCount > 0) {
     return 'Sync incomplete';
+  }
+  if (backendSyncPendingLessonCount > 0) {
+    return 'Backend sync pending';
   }
   if (completedTodayLessonCount > 0) {
     return 'Progress saved today';
@@ -1174,6 +1182,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         var lockedLessonCount = 0;
         var waitingForSyncLessonCount = 0;
         var syncIncompleteLessonCount = 0;
+        var backendSyncPendingLessonCount = 0;
 
         for (final lesson in visibleLessons) {
           final summary = _summarizeLessonAvailability(
@@ -1197,6 +1206,9 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
           } else if (summary ==
               _SubjectLessonAvailabilitySummary.syncIncomplete) {
             syncIncompleteLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.backendSyncPending) {
+            backendSyncPendingLessonCount += 1;
           }
         }
 
@@ -1221,6 +1233,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             lockedLessonCount: lockedLessonCount,
             waitingForSyncLessonCount: waitingForSyncLessonCount,
             syncIncompleteLessonCount: syncIncompleteLessonCount,
+            backendSyncPendingLessonCount: backendSyncPendingLessonCount,
             hasEligibleLearner: hasEligibleLearner,
           ),
         );
@@ -1264,6 +1277,7 @@ enum LearnerLessonAvailabilityKind {
   absent,
   skipped,
   podMismatch,
+  backendSyncPending,
   unavailable,
 }
 
@@ -1306,6 +1320,15 @@ LearnerLessonAvailability learnerLessonAvailability({
       label: 'Sync incomplete',
       detail:
           'This lesson shell landed on the tablet without any activity steps, so it cannot be launched safely yet.',
+    );
+  }
+
+  if (learnerNeedsBackendSyncBeforeLaunch(learner)) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.backendSyncPending,
+      label: 'Backend sync pending',
+      detail:
+          'This learner is still saved only on the tablet. Refresh backend sync before treating lessons or roster handoff as deployment-ready.',
     );
   }
 
@@ -1439,6 +1462,8 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
       return const Color(0xFF475569);
     case LearnerLessonAvailabilityKind.podMismatch:
       return const Color(0xFF7C3AED);
+    case LearnerLessonAvailabilityKind.backendSyncPending:
+      return const Color(0xFFB45309);
     case LearnerLessonAvailabilityKind.unavailable:
       return const Color(0xFF64748B);
   }
@@ -3086,11 +3111,6 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-bool _learnerNeedsBackendSync(LearnerProfile learner) {
-  final status = learner.enrollmentStatus.toLowerCase();
-  return status.contains('sync') || status.contains('pending');
-}
-
 class AllStudentsPage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -3105,8 +3125,9 @@ class AllStudentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final topLearner = leaderboard.firstOrNull;
-    final unsyncedLearners =
-        state.learners.where(_learnerNeedsBackendSync).toList(growable: false);
+    final unsyncedLearners = state.learners
+        .where(learnerNeedsBackendSyncBeforeLaunch)
+        .toList(growable: false);
     final averagePoints = state.learners.isEmpty
         ? 0
         : state.learners
@@ -3287,6 +3308,9 @@ class AllStudentsPage extends StatelessWidget {
                         leaderboard,
                         learner.id,
                       );
+                      final nextLesson = state.nextAssignedLessonForLearner(
+                        learner,
+                      );
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
@@ -3323,19 +3347,18 @@ class AllStudentsPage extends StatelessWidget {
                               ),
                             );
                           },
-                          onStartLesson: () {
-                            final nextLesson =
-                                state.nextAssignedLessonForLearner(learner);
-                            if (nextLesson == null) return;
-                            state.selectLearner(learner);
-                            onChanged();
-                            launchLessonFlow(
-                              context: context,
-                              state: state,
-                              onChanged: onChanged,
-                              lesson: nextLesson,
-                            );
-                          },
+                          onStartLesson: nextLesson == null
+                              ? null
+                              : () {
+                                  state.selectLearner(learner);
+                                  onChanged();
+                                  launchLessonFlow(
+                                    context: context,
+                                    state: state,
+                                    onChanged: onChanged,
+                                    lesson: nextLesson,
+                                  );
+                                },
                         ),
                       );
                     },
@@ -4313,6 +4336,12 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                 ...assignedLessons.map((lesson) {
                                   final matchesResumableSession =
                                       resumableLesson?.id == lesson.id;
+                                  final availability =
+                                      learnerLessonAvailability(
+                                    state: state,
+                                    learner: learner,
+                                    lesson: lesson,
+                                  );
                                   return Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(bottom: 10),
@@ -4342,24 +4371,18 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             ),
                                             const SizedBox(width: 12),
                                             StatusPill(
-                                              text: lessonRequiresSyncBeforeStarting(
-                                                lesson,
-                                              )
-                                                  ? lessonSyncBlockerStatusLabel(
-                                                      lesson,
-                                                    )
-                                                  : matchesResumableSession
+                                              text: availability.canLaunch
+                                                  ? matchesResumableSession
                                                       ? 'Resume ready'
-                                                      : 'Ready',
-                                              color:
-                                                  lessonRequiresSyncBeforeStarting(
-                                                lesson,
-                                              )
-                                                      ? LumoTheme.accentOrange
-                                                      : matchesResumableSession
-                                                          ? LumoTheme.primary
-                                                          : LumoTheme
-                                                              .accentGreen,
+                                                      : 'Ready'
+                                                  : availability.label,
+                                              color: availability.canLaunch
+                                                  ? matchesResumableSession
+                                                      ? LumoTheme.primary
+                                                      : LumoTheme.accentGreen
+                                                  : _learnerAvailabilityColor(
+                                                      availability.kind,
+                                                    ),
                                             ),
                                           ],
                                         ),
@@ -4379,42 +4402,47 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                         SizedBox(
                                           width: double.infinity,
                                           child: FilledButton.tonalIcon(
-                                            onPressed:
-                                                lesson.isAssignmentPlaceholder ||
-                                                        lesson.steps.isEmpty
-                                                    ? null
-                                                    : () {
-                                                        state.selectLearner(
-                                                          learner,
-                                                        );
-                                                        launchLessonFlow(
-                                                          context: context,
-                                                          state: state,
-                                                          onChanged: () {},
-                                                          lesson: lesson,
-                                                          resumeFrom:
-                                                              matchesResumableSession
-                                                                  ? resumableSession
-                                                                  : null,
-                                                        );
-                                                      },
+                                            onPressed: availability.canLaunch
+                                                ? () {
+                                                    state.selectLearner(
+                                                      learner,
+                                                    );
+                                                    launchLessonFlow(
+                                                      context: context,
+                                                      state: state,
+                                                      onChanged: () {},
+                                                      lesson: lesson,
+                                                      resumeFrom:
+                                                          matchesResumableSession
+                                                              ? resumableSession
+                                                              : null,
+                                                    );
+                                                  }
+                                                : null,
                                             icon: Icon(
-                                              lesson.isAssignmentPlaceholder ||
-                                                      lesson.steps.isEmpty
-                                                  ? Icons.sync_problem_rounded
-                                                  : matchesResumableSession
+                                              availability.canLaunch
+                                                  ? matchesResumableSession
                                                       ? Icons
                                                           .play_circle_fill_rounded
                                                       : Icons
-                                                          .open_in_new_rounded,
+                                                          .open_in_new_rounded
+                                                  : availability.kind ==
+                                                          LearnerLessonAvailabilityKind
+                                                              .backendSyncPending
+                                                      ? Icons.cloud_off_rounded
+                                                      : Icons
+                                                          .sync_problem_rounded,
                                             ),
                                             label: Text(
-                                              lesson.isAssignmentPlaceholder ||
-                                                      lesson.steps.isEmpty
-                                                  ? 'Sync required before starting'
-                                                  : matchesResumableSession
+                                              availability.canLaunch
+                                                  ? matchesResumableSession
                                                       ? 'Resume lesson'
-                                                      : 'Open lesson',
+                                                      : 'Open lesson'
+                                                  : availability.kind ==
+                                                          LearnerLessonAvailabilityKind
+                                                              .backendSyncPending
+                                                      ? 'Refresh sync before starting'
+                                                      : 'Sync required before starting',
                                             ),
                                           ),
                                         ),
@@ -5028,6 +5056,8 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final aggregateStatusLabel = switch (aggregateStatus) {
       _SubjectLessonAvailabilitySummary.waitingForSync => 'Waiting for sync',
       _SubjectLessonAvailabilitySummary.syncIncomplete => 'Sync incomplete',
+      _SubjectLessonAvailabilitySummary.backendSyncPending =>
+        'Backend sync pending',
       _SubjectLessonAvailabilitySummary.locked => 'Locked',
       _SubjectLessonAvailabilitySummary.completedToday => 'Completed',
       _SubjectLessonAvailabilitySummary.completed => 'Completed',
@@ -5056,6 +5086,9 @@ class _LessonJourneyStepCard extends StatelessWidget {
                             aggregateStatus ==
                                 _SubjectLessonAvailabilitySummary
                                     .syncIncomplete ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary
+                                    .backendSyncPending ||
                             aggregateStatus ==
                                 _SubjectLessonAvailabilitySummary.unavailable
                         ? const Color(0xFFB45309)
@@ -14617,7 +14650,7 @@ class _LearnerCard extends StatelessWidget {
     final streak = learner.streakDays;
     final hasActions =
         onSetActive != null || onOpenProfile != null || onStartLesson != null;
-    final needsBackendSync = _learnerNeedsBackendSync(learner);
+    final needsBackendSync = learnerNeedsBackendSyncBeforeLaunch(learner);
 
     final identityCue = _learnerIdentityCue(learner);
 
