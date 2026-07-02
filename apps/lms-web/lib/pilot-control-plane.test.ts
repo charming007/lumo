@@ -61,4 +61,8 @@ test('explicit env flag still wins over the runtime default', () => {
   withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: ' true ' }, () => {
     assert.equal(isPilotControlPlaneEnabled(), true);
   });
+
+  withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: ' false ' }, () => {
+    assert.equal(isPilotControlPlaneEnabled(), false);
+  });
 });
