@@ -9,21 +9,21 @@ const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../com
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
-test('dashboard does not hard-block on subject metadata degradation alone', () => {
-  assert.doesNotMatch(
+test('dashboard hard-blocks when the subject feed is degraded', () => {
+  assert.match(
     dashboardPageSource,
     /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
-    'subject feed degradation alone should not be counted as a critical dashboard release blocker',
+    'subject feed degradation should count as a critical dashboard release blocker because blocker triage and authoring scope depend on live subject context',
   );
   assert.match(
     dashboardPageSource,
-    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled';/,
-    'dashboard release snapshot should stay available when only subject metadata is degraded',
+    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled' && subjectsResult\.status === 'fulfilled';/,
+    'dashboard release snapshot should only be treated as live when the subject feed is also available',
   );
   assert.match(
     dashboardPageSource,
-    /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
-    'dashboard should surface subject metadata degradation as a warning instead of a hard blocker',
+    /subject context can drift just enough to turn blocker CTAs into confident nonsense\./,
+    'dashboard blocker copy should explain why missing subjects is a release-trust failure, not a harmless metadata warning',
   );
 });
 

@@ -406,6 +406,7 @@ export default async function HomePage() {
     modulesResult.status === 'rejected' ? 'modules' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     assessmentsResult.status === 'rejected' ? 'assessments' : null,
+    subjectsResult.status === 'rejected' ? 'subjects' : null,
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
@@ -441,7 +442,7 @@ export default async function HomePage() {
     assessments,
     subjects,
   });
-  const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled';
+  const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled' && subjectsResult.status === 'fulfilled';
   const hasEmptyReleaseBoard = releaseFeedsAvailable && modules.length === 0 && lessons.length === 0 && assessments.length === 0;
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
@@ -601,8 +602,8 @@ export default async function HomePage() {
                   'A loud rollout blocker is safer than letting ops cargo-cult a bundle from the wrong row just because the rest of the dashboard looked green.',
                 ]
             : [
-                'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, or assessment gates are blind, the route should not imply anyone can trust the release board.',
-                'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Leaving it up with degraded data invites a false green light.',
+                'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, assessment gates, or subjects are blind, the route should not imply anyone can trust the release board.',
+                'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Missing subjects means subject context can drift just enough to turn blocker CTAs into confident nonsense.',
                 'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
               ]}
         verificationItems={hasCriticalDashboardGap
