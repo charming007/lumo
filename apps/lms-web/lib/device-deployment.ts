@@ -4,11 +4,16 @@ function normalizeDeviceIdentifier(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizePodIdentifier(value: string | null | undefined) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function getDuplicateScopeCounts(registrations: DeviceRegistration[]) {
   return registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
-    accumulator[registration.podId] = (accumulator[registration.podId] || 0) + 1;
+    const normalizedPodId = normalizePodIdentifier(registration.podId);
+    if (!normalizedPodId || normalizedStatus !== 'active') return accumulator;
+    accumulator[normalizedPodId] = (accumulator[normalizedPodId] || 0) + 1;
     return accumulator;
   }, {});
 }
@@ -32,9 +37,9 @@ function getDeploymentBlockingReasons(
   const normalizedStatus = String(registration.status || '').trim().toLowerCase();
 
   if (!normalizeDeviceIdentifier(registration.deviceIdentifier)) reasons.push('missing-device-identifier');
-  if (!registration.podId) reasons.push('missing-pod');
+  if (!normalizePodIdentifier(registration.podId)) reasons.push('missing-pod');
   if (normalizedStatus !== 'active') reasons.push('non-active-status');
-  if (registration.podId && duplicateScopeCount > 1) reasons.push('duplicate-live-scope');
+  if (normalizePodIdentifier(registration.podId) && duplicateScopeCount > 1) reasons.push('duplicate-live-scope');
   if (normalizeDeviceIdentifier(registration.deviceIdentifier) && duplicateDeviceIdentifierCount > 1) reasons.push('duplicate-device-identifier');
 
   return reasons;
@@ -46,7 +51,7 @@ export function getDeviceDeploymentReadiness(registrations: DeviceRegistration[]
   const annotated = registrations.map((registration) => {
     const blockingReasons = getDeploymentBlockingReasons(
       registration,
-      duplicateScopeCounts[registration.podId || ''] || 0,
+      duplicateScopeCounts[normalizePodIdentifier(registration.podId)] || 0,
       duplicateDeviceIdentifierCounts[normalizeDeviceIdentifier(registration.deviceIdentifier)] || 0,
     );
     return {

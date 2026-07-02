@@ -75,6 +75,10 @@ function normalizeDeviceIdentifier(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizePodIdentifier(value: string | null | undefined) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function getDeploymentBlockingReasons(
   registration: DeviceRegistration,
   duplicateScopeCount: number,
@@ -87,7 +91,7 @@ function getDeploymentBlockingReasons(
     reasons.push('Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet.');
   }
 
-  if (!registration.podId) {
+  if (!normalizePodIdentifier(registration.podId)) {
     reasons.push('Pod ownership is missing, so geography and mallam handoff are not trustworthy yet.');
   }
 
@@ -95,7 +99,7 @@ function getDeploymentBlockingReasons(
     reasons.push(`Tablet status is ${registration.status || 'unknown'}, so ops should not ship a fresh learner build from this row.`);
   }
 
-  if (registration.podId && duplicateScopeCount > 1) {
+  if (normalizePodIdentifier(registration.podId) && duplicateScopeCount > 1) {
     reasons.push('This pod currently has multiple active tablets attached. Resolve the duplicate live device scope before provisioning another learner build.');
   }
 
@@ -119,8 +123,9 @@ export function DeviceDeploymentHandoff({
 }) {
   const duplicateScopeCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
-    accumulator[registration.podId] = (accumulator[registration.podId] || 0) + 1;
+    const normalizedPodId = normalizePodIdentifier(registration.podId);
+    if (!normalizedPodId || normalizedStatus !== 'active') return accumulator;
+    accumulator[normalizedPodId] = (accumulator[normalizedPodId] || 0) + 1;
     return accumulator;
   }, {});
   const duplicateDeviceIdentifierCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
@@ -132,8 +137,9 @@ export function DeviceDeploymentHandoff({
   }, {});
   const activePodCollisions = registrations.reduce<Record<string, string[]>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    if (!registration.podId || normalizedStatus !== 'active') return accumulator;
-    accumulator[registration.podId] = [...(accumulator[registration.podId] || []), describeTabletTarget(registration)];
+    const normalizedPodId = normalizePodIdentifier(registration.podId);
+    if (!normalizedPodId || normalizedStatus !== 'active') return accumulator;
+    accumulator[normalizedPodId] = [...(accumulator[normalizedPodId] || []), describeTabletTarget(registration)];
     return accumulator;
   }, {});
   const activeDeviceIdentifierCollisions = registrations.reduce<Record<string, string[]>>((accumulator, registration) => {
@@ -148,7 +154,7 @@ export function DeviceDeploymentHandoff({
     .map((registration) => {
       const deploymentBlockingReasons = getDeploymentBlockingReasons(
         registration,
-        duplicateScopeCounts[registration.podId || ''] || 0,
+        duplicateScopeCounts[normalizePodIdentifier(registration.podId)] || 0,
         duplicateDeviceIdentifierCounts[normalizeDeviceIdentifier(registration.deviceIdentifier)] || 0,
       );
       return {
@@ -175,12 +181,15 @@ export function DeviceDeploymentHandoff({
   const blockedRegistrations = prioritized.filter((entry) => !entry.rolloutReady);
   const readyRegistrations = prioritized.filter((entry) => entry.rolloutReady);
   const missingDeviceIdentifierCount = blockedRegistrations.filter((entry) => !normalizeDeviceIdentifier(entry.registration.deviceIdentifier)).length;
-  const missingPodCount = blockedRegistrations.filter((entry) => !entry.registration.podId).length;
+  const missingPodCount = blockedRegistrations.filter((entry) => !normalizePodIdentifier(entry.registration.podId)).length;
   const nonActiveCount = blockedRegistrations.filter((entry) => String(entry.registration.status || '').trim().toLowerCase() !== 'active').length;
   const duplicateScopePodCount = new Set(
     blockedRegistrations
-      .filter((entry) => entry.registration.podId && (duplicateScopeCounts[entry.registration.podId || ''] || 0) > 1)
-      .map((entry) => entry.registration.podId || '')
+      .filter((entry) => {
+        const normalizedPodId = normalizePodIdentifier(entry.registration.podId);
+        return normalizedPodId && (duplicateScopeCounts[normalizedPodId] || 0) > 1;
+      })
+      .map((entry) => normalizePodIdentifier(entry.registration.podId))
       .filter(Boolean),
   ).size;
   const duplicateDeviceIdentifierCount = new Set(
@@ -248,8 +257,9 @@ export function DeviceDeploymentHandoff({
           const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
           const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
           const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
-          const podCollisionPeers = registration.podId
-            ? (activePodCollisions[registration.podId] || []).filter((candidate) => candidate !== describeTabletTarget(registration))
+          const normalizedPodId = normalizePodIdentifier(registration.podId);
+          const podCollisionPeers = normalizedPodId
+            ? (activePodCollisions[normalizedPodId] || []).filter((candidate) => candidate !== describeTabletTarget(registration))
             : [];
           const deviceIdentifierCollisionPeers = normalizeDeviceIdentifier(registration.deviceIdentifier)
             ? (activeDeviceIdentifierCollisions[normalizeDeviceIdentifier(registration.deviceIdentifier)] || [])

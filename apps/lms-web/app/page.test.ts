@@ -518,8 +518,8 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
-    /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
-    'duplicate live scope should only count active tablets in the handoff UI',
+    /const normalizedPodId = normalizePodIdentifier\(registration\.podId\);[\s\S]*if \(!normalizedPodId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'duplicate live scope should normalize pod ids first so case or whitespace drift does not sneak through the handoff UI',
   );
   assert.match(
     deviceDeploymentHandoffSource,
@@ -623,8 +623,13 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHelperSource,
-    /if \(!registration\.podId \|\| normalizedStatus !== 'active'\) return accumulator;/,
-    'shared rollout readiness helper should only count active tablets in duplicate live scope',
+    /const normalizedPodId = normalizePodIdentifier\(registration\.podId\);[\s\S]*if \(!normalizedPodId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'shared rollout readiness helper should normalize pod ids before counting active duplicate live scope',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /function normalizePodIdentifier\(value: string \| null \| undefined\)/,
+    'shared rollout readiness helper should normalize pod ids the same way it normalizes device identifiers',
   );
   assert.match(
     deviceDeploymentHelperSource,
