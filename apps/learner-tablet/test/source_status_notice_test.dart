@@ -745,6 +745,19 @@ void main() {
     );
   });
 
+  test('compact home trust banner prioritizes sync trust blockers over registration blockers', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('final compactWarning = criticalSyncBlocker ??'),
+    );
+    expect(
+      source,
+      contains("(registrationBlocked != null\n            ? '\$registrationBlocked Fix backend reachability first.'"),
+    );
+  });
+
   test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
     final source = File('lib/main.dart').readAsStringSync();
 

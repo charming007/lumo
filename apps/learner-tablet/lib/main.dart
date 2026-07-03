@@ -2493,10 +2493,10 @@ class _HomeTrustBanner extends StatelessWidget {
       );
     }
 
-    final compactWarning = registrationBlocked != null
-        ? '$registrationBlocked Fix backend reachability first.'
-        : criticalSyncBlocker ??
-            (assignmentGapCount == 1
+    final compactWarning = criticalSyncBlocker ??
+        (registrationBlocked != null
+            ? '$registrationBlocked Fix backend reachability first.'
+            : assignmentGapCount == 1
                 ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
                 : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
 
