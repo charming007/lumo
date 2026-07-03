@@ -87,6 +87,10 @@ function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
   );
 }
 
+function describeApiTarget() {
+  return API_BASE_DIAGNOSTIC.configuredApiBase ?? API_BASE;
+}
+
 export default async function DevicesPage({ searchParams }: { searchParams?: Promise<{ message?: string }> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
@@ -137,6 +141,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
 
   const registrations = registrationsResult.status === 'fulfilled' ? registrationsResult.value : [];
   const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const apiTarget = describeApiTarget();
   const failedSources = [
     registrationsResult.status === 'rejected' ? 'device registrations' : null,
     podsResult.status === 'rejected' ? 'pods' : null,
@@ -247,7 +252,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
-      {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check / before provisioning learner builds.`, 'error') : null}
+      {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check the dashboard blocker stack at / before provisioning learner builds.`, 'error') : null}
       {hasZeroTabletRegistry ? (
         <div style={{ marginBottom: 16, padding: '18px 20px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FCA5A5', display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gap: 6 }}>
@@ -267,7 +272,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
         </div>
       ) : null}
 
-      <DeviceDeploymentHandoff registrations={registrations} apiBase={API_BASE} />
+      <DeviceDeploymentHandoff registrations={registrations} apiBase={apiTarget} />
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[
