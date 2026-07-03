@@ -410,6 +410,21 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
+    /Tablet deployment handoff is blocked because every registered tablet is missing at least one rollout requirement\./,
+    'dashboard should escalate the all-blocked tablet state into an explicit deployment blocker instead of burying it in the handoff table',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Top blockers: \{deviceDeploymentReadiness\.blockingSummary\.slice\(0, 3\)\.map\(\(entry\) => `\$\{entry\.count\} \$\{entry\.label\}`\)\.join\(', '\)\}\./,
+    'dashboard should summarize the top rollout blocker counts when every registered tablet is blocked',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Repair tablet records/,
+    'dashboard should keep a direct repair CTA when every registered tablet is blocked',
+  );
+  assert.match(
+    dashboardPageSource,
     /<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>\s*Register first tablet\s*<\/Link>/,
     'dashboard should give zero-tablet rollout blockers a direct CTA into device registration',
   );
@@ -640,6 +655,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHelperSource,
     /if \(normalizeDeviceIdentifier\(registration\.deviceIdentifier\) && duplicateDeviceIdentifierCount > 1\) reasons\.push\('duplicate-device-identifier'\);/,
     'shared rollout readiness helper should block duplicate live tablet identifiers before the dashboard reports a rollout-ready registration',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /const blockingSummary = Object\.entries\(blockingReasonCounts\)/,
+    'shared rollout readiness helper should expose a blocker summary so the dashboard can call out why every tablet is blocked without making ops infer it from the table',
   );
 });
 

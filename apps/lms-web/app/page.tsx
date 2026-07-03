@@ -1108,6 +1108,30 @@ export default async function HomePage() {
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: 14 }}>
+                  {!deviceDeploymentReadiness.hasRolloutReadyRegistration ? (
+                    <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA', display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Learner app deployment blocker</div>
+                        <strong style={{ color: '#7F1D1D', fontSize: 18 }}>Tablet deployment handoff is blocked because every registered tablet is missing at least one rollout requirement.</strong>
+                        <div style={{ color: '#991B1B', lineHeight: 1.6 }}>
+                          The dashboard should not make operators dig through the handoff table to notice that no learner build can ship. Top blockers: {deviceDeploymentReadiness.blockingSummary.slice(0, 3).map((entry) => `${entry.count} ${entry.label}`).join(', ')}.
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {deviceDeploymentReadiness.blockingSummary.slice(0, 3).map((entry) => (
+                          <Pill key={entry.reason} label={`${entry.count} ${entry.label}`} tone="#FFF7ED" text="#9A3412" />
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <Link href="/devices" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
+                          Repair tablet records
+                        </Link>
+                        <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5', padding: '10px 12px' }}>
+                          Check deployment settings
+                        </Link>
+                      </div>
+                    </div>
+                  ) : null}
                   <div style={{ padding: '16px 18px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'grid', gap: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                       <div style={{ display: 'grid', gap: 6 }}>

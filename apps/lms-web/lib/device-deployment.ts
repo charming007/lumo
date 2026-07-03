@@ -60,9 +60,31 @@ export function getDeviceDeploymentReadiness(registrations: DeviceRegistration[]
       rolloutReady: blockingReasons.length === 0,
     };
   });
+  const blockingReasonLabels: Record<string, string> = {
+    'missing-device-identifier': 'missing device ID',
+    'missing-pod': 'missing pod owner',
+    'non-active-status': 'inactive tablet status',
+    'duplicate-live-scope': 'duplicate live pod scope',
+    'duplicate-device-identifier': 'duplicate device ID',
+  };
+  const blockingReasonCounts = annotated.reduce<Record<string, number>>((accumulator, entry) => {
+    if (entry.rolloutReady) return accumulator;
+    entry.blockingReasons.forEach((reason) => {
+      accumulator[reason] = (accumulator[reason] || 0) + 1;
+    });
+    return accumulator;
+  }, {});
+  const blockingSummary = Object.entries(blockingReasonCounts)
+    .map(([reason, count]) => ({
+      reason,
+      count,
+      label: blockingReasonLabels[reason] ?? reason,
+    }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 
   return {
     annotated,
+    blockingSummary,
     hasRolloutReadyRegistration: annotated.some((entry) => entry.rolloutReady),
     rolloutReadyCount: annotated.filter((entry) => entry.rolloutReady).length,
     blockedCount: annotated.filter((entry) => !entry.rolloutReady).length,
