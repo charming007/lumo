@@ -88,5 +88,9 @@ export function getDeviceDeploymentReadiness(registrations: DeviceRegistration[]
     hasRolloutReadyRegistration: annotated.some((entry) => entry.rolloutReady),
     rolloutReadyCount: annotated.filter((entry) => entry.rolloutReady).length,
     blockedCount: annotated.filter((entry) => !entry.rolloutReady).length,
+    duplicateLiveScopeCount: blockingReasonCounts['duplicate-live-scope'] || 0,
+    duplicateDeviceIdentifierCount: blockingReasonCounts['duplicate-device-identifier'] || 0,
+    hasDuplicateLiveScope: Boolean(blockingReasonCounts['duplicate-live-scope']),
+    hasDuplicateDeviceIdentifiers: Boolean(blockingReasonCounts['duplicate-device-identifier']),
   };
 }

@@ -412,7 +412,9 @@ export default async function HomePage() {
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
   const hasDeviceDeploymentGap = deviceRegistrationsResult.status === 'rejected'
     || !deviceDeploymentReadiness
-    || !deviceDeploymentReadiness.hasRolloutReadyRegistration;
+    || !deviceDeploymentReadiness.hasRolloutReadyRegistration
+    || deviceDeploymentReadiness.hasDuplicateLiveScope
+    || deviceDeploymentReadiness.hasDuplicateDeviceIdentifiers;
   const healthyFeedCount = Math.max(totalDashboardFeedCount - failedSources.length, 0);
 
   const readyLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready');
@@ -538,7 +540,11 @@ export default async function HomePage() {
         : hasDeviceDeploymentGap
           ? deviceRegistrationsResult.status === 'rejected'
             ? 'The dashboard cannot load device registrations from the live API, so it cannot honestly tell ops which learner tablet is safe to target. Shipping from a blind rollout handoff is how the wrong device identifier ends up blessed as a production build.'
-            : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
+            : deviceDeploymentReadiness?.hasDuplicateLiveScope
+              ? 'Multiple active tablets are still attached to the same live pod scope. The dashboard should not pretend learner rollout is deployable while pod-targeted provisioning is ambiguous.'
+              : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
+                ? 'The live registry still contains duplicate active device identifiers. Until each learner tablet proves a unique backend identity, the dashboard should not pose as a safe learner deployment handoff.'
+                : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
         : hasReleaseGraphMismatch
           ? modules.length > 0 && lessons.length === 0
             ? 'The release feeds answered, but the curriculum graph is impossible: live modules claim lesson coverage while the lessons feed came back empty. Treat that as a stale or partial backend, not a real blocker board.'
@@ -559,7 +565,7 @@ export default async function HomePage() {
             : hasCriticalAssetOpsGap
               ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
               : hasDeviceDeploymentGap
-                ? 'The admin landing page also blocks when learner rollout handoff is blind or has no safe tablet target.'
+                ? 'The admin landing page also blocks when learner rollout handoff is blind, colliding, or has no safe tablet target.'
                 : hasReleaseGraphMismatch
                   ? 'The admin landing page also blocks when the curriculum release graph contradicts itself.'
                   : hasEmptyReleaseBoard
@@ -576,7 +582,11 @@ export default async function HomePage() {
               : hasDeviceDeploymentGap
                 ? deviceRegistrationsResult.status === 'rejected'
                   ? 'Deployment blocker: learner rollout targeting is blind.'
-                  : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
+                  : deviceDeploymentReadiness?.hasDuplicateLiveScope
+                    ? 'Deployment blocker: duplicate active tablet scope is still live.'
+                    : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
+                      ? 'Deployment blocker: duplicate active device identifiers are still live.'
+                      : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
                 : hasReleaseGraphMismatch
                   ? 'Deployment blocker: curriculum release graph is internally contradictory.'
                   : hasEmptyReleaseBoard
@@ -615,8 +625,8 @@ export default async function HomePage() {
                 ]
             : hasDeviceDeploymentGap
               ? [
-                  'The root dashboard now doubles as learner rollout handoff. If the tablet registry is blind or every tablet is blocked, the front door should say so plainly instead of burying it halfway down the page.',
-                  'Learner build provisioning depends on a real device identifier, active tablet status, and a unique live pod scope. Missing any of that makes deployment handoff fiction.',
+                  'The root dashboard now doubles as learner rollout handoff. If the tablet registry is blind, every tablet is blocked, or active tablet scope is colliding, the front door should say so plainly instead of burying it halfway down the page.',
+                  'Learner build provisioning depends on a real device identifier, active tablet status, a unique live pod scope, and a unique active device identifier. Missing any of that makes deployment handoff fiction.',
                   'A loud rollout blocker is safer than letting ops cargo-cult a bundle from the wrong row just because the rest of the dashboard looked green.',
                 ]
               : hasReleaseGraphMismatch
@@ -670,8 +680,8 @@ export default async function HomePage() {
               ? [
                   {
                     surface: 'Learner rollout handoff',
-                    expected: 'At least one tablet registration is active, uniquely scoped, and safe to target for learner builds',
-                    failure: 'Dashboard still looks deployable even though rollout targeting is blind or every tablet is blocked',
+                    expected: 'At least one tablet registration is active, uniquely scoped, uniquely identified, and safe to target for learner builds',
+                    failure: 'Dashboard still looks deployable even though rollout targeting is blind, colliding, or every tablet is blocked',
                   },
                   {
                     surface: 'Provisioning bundle source',
@@ -681,7 +691,7 @@ export default async function HomePage() {
                   {
                     surface: 'Cross-check routes',
                     expected: '/devices and the dashboard handoff agree on the safe rollout tablet after cleanup',
-                    failure: 'Dashboard implies learner deployment is ready while device scope or assignment cleanup is still pending',
+                    failure: 'Dashboard implies learner deployment is ready while device scope, device identity, or assignment cleanup is still pending',
                   },
                 ]
             : [
@@ -739,8 +749,8 @@ export default async function HomePage() {
               ? [
                   { label: 'Frontend build', value: buildSignature.summary },
                   { label: 'Current API target', value: apiTarget },
-                  { label: 'Failing area', value: deviceRegistrationsResult.status === 'rejected' ? 'device registrations feed' : 'rollout-ready tablet coverage' },
-                  { label: 'Operator action', value: deviceRegistrationsResult.status === 'rejected' ? 'Restore the device registration feed before handing off a learner build bundle' : 'Register or repair at least one active, uniquely scoped tablet before trusting learner deployment handoff' },
+                  { label: 'Failing area', value: deviceRegistrationsResult.status === 'rejected' ? 'device registrations feed' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'duplicate active tablet scope' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'duplicate active device identifiers' : 'rollout-ready tablet coverage' },
+                  { label: 'Operator action', value: deviceRegistrationsResult.status === 'rejected' ? 'Restore the device registration feed before handing off a learner build bundle' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'Resolve duplicate active pod assignments before trusting learner deployment handoff' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'Repair duplicate active device identifiers before trusting learner deployment handoff' : 'Register or repair at least one active, uniquely scoped tablet before trusting learner deployment handoff' },
                   { label: 'Cross-check', value: 'Verify /devices and the dashboard tablet handoff agree on the safe rollout target after cleanup' },
                 ]
             : [

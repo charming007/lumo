@@ -32,7 +32,7 @@ test('blocks the dashboard when release-readiness feeds resolve cleanly but retu
   assert.equal(shouldBlockDashboardPage({ ...healthy, hasEmptyReleaseBoard: true }), true);
 });
 
-test('blocks the dashboard when learner deployment handoff is blind or has no rollout-ready tablet', () => {
+test('blocks the dashboard when learner deployment handoff is blind, colliding, or has no rollout-ready tablet', () => {
   assert.equal(shouldBlockDashboardPage({ ...healthy, hasDeviceDeploymentGap: true }), true);
 });
 

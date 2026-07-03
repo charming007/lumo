@@ -408,8 +408,8 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
-    /const hasDeviceDeploymentGap = deviceRegistrationsResult\.status === 'rejected'[\s\S]*!deviceDeploymentReadiness\.hasRolloutReadyRegistration;/,
-    'dashboard should treat blind or zero-ready learner rollout handoff as a top-level deployment gap',
+    /const hasDeviceDeploymentGap = deviceRegistrationsResult\.status === 'rejected'[\s\S]*!deviceDeploymentReadiness\.hasRolloutReadyRegistration[\s\S]*deviceDeploymentReadiness\.hasDuplicateLiveScope[\s\S]*deviceDeploymentReadiness\.hasDuplicateDeviceIdentifiers;/,
+    'dashboard should treat blind, colliding, or zero-ready learner rollout handoff as a top-level deployment gap',
   );
   assert.match(
     dashboardPageSource,
@@ -418,7 +418,7 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
-    /Only tablets with a real pod owner, active status, and no duplicate live scope should get a learner release bundle\./,
+    /Learner build provisioning depends on a real device identifier, active tablet status, a unique live pod scope, and a unique active device identifier\./,
     'dashboard should explain the rollout-safety rules instead of making operators infer them',
   );
   assert.match(
@@ -440,6 +440,16 @@ test('dashboard surfaces learner app deployment handoff from live device registr
     dashboardPageSource,
     /Tablet deployment handoff is blocked because every registered tablet is missing at least one rollout requirement\./,
     'dashboard should escalate the all-blocked tablet state into an explicit deployment blocker instead of burying it in the handoff table',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: duplicate active tablet scope is still live\./,
+    'dashboard should hard-block learner rollout when active tablet scope is colliding',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: duplicate active device identifiers are still live\./,
+    'dashboard should hard-block learner rollout when active device identifiers are colliding',
   );
   assert.match(
     dashboardPageSource,
@@ -688,6 +698,16 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHelperSource,
     /const blockingSummary = Object\.entries\(blockingReasonCounts\)/,
     'shared rollout readiness helper should expose a blocker summary so the dashboard can call out why every tablet is blocked without making ops infer it from the table',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /hasDuplicateLiveScope: Boolean\(blockingReasonCounts\['duplicate-live-scope'\]\)/,
+    'shared rollout readiness helper should expose duplicate active pod-scope state so the dashboard can hard-block ambiguous learner rollout handoff',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /hasDuplicateDeviceIdentifiers: Boolean\(blockingReasonCounts\['duplicate-device-identifier'\]\)/,
+    'shared rollout readiness helper should expose duplicate active device-identifier state so the dashboard can hard-block ambiguous learner rollout handoff',
   );
 });
 
