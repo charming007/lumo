@@ -12,6 +12,7 @@ const String kConfiguredApiBaseUrl = String.fromEnvironment(
   'LUMO_API_BASE_URL',
   defaultValue: kDefaultProductionApiBaseUrl,
 );
+const bool kTabletReleaseBuild = bool.fromEnvironment('dart.vm.product');
 
 class TutorVoiceClip {
   final Uint8List audioBytes;
@@ -115,13 +116,49 @@ class LumoApiClient {
   String? get invalidProductionBaseUrlReason =>
       productionBaseUrlIssue(baseUrl, hasExplicitConfig: _hasExplicitBaseUrl);
 
+  static String? publicMediaUrlIssue(
+    String rawUrl, {
+    bool isReleaseBuild = kTabletReleaseBuild,
+  }) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) {
+      return 'Media URL is empty.';
+    }
+
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+      return 'Media URL is not a valid absolute URL. Current value: $rawUrl';
+    }
+
+    final scheme = parsed.scheme.toLowerCase();
+    final hostname = parsed.host.toLowerCase();
+    final looksLocal = hostname == 'localhost' ||
+        hostname == '127.0.0.1' ||
+        hostname == '0.0.0.0' ||
+        hostname.endsWith('.local');
+
+    if (scheme != 'http' && scheme != 'https') {
+      return 'Media URL must use http or https. Current value: $trimmed';
+    }
+
+    if (looksLocal) {
+      return 'Media URL points at $hostname, which is not a production-safe asset origin for learner tablets.';
+    }
+
+    if (isReleaseBuild && scheme != 'https') {
+      return 'Media URL must use https in release builds. Current value: $trimmed';
+    }
+
+    return null;
+  }
+
   Uri? resolvePublicUri(String rawPath) {
     final trimmed = rawPath.trim();
     if (trimmed.isEmpty) return null;
 
     final absolute = Uri.tryParse(trimmed);
     if (absolute != null && absolute.hasScheme) {
-      return absolute;
+      return publicMediaUrlIssue(absolute.toString()) == null ? absolute : null;
     }
 
     final baseUri = Uri.tryParse(baseUrl);
@@ -130,7 +167,8 @@ class LumoApiClient {
     }
 
     final normalizedPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
-    return baseUri.resolve(normalizedPath);
+    final resolved = baseUri.resolve(normalizedPath);
+    return publicMediaUrlIssue(resolved.toString()) == null ? resolved : null;
   }
 
   static List<String> _stripApiSuffix(List<String> segments) {
@@ -446,9 +484,13 @@ class LumoApiClient {
     _ensureOk(response, 'load lesson asset $trimmed', uri);
     final decoded = _decodeObject(response.body,
         action: 'load lesson asset $trimmed', uri: uri);
+    final rawFileUrl = decoded['fileUrl']?.toString();
+    final sanitizedFileUrl =
+        rawFileUrl == null ? null : resolvePublicUri(rawFileUrl)?.toString();
+
     return LessonAssetRecord(
       id: decoded['id']?.toString() ?? trimmed,
-      fileUrl: decoded['fileUrl']?.toString(),
+      fileUrl: sanitizedFileUrl,
     );
   }
 

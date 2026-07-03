@@ -268,9 +268,12 @@ void main() {
       );
     });
 
-    test('resolvePublicUri upgrades backend-relative media paths to absolute urls', () {
+    test(
+        'resolvePublicUri upgrades backend-relative media paths to absolute urls',
+        () {
       final client = LumoApiClient(
-        baseUrl: 'https://lumo-api-production-303a.up.railway.app/api/v1/learner-app/bootstrap',
+        baseUrl:
+            'https://lumo-api-production-303a.up.railway.app/api/v1/learner-app/bootstrap',
       );
 
       expect(
@@ -284,12 +287,51 @@ void main() {
     });
 
     test('resolvePublicUri leaves absolute urls untouched', () {
-      final client = LumoApiClient(baseUrl: 'https://lumo-api-production-303a.up.railway.app');
+      final client = LumoApiClient(
+          baseUrl: 'https://lumo-api-production-303a.up.railway.app');
 
       expect(
-        client.resolvePublicUri('https://cdn.example.com/audio/clip.mp3')?.toString(),
+        client
+            .resolvePublicUri('https://cdn.example.com/audio/clip.mp3')
+            ?.toString(),
         'https://cdn.example.com/audio/clip.mp3',
       );
+    });
+
+    test('rejects unsafe absolute media origins and schemes', () {
+      final client = LumoApiClient(
+        baseUrl: 'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      expect(client.resolvePublicUri('file:///tmp/clip.mp3'), isNull);
+      expect(client.resolvePublicUri('data:audio/mpeg;base64,AAAA'), isNull);
+      expect(
+          client.resolvePublicUri('https://localhost/audio/clip.mp3'), isNull);
+      expect(client.resolvePublicUri('http://127.0.0.1:4000/audio/clip.mp3'),
+          isNull);
+    });
+
+    test('sanitizes backend asset file urls through the same public-uri guard',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/assets/lesson-audio-1');
+          return http.Response(
+            jsonEncode({
+              'id': 'lesson-audio-1',
+              'fileUrl': 'file:///tmp/unsafe-audio.mp3',
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      final asset = await client.fetchLessonAsset('lesson-audio-1');
+
+      expect(asset, isNotNull);
+      expect(asset!.fileUrl, isNull);
     });
   });
 
