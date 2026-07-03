@@ -506,6 +506,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /flutter build appbundle --release/,
+    'learner Android App Bundle provisioning bundle should use the real Flutter release build command',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /function buildAndroidSigningEnvTemplate\(\)/,
     'device deployment handoff should expose a reusable Android signing template instead of assuming APK signing is magically configured',
   );
@@ -521,6 +526,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /Copy Android App Bundle provisioning command/,
+    'handoff should keep a copyable Android App Bundle command beside the APK path for release operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /LUMO_ANDROID_STORE_FILE/,
     'handoff should surface the Android signing env contract used by the learner release build',
   );
@@ -528,6 +538,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHandoffSource,
     /Copy signing env template/,
     'handoff should keep the signing env template copyable for deployment operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /# Required for flutter build apk --release or flutter build appbundle --release/,
+    'handoff should make it explicit that the signing env contract covers both APK and App Bundle release builds',
   );
   assert.match(
     deviceDeploymentHandoffSource,

@@ -34,11 +34,13 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
   return probe.toString();
 }
 
-function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk') {
+function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle') {
   const normalizedApiBase = normalizeBaseUrl(apiBase);
   const buildCommand = buildTarget === 'web'
     ? 'flutter build web --release'
-    : 'flutter build apk --release';
+    : buildTarget === 'appbundle'
+      ? 'flutter build appbundle --release'
+      : 'flutter build apk --release';
 
   return [
     'cd apps/learner-tablet',
@@ -61,7 +63,7 @@ function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
 
 function buildAndroidSigningEnvTemplate() {
   return [
-    '# Required for flutter build apk --release',
+    '# Required for flutter build apk --release or flutter build appbundle --release',
     'export LUMO_ANDROID_STORE_FILE=/absolute/path/to/release-keystore.jks',
     'export LUMO_ANDROID_STORE_PASSWORD=replace-with-real-store-password',
     'export LUMO_ANDROID_KEY_ALIAS=replace-with-real-key-alias',
@@ -259,6 +261,7 @@ export function DeviceDeploymentHandoff({
           const bootstrapProbe = buildBootstrapProbe(apiBase, registration.deviceIdentifier);
           const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
           const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
+          const releaseAppBundleCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'appbundle');
           const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
           const normalizedPodId = normalizePodIdentifier(registration.podId);
           const podCollisionPeers = normalizedPodId
@@ -305,6 +308,7 @@ export function DeviceDeploymentHandoff({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
                   <CopyableTextCard eyebrow="Learner release build" title="Copy web provisioning command" text={releaseWebCommand} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Learner release build" title="Copy APK provisioning command" text={releaseApkCommand} tone="white" border={tone.border} />
+                  <CopyableTextCard eyebrow="Learner release build" title="Copy Android App Bundle provisioning command" text={releaseAppBundleCommand} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy bootstrap probe" text={bootstrapProbe} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy curl smoke test" text={bootstrapCurl} tone="white" border={tone.border} />
                 </div>
