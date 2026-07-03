@@ -653,6 +653,12 @@ class LumoAppState {
   String get operatorHealthLabel {
     if (isBootstrapping) return 'Checking backend';
     if (isSyncingEvents) return 'Sync in progress';
+    if (criticalSyncTrustBlockerReason != null) {
+      return 'Sync trust blocked';
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      return 'Registration sync blocked';
+    }
     if (backendError != null &&
         usingFallbackData &&
         !hasOfflineSnapshotPayload) {
@@ -671,6 +677,12 @@ class LumoAppState {
   String get backendStatusLabel {
     if (isBootstrapping) return 'Connecting to backend…';
     if (isSyncingEvents) return 'Syncing learner activity…';
+    if (criticalSyncTrustBlockerReason != null) {
+      return 'Backend connected • sync trust blocked';
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      return 'Backend connected • registration sync blocked';
+    }
     if (backendError != null && usingFallbackData) {
       return 'Offline seed fallback';
     }

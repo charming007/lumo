@@ -740,9 +740,47 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.text('Backend connected • sync trust blocked'),
+      findsOneWidget,
+    );
+    expect(find.text('Sync trust blocked'), findsOneWidget);
+    expect(
       find.text('Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.'),
       findsNothing,
     );
+  });
+
+  test('operator labels stop pretending healthy backend trust during sync blockers', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event';
+    addTearDown(state.dispose);
+
+    expect(state.backendStatusLabel, 'Backend connected • sync trust blocked');
+    expect(state.operatorHealthLabel, 'Sync trust blocked');
+  });
+
+  test('operator labels escalate pending local registration sync over healthy backend copy', () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    expect(
+      state.backendStatusLabel,
+      'Backend connected • registration sync blocked',
+    );
+    expect(state.operatorHealthLabel, 'Registration sync blocked');
   });
 
   test('compact home trust banner prioritizes sync trust blockers over registration blockers', () {

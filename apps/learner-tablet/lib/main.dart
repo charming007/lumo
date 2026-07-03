@@ -2499,6 +2499,33 @@ class _HomeTrustBanner extends StatelessWidget {
             : assignmentGapCount == 1
                 ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
                 : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
+    final compactStatusTone = criticalSyncBlocker != null
+        ? (
+            background: const Color(0xFFFFF7ED),
+            border: const Color(0xFFFED7AA),
+            accent: const Color(0xFF9A3412),
+            icon: Icons.sync_problem_rounded,
+          )
+        : hasPriorityWarning
+            ? (
+                background: const Color(0xFFFFFBEB),
+                border: const Color(0xFFFDE68A),
+                accent: const Color(0xFF92400E),
+                icon: Icons.warning_amber_rounded,
+              )
+            : state.usingFallbackData
+                ? (
+                    background: const Color(0xFFFFF7ED),
+                    border: const Color(0xFFFED7AA),
+                    accent: const Color(0xFF9A3412),
+                    icon: Icons.cloud_off_rounded,
+                  )
+                : (
+                    background: const Color(0xFFF0FDF4),
+                    border: const Color(0xFFBBF7D0),
+                    accent: const Color(0xFF166534),
+                    icon: Icons.cloud_done_rounded,
+                  );
 
     return Container(
       width: double.infinity,
@@ -2558,15 +2585,9 @@ class _HomeTrustBanner extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: state.usingFallbackData
-                    ? const Color(0xFFFFF7ED)
-                    : const Color(0xFFF0FDF4),
+                color: compactStatusTone.background,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: state.usingFallbackData
-                      ? const Color(0xFFFED7AA)
-                      : const Color(0xFFBBF7D0),
-                ),
+                border: Border.all(color: compactStatusTone.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2575,12 +2596,8 @@ class _HomeTrustBanner extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        state.usingFallbackData
-                            ? Icons.cloud_off_rounded
-                            : Icons.cloud_done_rounded,
-                        color: state.usingFallbackData
-                            ? const Color(0xFF9A3412)
-                            : const Color(0xFF166534),
+                        compactStatusTone.icon,
+                        color: compactStatusTone.accent,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2590,9 +2607,7 @@ class _HomeTrustBanner extends StatelessWidget {
                             Text(
                               state.backendStatusLabel,
                               style: TextStyle(
-                                color: state.usingFallbackData
-                                    ? const Color(0xFF9A3412)
-                                    : const Color(0xFF166534),
+                                color: compactStatusTone.accent,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -2616,30 +2631,24 @@ class _HomeTrustBanner extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.72),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: state.usingFallbackData
-                            ? const Color(0xFFFED7AA)
-                            : const Color(0xFFBBF7D0),
-                      ),
+                      border: Border.all(color: compactStatusTone.border),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          Icons.schedule_rounded,
+                          criticalSyncBlocker != null
+                              ? Icons.sync_problem_rounded
+                              : Icons.schedule_rounded,
                           size: 18,
-                          color: state.usingFallbackData
-                              ? const Color(0xFF9A3412)
-                              : const Color(0xFF166534),
+                          color: compactStatusTone.accent,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             state.trustedSyncHeadline,
                             style: TextStyle(
-                              color: state.usingFallbackData
-                                  ? const Color(0xFF9A3412)
-                                  : const Color(0xFF166534),
+                              color: compactStatusTone.accent,
                               fontWeight: FontWeight.w800,
                               height: 1.35,
                             ),
