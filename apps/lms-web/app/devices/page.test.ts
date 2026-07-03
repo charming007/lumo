@@ -18,9 +18,14 @@ test('devices page hard-blocks when the registry or pod feeds degrade', () => {
   assert.match(devicesPageSource, /Pod linkage is the source of truth for tablet ownership and rollout geography\./, 'devices page should explain why missing pod data is deployment-blocking');
 });
 
-test('devices page still keeps an honest empty-state warning once feeds recover', () => {
+test('devices page treats a zero-tablet registry as an explicit rollout blocker once feeds recover', () => {
   assert.match(devicesPageSource, /Promise\.allSettled\(\[/, 'devices page should use Promise.allSettled for feed recovery');
-  assert.match(devicesPageSource, /No tablet registrations are loading right now\./, 'devices page should keep the honest empty-state warning');
+  assert.match(devicesPageSource, /const hasZeroTabletRegistry = !registrations\.length;/, 'devices page should centralize the zero-tablet blocker state');
+  assert.match(devicesPageSource, /Deployment blocker: learner rollout handoff has zero registered tablets\./, 'devices page should call out a zero-tablet fleet as a deployment blocker instead of a harmless warning');
+  assert.match(devicesPageSource, /Until at least one real learner tablet is registered, pod-linked, and visible here, this route should not read as a clean deployment console\./, 'devices page should explain why an empty registry is not a clean rollout signal');
+  assert.match(devicesPageSource, /buttonLabel="Register first tablet"/, 'devices page should give zero-tablet fleets a direct recovery action');
+  assert.match(devicesPageSource, /<Link href="\/settings" style=\{\{ display: 'inline-flex'/, 'devices page should keep deployment-settings recovery one click away for empty fleets');
+  assert.match(devicesPageSource, /No device registrations yet\. Treat that as a rollout blocker until the first real learner tablet is registered and tied to a pod\./, 'devices directory empty state should reinforce that zero tablets is still a blocker');
 });
 
 test('devices page rollout coverage metrics stay honest about active tablets only', () => {

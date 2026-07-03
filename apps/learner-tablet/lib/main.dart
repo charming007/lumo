@@ -2770,11 +2770,12 @@ class _HomeTrustBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      registrationBlocked != null
-                          ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
-                          : assignmentGapCount == 1
-                              ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                              : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                      criticalSyncBlocker ??
+                          (registrationBlocked != null
+                              ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
+                              : assignmentGapCount == 1
+                                  ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                                  : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CreateDeviceRegistrationForm, DeleteDeviceRegistrationForm } from '../../components/admin-forms';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
@@ -203,6 +204,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   const missingIdentifierCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('missing-device-identifier')).length;
   const missingPodCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('missing-pod')).length;
   const inactiveBlockingCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('non-active-status')).length;
+  const hasZeroTabletRegistry = !registrations.length;
 
   const rolloutProvisioningBlocked = !deviceDeploymentReadiness.hasRolloutReadyRegistration || duplicateActivePodCount || duplicateDeviceIdentifierCount;
   const rolloutBlockerHeadline = !deviceDeploymentReadiness.hasRolloutReadyRegistration
@@ -246,7 +248,24 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
     >
       <FeedbackBanner message={query?.message} />
       {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check / before provisioning learner builds.`, 'error') : null}
-      {!registrations.length ? routeAlert('No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the rollout has not started yet. Verify the pod registry before calling the fleet clean.', 'warning') : null}
+      {hasZeroTabletRegistry ? (
+        <div style={{ marginBottom: 16, padding: '18px 20px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FCA5A5', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <strong style={{ color: '#991B1B', fontSize: 18 }}>Deployment blocker: learner rollout handoff has zero registered tablets.</strong>
+            <div style={{ color: '#991B1B', lineHeight: 1.7 }}>
+              No tablet registrations are loading right now. That might be a truly empty fleet, but it can also mean the rollout has not started yet. Until at least one real learner tablet is registered, pod-linked, and visible here, this route should not read as a clean deployment console.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <ModalLauncher buttonLabel="Register first tablet" title="Register tablet" description="Register the first learner tablet so rollout handoff stops being hypothetical." eyebrow="Device admin" triggerStyle={{ background: '#991B1B', color: 'white', border: '1px solid #991B1B', boxShadow: 'none', padding: '10px 14px', borderRadius: 12, fontSize: 13 }}>
+              <CreateDeviceRegistrationForm pods={pods} />
+            </ModalLauncher>
+            <Link href="/settings" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontWeight: 800, borderRadius: 12, padding: '10px 14px', background: '#ffffff', color: '#991B1B', border: '1px solid #FCA5A5' }}>
+              Check deployment settings
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <DeviceDeploymentHandoff registrations={registrations} apiBase={API_BASE} />
 
@@ -328,7 +347,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
             </div>
           </>
         ) : (
-          <div style={{ color: '#64748b' }}>No device registrations yet.</div>
+          <div style={{ color: '#64748b', lineHeight: 1.6 }}>No device registrations yet. Treat that as a rollout blocker until the first real learner tablet is registered and tied to a pod.</div>
         )}
       </AdminDirectory>
     </PageShell>

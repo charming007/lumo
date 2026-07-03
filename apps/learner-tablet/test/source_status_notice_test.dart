@@ -758,6 +758,19 @@ void main() {
     );
   });
 
+  test('full home trust banner prioritizes sync trust blockers over registration blockers', () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('Text(\n                      criticalSyncBlocker ??'),
+    );
+    expect(
+      source,
+      contains("(registrationBlocked != null\n                              ? '\$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'"),
+    );
+  });
+
   test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
     final source = File('lib/main.dart').readAsStringSync();
 
