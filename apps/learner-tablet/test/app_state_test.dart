@@ -3453,12 +3453,60 @@ void main() {
 
       expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
       expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+      expect(
+        state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
+        'session-1',
+      );
       expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
       expect(
         state.runtimeSessionSummaryForLearner(beginner),
         contains('Resume ready'),
       );
     });
+
+    test(
+      'keeps alias-matched resumable backend sessions attached to the learner lesson',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-alias-progress',
+            sessionId: 'session-alias-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: 'tap-to-act-runtime-alias',
+            lessonTitle: lesson.title,
+            moduleId: 'math-runtime-alias',
+            moduleTitle: lesson.subject,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Resume the learner on the same live step.',
+            currentStepIndex: 2,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
+        expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
+          'session-alias-progress',
+        );
+        expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          contains('Resume ready'),
+        );
+      },
+    );
 
     test(
       'ignores stale in-progress runtime session when a newer completion exists for the same lesson',

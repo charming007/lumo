@@ -1963,7 +1963,7 @@ class LumoAppState {
   ) {
     final session = resumableRuntimeSessionForLearner(learner);
     if (session == null) return null;
-    return session.lessonId == lesson.id ? session : null;
+    return _sessionMatchesLesson(session, lesson) ? session : null;
   }
 
   bool _sessionMatchesLesson(
