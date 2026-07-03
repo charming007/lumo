@@ -124,18 +124,13 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
+    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
+    'dashboard should recover scoped assessment subjects through the shared normalized subject matcher',
+  );
+  assert.match(
+    dashboardPageSource,
     /buttonLabel="Add assessment gate"/,
     'dashboard should expose an explicit add-assessment-gate action on the top blocker card',
-  );
-  assert.match(
-    dashboardPageSource,
-    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjectId[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
-    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and a normalized matched subject scope',
-  );
-  assert.match(
-    dashboardPageSource,
-    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
-    'dashboard should reuse the shared normalized subject matcher before offering inline assessment creation',
   );
   assert.match(
     dashboardPageSource,
@@ -154,13 +149,23 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;/,
-    'dashboard should gate the inline assessment action on the shared recovered subject id instead of the raw blocker payload',
+    /const scopedAssessmentSubject = topReleaseBlocker[\s\S]*findSubjectByContext\(subjects, \{[\s\S]*subjectId: topReleaseBlockerRecoveredSubjectId \|\| topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlockerAssessmentSubject\?\.name \?\? topReleaseBlocker\.subjectName,[\s\S]*\}\) \?\? topReleaseBlockerAssessmentSubject[\s\S]*: null;/,
+    'dashboard should keep the inline gate scope pinned to the recovered blocker subject before falling back to the earlier normalized match',
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject[\s\S]*\? \[topReleaseBlockerAssessmentSubject\][\s\S]*: \[\];/,
-    'dashboard should only pass the single normalized matched subject into inline assessment creation instead of the full subject list',
+    /const topReleaseBlockerAssessmentSubjectId = scopedAssessmentSubject\?\.id\.trim\(\) \?\? topReleaseBlockerRecoveredSubjectId;/,
+    'dashboard should gate the inline assessment action on the scoped recovered subject id instead of the raw blocker payload',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject \? \[scopedAssessmentSubject\] : \[];/,
+    'dashboard should keep the top-blocker assessment modal pinned to one normalized recovered subject instead of falling back to an unscoped subject list when ids drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*scopedAssessmentSubject[\s\S]*topReleaseBlockerAssessmentSubjectId[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
+    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and a normalized matched subject scope',
   );
   assert.match(
     dashboardPageSource,
@@ -245,6 +250,29 @@ test('dashboard blocker-state content CTAs land on the blocker board instead of 
     dashboardPageSource,
     /\{ label: 'Check content blockers', href: '\/content\?view=blocked'/,
     'release-readiness blocker docs should point at the blocker board specifically',
+  );
+});
+
+test('dashboard hard-blocks when release feeds resolve but the curriculum graph is internally contradictory', () => {
+  assert.match(
+    dashboardPageSource,
+    /const hasReleaseGraphMismatch = releaseFeedsAvailable && \([\s\S]*modules\.length > 0 && lessons\.length === 0 && modules\.some\(\(module\) => module\.lessonCount > 0\)[\s\S]*modules\.length === 0 && \(lessons\.length > 0 \|\| assessments\.length > 0\)[\s\S]*\);/,
+    'dashboard should detect impossible curriculum release graphs instead of treating them as honest authoring blockers',
+  );
+  assert.match(
+    dashboardPageSource,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
+    'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: curriculum release graph is internally contradictory\./,
+    'dashboard should call out contradictory curriculum data as an explicit deployment blocker',
+  );
+  assert.match(
+    dashboardPageSource,
+    /live modules claim lesson coverage while the lessons feed came back empty/,
+    'dashboard should explain the stale-backend failure mode when modules resolve but lessons disappear',
   );
 });
 

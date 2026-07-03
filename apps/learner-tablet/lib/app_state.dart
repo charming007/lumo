@@ -3137,9 +3137,32 @@ class LumoAppState {
       );
     }
 
+    if (resumeFrom != null && !_sessionMatchesLesson(resumeFrom, lesson)) {
+      throw StateError(
+        'Cannot resume lesson ${lesson.id} for ${learner.name} because the saved runtime session belongs to a different lesson payload.',
+      );
+    }
+
     if (resumeFrom == null && lessonCompletedForLearner(learner, lesson)) {
       throw StateError(
         'Cannot open lesson ${lesson.id} for ${learner.name} because it is no longer learner-safe to launch on this tablet.',
+      );
+    }
+
+    final lessonIsTrackedForLaunchGuard = assignedLessons.any(
+      (item) => item.id == lesson.id,
+    );
+    final lessonUsesPublishedLaunchGuard =
+        lesson.status.trim().toLowerCase() == 'published';
+    if (
+      resumeFrom == null &&
+      (_lessonRequiresSyncBeforeStarting(lesson) ||
+          (lessonIsTrackedForLaunchGuard &&
+              lessonUsesPublishedLaunchGuard &&
+              lessonLockedForLearner(learner, lesson)))
+    ) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} for ${learner.name} because it is not currently learner-safe to launch on this tablet.',
       );
     }
 
@@ -5031,6 +5054,11 @@ class LumoAppState {
       final normalizedStatus = session.status.trim().toLowerCase();
       if (normalizedStatus != 'in_progress') continue;
       if (_terminalSessionSupersedesResumableCandidate(session, sessions)) {
+        continue;
+      }
+      final resolvedLesson = lessonForBackendSession(session);
+      if (resolvedLesson == null ||
+          _lessonRequiresSyncBeforeStarting(resolvedLesson)) {
         continue;
       }
       return session;

@@ -4,10 +4,12 @@ export function shouldBlockDashboardPage(params: {
   hasCriticalAssetOpsGap: boolean;
   hasEmptyReleaseBoard: boolean;
   hasDeviceDeploymentGap: boolean;
+  hasReleaseGraphMismatch: boolean;
 }) {
   return params.criticalDashboardFailureCount > 0
     || params.criticalReleaseFailureCount > 0
     || params.hasCriticalAssetOpsGap
     || params.hasEmptyReleaseBoard
-    || params.hasDeviceDeploymentGap;
+    || params.hasDeviceDeploymentGap
+    || params.hasReleaseGraphMismatch;
 }

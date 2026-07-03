@@ -12,6 +12,7 @@ import { getBuildSignature } from '../lib/build-signature';
 import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
 import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
+import { findSubjectByContext } from '../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
 import type { Assignment, Assessment, AssetRuntimeReport, CurriculumModule, DashboardInsight, DashboardSummary, Lesson, Mallam, Subject, WorkboardItem } from '../lib/types';
 import { shouldBlockDashboardPage } from '../lib/dashboard-blockers';
@@ -20,7 +21,6 @@ import { getDeviceDeploymentReadiness } from '../lib/device-deployment';
 import { getDashboardReleaseBlockers } from '../lib/dashboard-release';
 import { buildTopReleaseBlockerBoardHref, resolveTopReleaseBlockerPrimaryHref } from '../lib/dashboard-top-blocker-link';
 import { resolveTopReleaseBlockerCta } from '../lib/dashboard-top-blocker';
-import { findSubjectByContext } from '../lib/module-subject-match';
 import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone } from '../lib/progression-status';
 
 const quickActionStyle = {
@@ -414,16 +414,6 @@ export default async function HomePage() {
     || !deviceDeploymentReadiness
     || !deviceDeploymentReadiness.hasRolloutReadyRegistration;
   const healthyFeedCount = Math.max(totalDashboardFeedCount - failedSources.length, 0);
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap
-    ? 'Blocked'
-    : failedSources.length
-      ? 'Partial live pull'
-      : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap
-    ? { tone: '#FEE2E2', text: '#991B1B' }
-    : failedSources.length
-      ? { tone: '#FEF3C7', text: '#92400E' }
-      : { tone: '#DCFCE7', text: '#166534' };
 
   const readyLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready');
   const watchLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'watch');
@@ -444,6 +434,20 @@ export default async function HomePage() {
   });
   const releaseFeedsAvailable = modulesResult.status === 'fulfilled' && lessonsResult.status === 'fulfilled' && assessmentsResult.status === 'fulfilled' && subjectsResult.status === 'fulfilled';
   const hasEmptyReleaseBoard = releaseFeedsAvailable && modules.length === 0 && lessons.length === 0 && assessments.length === 0;
+  const hasReleaseGraphMismatch = releaseFeedsAvailable && (
+    (modules.length > 0 && lessons.length === 0 && modules.some((module) => module.lessonCount > 0))
+    || (modules.length === 0 && (lessons.length > 0 || assessments.length > 0))
+  );
+  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
+    ? 'Blocked'
+    : failedSources.length
+      ? 'Partial live pull'
+      : 'Fresh live pull';
+  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
+    ? { tone: '#FEE2E2', text: '#991B1B' }
+    : failedSources.length
+      ? { tone: '#FEF3C7', text: '#92400E' }
+      : { tone: '#DCFCE7', text: '#166534' };
   const draftModuleBlockers = releaseBlockers.filter((module) => module.isDraftModule);
   const missingGateBlockers = releaseBlockers.filter((module) => !module.hasAssessmentGate);
   const liveMissingGateBlockers = missingGateBlockers.filter((module) => !module.isDraftModule);
@@ -483,15 +487,20 @@ export default async function HomePage() {
     canLaunchLessonStudio: canLaunchTopReleaseLessonCreate,
   });
   const topReleaseBlockerPrimaryLabel = topReleaseBlockerCta?.label ?? 'Open exact blocker';
-  const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;
-  const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject
-    ? [topReleaseBlockerAssessmentSubject]
-    : [];
+  const scopedAssessmentSubject = topReleaseBlocker
+    ? findSubjectByContext(subjects, {
+        subjectId: topReleaseBlockerRecoveredSubjectId || topReleaseBlocker.subjectId,
+        subjectName: topReleaseBlockerAssessmentSubject?.name ?? topReleaseBlocker.subjectName,
+      }) ?? topReleaseBlockerAssessmentSubject
+    : null;
+  const topReleaseBlockerAssessmentSubjectId = scopedAssessmentSubject?.id.trim() ?? topReleaseBlockerRecoveredSubjectId;
+  const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject ? [scopedAssessmentSubject] : [];
   const canInlineTopReleaseBlockerAssessmentCreate = Boolean(
     topReleaseBlocker
     && !topReleaseBlocker.hasAssessmentGate
     && topReleaseBlocker.hasAuthoringContext
     && subjectsResult.status === 'fulfilled'
+    && scopedAssessmentSubject
     && topReleaseBlockerAssessmentSubjectId
     && topReleaseBlockerAssessmentSubjects.length,
   );
@@ -502,6 +511,7 @@ export default async function HomePage() {
     hasCriticalAssetOpsGap,
     hasEmptyReleaseBoard,
     hasDeviceDeploymentGap,
+    hasReleaseGraphMismatch,
   })) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
@@ -529,11 +539,15 @@ export default async function HomePage() {
           ? deviceRegistrationsResult.status === 'rejected'
             ? 'The dashboard cannot load device registrations from the live API, so it cannot honestly tell ops which learner tablet is safe to target. Shipping from a blind rollout handoff is how the wrong device identifier ends up blessed as a production build.'
             : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
-        : !modules.length && !lessons.length && !assessments.length
-          ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
-          : criticalReleaseFailures.length === 1
-            ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
-            : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
+        : hasReleaseGraphMismatch
+          ? modules.length > 0 && lessons.length === 0
+            ? 'The release feeds answered, but the curriculum graph is impossible: live modules claim lesson coverage while the lessons feed came back empty. Treat that as a stale or partial backend, not a real blocker board.'
+            : 'The release feeds answered, but the curriculum graph is impossible: lessons or assessments appeared without any modules. Treat that as a stale or partial backend, not a real blocker board.'
+          : !modules.length && !lessons.length && !assessments.length
+            ? 'The dashboard release-readiness lane cannot see modules, lessons, or assessment gates from the live API. Keeping the root route up would turn the “content release blockers” section into polished fiction.'
+            : criticalReleaseFailures.length === 1
+              ? `The ${criticalReleaseFailures[0]} feed failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`
+              : `The ${criticalReleaseFailures.join(', ')} feeds failed to load from the live API. That leaves the dashboard unable to verify release blockers honestly.`;
 
     return (
       <DeploymentBlockerCard
@@ -546,9 +560,11 @@ export default async function HomePage() {
               ? 'The admin landing page also blocks when asset operations are unavailable or visibly broken.'
               : hasDeviceDeploymentGap
                 ? 'The admin landing page also blocks when learner rollout handoff is blind or has no safe tablet target.'
-                : hasEmptyReleaseBoard
-                  ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
-                  : 'The admin landing page also blocks when release-readiness feeds are blind.'}
+                : hasReleaseGraphMismatch
+                  ? 'The admin landing page also blocks when the curriculum release graph contradicts itself.'
+                  : hasEmptyReleaseBoard
+                    ? 'The admin landing page also blocks when release-readiness feeds answer with an empty curriculum board.'
+                    : 'The admin landing page also blocks when release-readiness feeds are blind.'}
         blockerHeadline={backendTargetDiagnosis
           ? 'Deployment blocker: LMS is pointed at a stale or wrong backend host.'
           : hasCriticalDashboardGap
@@ -561,9 +577,11 @@ export default async function HomePage() {
                 ? deviceRegistrationsResult.status === 'rejected'
                   ? 'Deployment blocker: learner rollout targeting is blind.'
                   : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
-                : hasEmptyReleaseBoard
-                  ? 'Deployment blocker: release board came back empty.'
-                  : 'Deployment blocker: release-readiness feeds are degraded.'}
+                : hasReleaseGraphMismatch
+                  ? 'Deployment blocker: curriculum release graph is internally contradictory.'
+                  : hasEmptyReleaseBoard
+                    ? 'Deployment blocker: release board came back empty.'
+                    : 'Deployment blocker: release-readiness feeds are degraded.'}
         blockerDetail={(
           <>
             {blockerDetail} {failedSources.length
@@ -601,11 +619,17 @@ export default async function HomePage() {
                   'Learner build provisioning depends on a real device identifier, active tablet status, and a unique live pod scope. Missing any of that makes deployment handoff fiction.',
                   'A loud rollout blocker is safer than letting ops cargo-cult a bundle from the wrong row just because the rest of the dashboard looked green.',
                 ]
-            : [
-                'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, assessment gates, or subjects are blind, the route should not imply anyone can trust the release board.',
-                'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Missing subjects means subject context can drift just enough to turn blocker CTAs into confident nonsense.',
-                'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
-              ]}
+              : hasReleaseGraphMismatch
+                ? [
+                    'If the release feeds return an impossible graph, the dashboard should not reframe backend drift as curriculum work the content team suddenly forgot to do.',
+                    'Operators use the front door to decide whether a blocker board reflects real authoring gaps or a broken deployment. Contradictory curriculum data destroys that trust line.',
+                    'A loud blocker is safer than a dashboard that mistakes stale backend evidence for honest release triage.',
+                  ]
+                : [
+                    'The dashboard now carries content release-readiness decisions, not just top-line learner metrics. If modules, lesson gaps, assessment gates, or subjects are blind, the route should not imply anyone can trust the release board.',
+                    'The “content release blockers” section drives assignment freeze, missing-lesson follow-up, and progression-gate checks. Missing subjects means subject context can drift just enough to turn blocker CTAs into confident nonsense.',
+                    'A blocker is safer than a dashboard that looks live while the release gate inputs are missing.',
+                  ]}
         verificationItems={hasCriticalDashboardGap
           ? [
               {
@@ -722,8 +746,17 @@ export default async function HomePage() {
             : [
                 { label: 'Frontend build', value: buildSignature.summary },
                 { label: 'Current API target', value: apiTarget },
-                { label: hasEmptyReleaseBoard ? 'Observed state' : 'Failing feeds', value: hasEmptyReleaseBoard ? 'modules, lessons, and assessments all resolved empty' : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments' },
-                { label: 'Operator action', value: hasEmptyReleaseBoard ? 'Verify the API is serving real curriculum, lesson, and assessment data before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
+                {
+                  label: hasEmptyReleaseBoard || hasReleaseGraphMismatch ? 'Observed state' : 'Failing feeds',
+                  value: hasEmptyReleaseBoard
+                    ? 'modules, lessons, and assessments all resolved empty'
+                    : hasReleaseGraphMismatch
+                      ? modules.length > 0 && lessons.length === 0
+                        ? 'modules resolved with lesson expectations, but the lessons feed resolved empty'
+                        : 'lessons or assessments resolved without any modules'
+                      : criticalReleaseFailures.length ? criticalReleaseFailures.join(', ') : 'modules, lessons, assessments',
+                },
+                { label: 'Operator action', value: hasEmptyReleaseBoard || hasReleaseGraphMismatch ? 'Verify the API is serving a coherent curriculum, lesson, and assessment graph before trusting the dashboard release board' : 'Restore curriculum + release-gate feeds before trusting the dashboard release board' },
                 { label: 'Cross-check', value: 'Verify /content, /assignments, and /settings after the upstream fix lands' },
               ]}
         docs={backendTargetDiagnosis
