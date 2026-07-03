@@ -211,7 +211,11 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   const inactiveBlockingCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('non-active-status')).length;
   const hasZeroTabletRegistry = !registrations.length;
 
-  const rolloutProvisioningBlocked = !deviceDeploymentReadiness.hasRolloutReadyRegistration || duplicateActivePodCount || duplicateDeviceIdentifierCount;
+  const rolloutProvisioningBlocked = Boolean(
+    !deviceDeploymentReadiness.hasRolloutReadyRegistration
+    || duplicateActivePodCount > 0
+    || duplicateDeviceIdentifierCount > 0,
+  );
   const rolloutBlockerHeadline = !deviceDeploymentReadiness.hasRolloutReadyRegistration
     ? 'Deployment blocker: learner rollout handoff has no safe tablet target.'
     : duplicateActivePodCount
@@ -272,7 +276,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
         </div>
       ) : null}
 
-      <DeviceDeploymentHandoff registrations={registrations} apiBase={apiTarget} />
+      <DeviceDeploymentHandoff registrations={registrations} apiBase={apiTarget} provisioningBlocked={rolloutProvisioningBlocked} />
 
       <section style={{ ...responsiveGrid(220), marginBottom: 20 }}>
         {[

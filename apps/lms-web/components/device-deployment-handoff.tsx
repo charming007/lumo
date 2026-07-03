@@ -117,9 +117,11 @@ function describeTabletTarget(registration: DeviceRegistration) {
 export function DeviceDeploymentHandoff({
   registrations,
   apiBase,
+  provisioningBlocked = false,
 }: {
   registrations: DeviceRegistration[];
   apiBase: string;
+  provisioningBlocked?: boolean;
 }) {
   const duplicateScopeCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
@@ -248,6 +250,7 @@ export function DeviceDeploymentHandoff({
 
       <div style={{ display: 'grid', gap: 16 }}>
         {prioritized.map(({ registration, deploymentBlockingReasons, rolloutReady }) => {
+          const rowProvisioningBlocked = provisioningBlocked || !rolloutReady;
           const tone = toneForStatus(registration.status);
           const geography = registration.stateName && registration.localGovernmentName
             ? `${registration.stateName} / ${registration.localGovernmentName}`
@@ -292,13 +295,13 @@ export function DeviceDeploymentHandoff({
                   <div style={{ padding: '10px 12px', borderRadius: 999, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, fontWeight: 800 }}>
                     {registration.status || 'Unknown'}
                   </div>
-                  <div style={{ padding: '8px 10px', borderRadius: 999, background: rolloutReady ? '#ECFDF5' : '#FFF7ED', border: `1px solid ${rolloutReady ? '#BBF7D0' : '#FED7AA'}`, color: rolloutReady ? '#166534' : '#9A3412', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                    {rolloutReady ? 'Rollout-ready bundle' : 'Provisioning blocked'}
+                  <div style={{ padding: '8px 10px', borderRadius: 999, background: rowProvisioningBlocked ? '#FFF7ED' : '#ECFDF5', border: `1px solid ${rowProvisioningBlocked ? '#FED7AA' : '#BBF7D0'}`, color: rowProvisioningBlocked ? '#9A3412' : '#166534', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    {rowProvisioningBlocked ? 'Provisioning blocked' : 'Rollout-ready bundle'}
                   </div>
                 </div>
               </div>
 
-              {rolloutReady ? (
+              {!rowProvisioningBlocked ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
                   <CopyableTextCard eyebrow="Learner release build" title="Copy web provisioning command" text={releaseWebCommand} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Learner release build" title="Copy APK provisioning command" text={releaseApkCommand} tone="white" border={tone.border} />
@@ -308,6 +311,11 @@ export function DeviceDeploymentHandoff({
               ) : (
                 <div style={{ display: 'grid', gap: 14 }}>
                   <div style={{ display: 'grid', gap: 10 }}>
+                    {provisioningBlocked && rolloutReady ? (
+                      <div style={{ padding: '12px 14px', borderRadius: 14, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, lineHeight: 1.6 }}>
+                        Route-level rollout blocking is still active elsewhere in the fleet, so this tablet stays diagnostics-only until duplicate scope or device-ID collisions are repaired.
+                      </div>
+                    ) : null}
                     {deploymentBlockingReasons.map((reason) => (
                       <div key={reason} style={{ padding: '12px 14px', borderRadius: 14, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, lineHeight: 1.6 }}>
                         {reason}

@@ -666,6 +666,26 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /provisioningBlocked = false/,
+    'device deployment handoff should accept a route-level provisioning block so pages can keep diagnostics visible without exposing live build bundles',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const rowProvisioningBlocked = provisioningBlocked \|\| !rolloutReady;/,
+    'device deployment handoff should treat route-level rollout blocks as stronger than per-row readiness',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Route-level rollout blocking is still active elsewhere in the fleet, so this tablet stays diagnostics-only until duplicate scope or device-ID collisions are repaired\./,
+    'handoff should explain why an otherwise-clean tablet is still diagnostics-only when the fleet has a global rollout blocker',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /\{rolloutReady \? \(/,
+    'handoff should stop keying build-bundle visibility off per-row readiness alone once route-level rollout blocking exists',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /multiple active tablets attached/,
     'handoff blocker copy should describe duplicate active tablets explicitly',
   );

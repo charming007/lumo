@@ -52,7 +52,7 @@ test('devices page keeps rollout blockers repairable while still blocking provis
   assert.match(devicesPageSource, /const apiTarget = describeApiTarget\(\);/, 'devices page should centralize the live rollout API target before rendering diagnostics');
   assert.match(devicesPageSource, /const duplicateDeviceIdentifierCount = new Set\(/, 'devices page should count duplicated active device identifiers before trusting rollout handoff');
   assert.match(devicesPageSource, /const missingIdentifierCount = deviceDeploymentReadiness\.annotated\.filter\(\(entry\) => entry\.blockingReasons\.includes\('missing-device-identifier'\)\)\.length;/, 'devices page should surface blank device identifiers in blocker diagnostics');
-  assert.match(devicesPageSource, /const rolloutProvisioningBlocked = !deviceDeploymentReadiness\.hasRolloutReadyRegistration \|\| duplicateActivePodCount \|\| duplicateDeviceIdentifierCount;/, 'devices page should keep an explicit provisioning-blocked state for unsafe rollout handoff');
+  assert.match(devicesPageSource, /const rolloutProvisioningBlocked = Boolean\([\s\S]*!deviceDeploymentReadiness\.hasRolloutReadyRegistration[\s\S]*duplicateActivePodCount > 0[\s\S]*duplicateDeviceIdentifierCount > 0,[\s\S]*\);/, 'devices page should keep an explicit provisioning-blocked state for unsafe rollout handoff');
   assert.match(devicesPageSource, /Deployment blocker: learner rollout handoff has no safe tablet target\./, 'devices page should explicitly block when no learner tablet is safe to provision');
   assert.match(devicesPageSource, /Deployment blocker: duplicate active tablet scope is still live\./, 'devices page should explicitly block duplicate live pod scope before rollout provisioning');
   assert.match(devicesPageSource, /Deployment blocker: duplicate active device identifiers are still live\./, 'devices page should explicitly block duplicate live tablet identifiers before rollout provisioning');
@@ -60,7 +60,7 @@ test('devices page keeps rollout blockers repairable while still blocking provis
   assert.match(devicesPageSource, /Resolve duplicate active pod assignments so each live rollout scope points at exactly one active learner tablet\./, 'devices page should give operators a concrete repair action for duplicate live pod scope');
   assert.match(devicesPageSource, /Repair duplicated live device identifiers before generating any learner release bundle\./, 'devices page should give operators a concrete repair action for duplicate live device identifiers');
   assert.match(devicesPageSource, /Cross-check the dashboard blocker stack at \/ before provisioning learner builds\./, 'devices page should require an explicit dashboard blocker-stack cross-check before learner provisioning');
-  assert.match(devicesPageSource, /<DeviceDeploymentHandoff registrations=\{registrations\} apiBase=\{apiTarget\} \/>/, 'devices page should keep the copyable rollout diagnostics pinned to the resolved live API target while provisioning is blocked');
+  assert.match(devicesPageSource, /<DeviceDeploymentHandoff registrations=\{registrations\} apiBase=\{apiTarget\} provisioningBlocked=\{rolloutProvisioningBlocked\} \/>/, 'devices page should keep the rollout handoff pinned to the resolved live API target and mounted in diagnostics-only mode while provisioning is blocked');
 });
 
 test('devices page keeps blank identifier records repairable instead of rendering empty labels', () => {
