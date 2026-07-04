@@ -561,6 +561,16 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /\['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'\]\.includes\(normalized\)/,
+    'handoff should normalize real-world iPadOS labels instead of only accepting a perfect ios enum from the registry',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /\['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'\]\.includes\(normalized\)/,
+    'handoff should normalize real-world kiosk labels before deciding which learner deployment command to expose',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /LUMO_ANDROID_STORE_FILE/,
     'handoff should surface the Android signing env contract used by the learner release build',
   );

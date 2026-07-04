@@ -35,14 +35,21 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
 }
 
 function normalizePlatform(value: string | null | undefined) {
-  return String(value || '').trim().toLowerCase();
+  const normalized = String(value || '').trim().toLowerCase();
+
+  if (['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'].includes(normalized)) return 'ios';
+  if (['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'].includes(normalized)) return 'web';
+  if (['android', 'android tablet'].includes(normalized)) return 'android';
+
+  return normalized;
 }
 
 function platformLabel(platform: string | null | undefined) {
   const normalized = normalizePlatform(platform);
   if (normalized === 'ios') return 'iPadOS';
   if (normalized === 'web') return 'Web kiosk';
-  return 'Android';
+  if (normalized === 'android') return 'Android';
+  return String(platform || 'Unknown platform').trim() || 'Unknown platform';
 }
 
 function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle' | 'ipa') {
