@@ -1044,6 +1044,7 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   var sawLocked = false;
   var sawWaitingForSync = false;
   var sawSyncIncomplete = false;
+  var sawBackendSyncPending = false;
   for (final candidate in eligibleLearners) {
     if (!state.learnerMatchesTabletPod(candidate)) continue;
     final availability = learnerLessonAvailability(
@@ -1063,6 +1064,10 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     }
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       sawLocked = true;
+      continue;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.backendSyncPending) {
+      sawBackendSyncPending = true;
       continue;
     }
     if (availability.label == 'Waiting for sync') {
@@ -1088,6 +1093,9 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   }
   if (sawSyncIncomplete) {
     return _SubjectLessonAvailabilitySummary.syncIncomplete;
+  }
+  if (sawBackendSyncPending) {
+    return _SubjectLessonAvailabilitySummary.backendSyncPending;
   }
   return _SubjectLessonAvailabilitySummary.unavailable;
 }
