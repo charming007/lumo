@@ -767,6 +767,61 @@ void main() {
   );
 
   testWidgets(
+    'recovered sessions stay blocked behind hard deployment identity blockers even with a trusted offline snapshot',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      state.restoredFromPersistence = true;
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+      state.snapshotTrustedFromLiveBootstrap = true;
+      state.lastSyncedAt = DateTime.now().subtract(
+        const Duration(minutes: 5),
+      );
+      state.snapshotSavedAt = DateTime.now().subtract(
+        const Duration(minutes: 10),
+      );
+      state.snapshotSourceBaseUrl = state.backendBaseUrl;
+      state.learners
+        ..clear()
+        ..addAll(learnerProfilesSeed);
+      state.modules
+        ..clear()
+        ..addAll(learningModules);
+      state.assignedLessons
+        ..clear()
+        ..addAll(assignedLessonsSeed);
+
+      expect(state.hasUsableOfflineSnapshot, isTrue);
+      expect(state.hasHardDeploymentIdentityBlocker, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: () {}),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LessonSessionPage), findsNothing);
+      expect(find.text('Back'), findsNothing);
+      expect(find.text('Student list'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'reopens the completion page when a finished lesson is restored',
     (tester) async {
       tester.view.physicalSize = const Size(1600, 1500);

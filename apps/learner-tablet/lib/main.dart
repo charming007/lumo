@@ -159,9 +159,11 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
 
   void _launchRecoveredSessionIfNeeded() {
     final blockedFromRecovery = widget.state.isBootstrapping ||
+        widget.state.shouldBlockProductionDeployment ||
         (widget.state.deploymentBlockerReason != null &&
             widget.state.usingFallbackData &&
-            !widget.state.hasUsableOfflineSnapshot);
+            (!widget.state.hasUsableOfflineSnapshot ||
+                widget.state.hasHardDeploymentIdentityBlocker));
     if (_recoveryLaunchHandled ||
         !widget.state.restoredFromPersistence ||
         blockedFromRecovery) {
