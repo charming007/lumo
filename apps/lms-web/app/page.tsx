@@ -1196,7 +1196,11 @@ export default async function HomePage() {
                       <Pill label={`${deviceRegistrations.length} tablet registration${deviceRegistrations.length === 1 ? '' : 's'}`} tone="#EEF2FF" text="#3730A3" />
                     </div>
                   </div>
-                  <DeviceDeploymentHandoff registrations={deviceRegistrations} apiBase={apiTarget} />
+                  <DeviceDeploymentHandoff
+                    registrations={deviceRegistrations}
+                    apiBase={apiTarget}
+                    provisioningBlocked={hasDeviceDeploymentGap}
+                  />
                 </div>
               )
             ) : sectionAlert('Tablet deployment handoff is blind right now because device registrations failed to load. Do not ship a learner build until the dashboard can prove which device identifier is safe to target.', 'warning')}

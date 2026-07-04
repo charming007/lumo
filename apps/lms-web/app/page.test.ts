@@ -423,8 +423,8 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
-    /<DeviceDeploymentHandoff registrations=\{deviceRegistrations\} apiBase=\{apiTarget\} \/>/,
-    'dashboard should render the copy-paste learner build handoff against the actual dashboard API target',
+    /<DeviceDeploymentHandoff[\s\S]*registrations=\{deviceRegistrations\}[\s\S]*apiBase=\{apiTarget\}[\s\S]*provisioningBlocked=\{hasDeviceDeploymentGap\}[\s\S]*\/>/,
+    'dashboard should render the learner build handoff against the actual dashboard API target and keep fleet-wide rollout blockers from exposing live provisioning bundles',
   );
   assert.match(
     dashboardPageSource,
