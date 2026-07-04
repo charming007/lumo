@@ -993,6 +993,8 @@ void main() {
       expect(find.text('Retry production bootstrap'), findsOneWidget);
       expect(find.text('Open limited offline mode'), findsNothing);
       expect(find.text('Live backend target'), findsOneWidget);
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
       expect(find.text('Bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
@@ -1063,6 +1065,12 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(
+        find.textContaining('<copy-device-identifier-from-lms>'),
+        findsWidgets,
+      );
     },
   );
 
@@ -1108,7 +1116,15 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
-      expect(find.text('tablet-pod-a-007'), findsOneWidget);
+      expect(find.text('tablet-pod-a-007'), findsWidgets);
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(
+        find.textContaining(
+          '--dart-define=LUMO_DEVICE_IDENTIFIER=\'tablet-pod-a-007\'',
+        ),
+        findsOneWidget,
+      );
       expect(
         find.textContaining(
           'Compare this exact identifier against the LMS device record before retrying',
@@ -1148,6 +1164,7 @@ void main() {
       );
 
       expect(find.text('Copy backend target'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap command'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);

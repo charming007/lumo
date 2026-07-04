@@ -316,6 +316,19 @@ String _shellEscapeSingleQuoted(String value) {
   return "'${value.replaceAll("'", "'\\''")}'";
 }
 
+String _buildReleaseRebuildCommand({
+  required String backendBaseUrl,
+  required String deviceIdentifier,
+}) {
+  final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
+  return [
+    'cd apps/learner-tablet',
+    'flutter build appbundle --release',
+    '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
+    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+  ].join(' \\\n');
+}
+
 class LearnerDeploymentBlockerPage extends StatelessWidget {
   const LearnerDeploymentBlockerPage({
     super.key,
@@ -359,6 +372,14 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : 'Not provisioned in this build';
+    final rebuildDeviceIdentifier =
+        deviceIdentifier != null && deviceIdentifier.isNotEmpty
+            ? deviceIdentifier
+            : '<copy-device-identifier-from-lms>';
+    final releaseRebuildCommand = _buildReleaseRebuildCommand(
+      backendBaseUrl: configuredBackend,
+      deviceIdentifier: rebuildDeviceIdentifier,
+    );
     final normalizedBlockerReason = blockerReason.toLowerCase();
     final blockerNeedsDeviceIdentity =
         normalizedBlockerReason.contains('device identifier') ||
@@ -617,6 +638,74 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                       },
                                 icon: const Icon(Icons.copy_all_rounded),
                                 label: const Text('Copy tablet identifier'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: blockerNeedsDeviceIdentity
+                                ? const Color(0xFFFFF7ED)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: blockerNeedsDeviceIdentity
+                                  ? const Color(0xFFFED7AA)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Release rebuild handoff',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                releaseRebuildCommand,
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                blockerMissingProvisionedIdentifier
+                                    ? 'This release needs a rebuild with the exact LMS device identifier before it can ever pass production bootstrap. Copy the command, replace the placeholder identifier if needed, then ship a real signed build instead of retrying the broken one.'
+                                    : blockerRegistrationMismatch
+                                        ? 'If this tablet identity is wrong, rebuild the learner app with the exact LMS device identifier instead of trying random retries on the current install.'
+                                        : 'If release config drift caused this blocker, rebuild from this command so the backend target and tablet identity stay pinned together.',
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () async {
+                                  await ClipboardBridge.copy(
+                                    releaseRebuildCommand,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Copied learner rebuild command.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text('Copy rebuild command'),
                               ),
                             ],
                           ),
