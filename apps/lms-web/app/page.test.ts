@@ -531,6 +531,36 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /function normalizePlatform\(value: string \| null \| undefined\)/,
+    'handoff should normalize tablet platforms before choosing build commands so iPadOS rows stop inheriting Android release copy',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /flutter build ipa --release/,
+    'learner iPadOS provisioning bundle should use the real Flutter IPA release build command',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /iPadOS release signing is a hard deployment blocker/,
+    'handoff should call out missing iPadOS signing/export setup before operators copy a fake Android command for an iPad row',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy iPadOS IPA provisioning command/,
+    'handoff should expose a platform-correct IPA provisioning command for iPadOS tablets',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy iPadOS signing checklist/,
+    'handoff should keep the iPadOS signing/export checklist copyable for release operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /normalizedPlatform === 'ios'/,
+    'handoff should branch on iPadOS rows instead of rendering Android build commands for every tablet',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /LUMO_ANDROID_STORE_FILE/,
     'handoff should surface the Android signing env contract used by the learner release build',
   );

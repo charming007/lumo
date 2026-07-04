@@ -34,13 +34,26 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
   return probe.toString();
 }
 
-function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle') {
+function normalizePlatform(value: string | null | undefined) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function platformLabel(platform: string | null | undefined) {
+  const normalized = normalizePlatform(platform);
+  if (normalized === 'ios') return 'iPadOS';
+  if (normalized === 'web') return 'Web kiosk';
+  return 'Android';
+}
+
+function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle' | 'ipa') {
   const normalizedApiBase = normalizeBaseUrl(apiBase);
   const buildCommand = buildTarget === 'web'
     ? 'flutter build web --release'
     : buildTarget === 'appbundle'
       ? 'flutter build appbundle --release'
-      : 'flutter build apk --release';
+      : buildTarget === 'ipa'
+        ? 'flutter build ipa --release'
+        : 'flutter build apk --release';
 
   return [
     'cd apps/learner-tablet',
@@ -70,6 +83,18 @@ function buildAndroidSigningEnvTemplate() {
     'export LUMO_ANDROID_KEY_PASSWORD=replace-with-real-key-password',
     '',
     '# Or provide the same values in android/key.properties',
+  ].join('\n');
+}
+
+function buildIosSigningChecklist() {
+  return [
+    '# Required for flutter build ipa --release',
+    'open ios/Runner.xcworkspace',
+    '# In Xcode: Runner > Signing & Capabilities',
+    '# - choose the production Apple Developer team',
+    '# - install a valid distribution certificate',
+    '# - install a matching provisioning profile for the bundle id',
+    '# - confirm the archive exports with the production export method',
   ].join('\n');
 }
 
@@ -205,6 +230,8 @@ export function DeviceDeploymentHandoff({
       .map((entry) => normalizeDeviceIdentifier(entry.registration.deviceIdentifier))
       .filter(Boolean),
   ).size;
+  const hasAndroidRegistrations = prioritized.some(({ registration }) => normalizePlatform(registration.platform) === 'android');
+  const hasIosRegistrations = prioritized.some(({ registration }) => normalizePlatform(registration.platform) === 'ios');
 
   return (
     <section style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
@@ -215,17 +242,33 @@ export function DeviceDeploymentHandoff({
         </p>
       </div>
 
-      <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE', display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gap: 6 }}>
-          <strong style={{ color: '#1D4ED8', fontSize: 18 }}>Android release signing is a hard deployment blocker</strong>
-          <div style={{ color: '#1D4ED8', lineHeight: 1.6 }}>
-            <code>flutter build apk --release</code> will fail unless the learner app gets a real release keystore through <code>LUMO_ANDROID_STORE_FILE</code>, <code>LUMO_ANDROID_STORE_PASSWORD</code>, <code>LUMO_ANDROID_KEY_ALIAS</code>, and <code>LUMO_ANDROID_KEY_PASSWORD</code> or the matching <code>android/key.properties</code> file. A rollout bundle without signing is still not a deployable learner build.
+      {hasAndroidRegistrations ? (
+        <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EFF6FF', border: '1px solid #BFDBFE', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <strong style={{ color: '#1D4ED8', fontSize: 18 }}>Android release signing is a hard deployment blocker</strong>
+            <div style={{ color: '#1D4ED8', lineHeight: 1.6 }}>
+              <code>flutter build apk --release</code> will fail unless the learner app gets a real release keystore through <code>LUMO_ANDROID_STORE_FILE</code>, <code>LUMO_ANDROID_STORE_PASSWORD</code>, <code>LUMO_ANDROID_KEY_ALIAS</code>, and <code>LUMO_ANDROID_KEY_PASSWORD</code> or the matching <code>android/key.properties</code> file. A rollout bundle without signing is still not a deployable learner build.
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
+            <CopyableTextCard eyebrow="Android release signing" title="Copy signing env template" text={buildAndroidSigningEnvTemplate()} tone="white" border="#BFDBFE" />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
-          <CopyableTextCard eyebrow="Android release signing" title="Copy signing env template" text={buildAndroidSigningEnvTemplate()} tone="white" border="#BFDBFE" />
+      ) : null}
+
+      {hasIosRegistrations ? (
+        <div style={{ padding: '16px 18px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            <strong style={{ color: '#3730A3', fontSize: 18 }}>iPadOS release signing is a hard deployment blocker</strong>
+            <div style={{ color: '#3730A3', lineHeight: 1.6 }}>
+              <code>flutter build ipa --release</code> is fiction until Xcode has the production Apple Developer team, distribution certificate, and matching provisioning profile for this learner app bundle. If the LMS knows a tablet is iPadOS, the handoff should say that plainly instead of bluffing with Android commands.
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
+            <CopyableTextCard eyebrow="iPadOS release signing" title="Copy iPadOS signing checklist" text={buildIosSigningChecklist()} tone="white" border="#C7D2FE" />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {blockedRegistrations.length ? (
         <div style={{ padding: '16px 18px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA', display: 'grid', gap: 10 }}>
@@ -258,10 +301,13 @@ export function DeviceDeploymentHandoff({
             ? `${registration.stateName} / ${registration.localGovernmentName}`
             : registration.centerName || registration.podLabel || 'Geography pending';
           const deviceLabel = registration.deviceIdentifier || registration.tabletName || 'Device identifier missing';
+          const normalizedPlatform = normalizePlatform(registration.platform);
+          const resolvedPlatformLabel = platformLabel(registration.platform);
           const bootstrapProbe = buildBootstrapProbe(apiBase, registration.deviceIdentifier);
           const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
           const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
           const releaseAppBundleCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'appbundle');
+          const releaseIpaCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'ipa');
           const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
           const normalizedPodId = normalizePodIdentifier(registration.podId);
           const podCollisionPeers = normalizedPodId
@@ -298,6 +344,9 @@ export function DeviceDeploymentHandoff({
                   <div style={{ padding: '10px 12px', borderRadius: 999, background: 'white', border: `1px solid ${tone.border}`, color: tone.accent, fontWeight: 800 }}>
                     {registration.status || 'Unknown'}
                   </div>
+                  <div style={{ padding: '8px 10px', borderRadius: 999, background: '#F8FAFC', border: `1px solid ${tone.border}`, color: tone.accent, fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    {resolvedPlatformLabel}
+                  </div>
                   <div style={{ padding: '8px 10px', borderRadius: 999, background: rowProvisioningBlocked ? '#FFF7ED' : '#ECFDF5', border: `1px solid ${rowProvisioningBlocked ? '#FED7AA' : '#BBF7D0'}`, color: rowProvisioningBlocked ? '#9A3412' : '#166534', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     {rowProvisioningBlocked ? 'Provisioning blocked' : 'Rollout-ready bundle'}
                   </div>
@@ -306,9 +355,18 @@ export function DeviceDeploymentHandoff({
 
               {!rowProvisioningBlocked ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: 14 }}>
-                  <CopyableTextCard eyebrow="Learner release build" title="Copy web provisioning command" text={releaseWebCommand} tone="white" border={tone.border} />
-                  <CopyableTextCard eyebrow="Learner release build" title="Copy APK provisioning command" text={releaseApkCommand} tone="white" border={tone.border} />
-                  <CopyableTextCard eyebrow="Learner release build" title="Copy Android App Bundle provisioning command" text={releaseAppBundleCommand} tone="white" border={tone.border} />
+                  {normalizedPlatform === 'web' ? (
+                    <CopyableTextCard eyebrow="Learner release build" title="Copy web kiosk provisioning command" text={releaseWebCommand} tone="white" border={tone.border} />
+                  ) : null}
+                  {normalizedPlatform === 'android' ? (
+                    <>
+                      <CopyableTextCard eyebrow="Learner release build" title="Copy APK provisioning command" text={releaseApkCommand} tone="white" border={tone.border} />
+                      <CopyableTextCard eyebrow="Learner release build" title="Copy Android App Bundle provisioning command" text={releaseAppBundleCommand} tone="white" border={tone.border} />
+                    </>
+                  ) : null}
+                  {normalizedPlatform === 'ios' ? (
+                    <CopyableTextCard eyebrow="Learner release build" title="Copy iPadOS IPA provisioning command" text={releaseIpaCommand} tone="white" border={tone.border} />
+                  ) : null}
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy bootstrap probe" text={bootstrapProbe} tone="white" border={tone.border} />
                   <CopyableTextCard eyebrow="Bootstrap verification" title="Copy curl smoke test" text={bootstrapCurl} tone="white" border={tone.border} />
                 </div>
