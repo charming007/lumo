@@ -186,7 +186,7 @@ export function SimpleTable({ columns, rows }: { columns: string[]; rows: React.
         </tbody>
       </table>
       <style>{`
-        @media (max-width: 1440px) {
+        @media (max-width: 960px) {
           .simple-table-shell {
             overflow: visible;
             padding: 0;
