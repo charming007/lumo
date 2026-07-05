@@ -36,10 +36,38 @@ function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
 
 function normalizePlatform(value: string | null | undefined) {
   const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return normalized;
 
-  if (['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'].includes(normalized)) return 'ios';
-  if (['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'].includes(normalized)) return 'web';
-  if (['android', 'android tablet'].includes(normalized)) return 'android';
+  const compact = normalized.replace(/[^a-z0-9]+/g, ' ').trim();
+  const tokens = compact.split(/\s+/).filter(Boolean);
+  const hasToken = (target: string) => tokens.includes(target);
+  const containsPhrase = (target: string) => compact.includes(target);
+
+  if (
+    ['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'].includes(normalized)
+    || hasToken('ios')
+    || hasToken('ipados')
+    || containsPhrase('ipad os')
+    || containsPhrase('iphone os')
+    || containsPhrase('ipad')
+    || containsPhrase('iphone')
+  ) return 'ios';
+
+  if (
+    ['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'].includes(normalized)
+    || hasToken('web')
+    || hasToken('browser')
+    || hasToken('chromeos')
+    || containsPhrase('chrome os')
+    || containsPhrase('web kiosk')
+    || containsPhrase('kiosk browser')
+  ) return 'web';
+
+  if (
+    ['android', 'android tablet'].includes(normalized)
+    || hasToken('android')
+    || containsPhrase('android tablet')
+  ) return 'android';
 
   return normalized;
 }

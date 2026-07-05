@@ -562,12 +562,27 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   assert.match(
     deviceDeploymentHandoffSource,
     /\['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'\]\.includes\(normalized\)/,
-    'handoff should normalize real-world iPadOS labels instead of only accepting a perfect ios enum from the registry',
+    'handoff should keep explicit iPadOS aliases normalized before picking release commands',
   );
   assert.match(
     deviceDeploymentHandoffSource,
-    /\['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'\]\.includes\(normalized\)/,
-    'handoff should normalize real-world kiosk labels before deciding which learner deployment command to expose',
+    /const compact = normalized\.replace\(/,
+    'handoff should sanitize noisy platform strings before trying to classify deployment targets',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const tokens = compact\.split\(/,
+    'handoff should tokenize platform metadata so versioned registry labels still map to the right release artifact',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /containsPhrase\('ipad'\)/,
+    'handoff should normalize versioned iPad labels instead of only accepting a perfect ios enum from the registry',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /containsPhrase\('chrome os'\)/,
+    'handoff should normalize noisy kiosk platform labels before deciding which learner deployment command to expose',
   );
   assert.match(
     deviceDeploymentHandoffSource,
