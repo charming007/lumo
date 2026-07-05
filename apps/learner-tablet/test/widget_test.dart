@@ -151,6 +151,49 @@ class _FakeBundledContentLoader extends BundledContentLoader {
 void _noop() {}
 
 void main() {
+  test('release rebuild command matches the deployment target platform', () {
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: true,
+        platform: TargetPlatform.android,
+      ),
+      'flutter build web --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.android,
+      ),
+      'flutter build appbundle --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.iOS,
+      ),
+      'flutter build ipa --release',
+    );
+  });
+
+  test('release rebuild command keeps backend and tablet identity pinned together', () {
+    final command = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: false,
+      platformOverride: TargetPlatform.iOS,
+    );
+
+    expect(command, contains('flutter build ipa --release'));
+    expect(
+      command,
+      contains("--dart-define=LUMO_API_BASE_URL='https://lumo.example.com'"),
+    );
+    expect(
+      command,
+      contains("--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007'"),
+    );
+  });
+
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;

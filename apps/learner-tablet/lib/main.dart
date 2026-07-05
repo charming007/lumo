@@ -316,14 +316,37 @@ String _shellEscapeSingleQuoted(String value) {
   return "'${value.replaceAll("'", "'\\''")}'";
 }
 
-String _buildReleaseRebuildCommand({
+String learnerReleaseBuildCommandForPlatform({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) {
+    return 'flutter build web --release';
+  }
+
+  return switch (platform) {
+    TargetPlatform.iOS => 'flutter build ipa --release',
+    TargetPlatform.android => 'flutter build appbundle --release',
+    TargetPlatform.macOS => 'flutter build web --release',
+    TargetPlatform.windows => 'flutter build web --release',
+    TargetPlatform.linux => 'flutter build web --release',
+    TargetPlatform.fuchsia => 'flutter build web --release',
+  };
+}
+
+String buildReleaseRebuildCommand({
   required String backendBaseUrl,
   required String deviceIdentifier,
+  bool? isWebOverride,
+  TargetPlatform? platformOverride,
 }) {
   final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
   return [
     'cd apps/learner-tablet',
-    'flutter build appbundle --release',
+    learnerReleaseBuildCommandForPlatform(
+      isWeb: isWebOverride ?? kIsWeb,
+      platform: platformOverride ?? defaultTargetPlatform,
+    ),
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
     '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
   ].join(' \\\n');
@@ -376,7 +399,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : '<copy-device-identifier-from-lms>';
-    final releaseRebuildCommand = _buildReleaseRebuildCommand(
+    final releaseRebuildCommand = buildReleaseRebuildCommand(
       backendBaseUrl: configuredBackend,
       deviceIdentifier: rebuildDeviceIdentifier,
     );
