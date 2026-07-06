@@ -173,9 +173,32 @@ void main() {
       ),
       'flutter build ipa --release',
     );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: true,
+        platform: TargetPlatform.iOS,
+      ),
+      'web',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.android,
+      ),
+      'appbundle',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.iOS,
+      ),
+      'ipa',
+    );
   });
 
-  test('release rebuild command keeps backend and tablet identity pinned together', () {
+  test(
+      'release rebuild command keeps backend and tablet identity pinned together',
+      () {
     final command = buildReleaseRebuildCommand(
       backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
       deviceIdentifier: 'tablet-pod-a-007',
@@ -183,6 +206,11 @@ void main() {
       platformOverride: TargetPlatform.iOS,
     );
 
+    expect(
+      command,
+      contains('dart run tool/verify_release_config.dart'),
+    );
+    expect(command, contains("--release-target='ipa'"));
     expect(command, contains('flutter build ipa --release'));
     expect(
       command,

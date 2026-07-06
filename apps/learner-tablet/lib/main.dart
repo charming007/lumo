@@ -334,6 +334,24 @@ String learnerReleaseBuildCommandForPlatform({
   };
 }
 
+String learnerReleaseTargetForPlatform({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) {
+    return 'web';
+  }
+
+  return switch (platform) {
+    TargetPlatform.iOS => 'ipa',
+    TargetPlatform.android => 'appbundle',
+    TargetPlatform.macOS => 'web',
+    TargetPlatform.windows => 'web',
+    TargetPlatform.linux => 'web',
+    TargetPlatform.fuchsia => 'web',
+  };
+}
+
 String buildReleaseRebuildCommand({
   required String backendBaseUrl,
   required String deviceIdentifier,
@@ -341,12 +359,19 @@ String buildReleaseRebuildCommand({
   TargetPlatform? platformOverride,
 }) {
   final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
+  final isWeb = isWebOverride ?? kIsWeb;
+  final platform = platformOverride ?? defaultTargetPlatform;
+  final releaseTarget = learnerReleaseTargetForPlatform(
+    isWeb: isWeb,
+    platform: platform,
+  );
   return [
     'cd apps/learner-tablet',
-    learnerReleaseBuildCommandForPlatform(
-      isWeb: isWebOverride ?? kIsWeb,
-      platform: platformOverride ?? defaultTargetPlatform,
-    ),
+    'dart run tool/verify_release_config.dart',
+    '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
+    '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
+    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+    '&& ${learnerReleaseBuildCommandForPlatform(isWeb: isWeb, platform: platform)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
     '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
   ].join(' \\\n');
@@ -3821,23 +3846,23 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final totalMinutes = learner.estimatedTotalMinutes;
     final totalPoints = learnerMotivationPoints(learner);
     final allAssignedLessons = state.lessonsForLearner(learner);
-    final rankedAssignedLessons =
-        allAssignedLessons.asMap().entries.toList()..sort((left, right) {
-          final leftAvailability = learnerLessonAvailability(
-            state: state,
-            learner: learner,
-            lesson: left.value,
-          );
-          final rightAvailability = learnerLessonAvailability(
-            state: state,
-            learner: learner,
-            lesson: right.value,
-          );
-          if (leftAvailability.canLaunch != rightAvailability.canLaunch) {
-            return leftAvailability.canLaunch ? -1 : 1;
-          }
-          return left.key.compareTo(right.key);
-        });
+    final rankedAssignedLessons = allAssignedLessons.asMap().entries.toList()
+      ..sort((left, right) {
+        final leftAvailability = learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: left.value,
+        );
+        final rightAvailability = learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: right.value,
+        );
+        if (leftAvailability.canLaunch != rightAvailability.canLaunch) {
+          return leftAvailability.canLaunch ? -1 : 1;
+        }
+        return left.key.compareTo(right.key);
+      });
     final assignedLessons =
         rankedAssignedLessons.take(3).map((entry) => entry.value).toList();
     final hiddenAssignedLessonCount =
@@ -4335,27 +4360,28 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                           lessonRequiresSyncBeforeStarting(
                                                             resumeLesson,
                                                           );
-                                                  final blockedLabel =
-                                                      resumeLesson == null
-                                                          ? (session.lessonTitle
-                                                                          ?.trim()
-                                                                          .isNotEmpty ==
-                                                                      true
-                                                              ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                              : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
-                                                          : resumeLesson
-                                                                  .isAssignmentPlaceholder
-                                                              ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
-                                                              : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
+                                                  final blockedLabel = resumeLesson ==
+                                                          null
+                                                      ? (session.lessonTitle
+                                                                  ?.trim()
+                                                                  .isNotEmpty ==
+                                                              true
+                                                          ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                          : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
+                                                      : resumeLesson
+                                                              .isAssignmentPlaceholder
+                                                          ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
+                                                          : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
                                                   return Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment.start,
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       Align(
                                                         alignment: Alignment
                                                             .centerLeft,
-                                                        child:
-                                                            FilledButton.tonalIcon(
+                                                        child: FilledButton
+                                                            .tonalIcon(
                                                           onPressed:
                                                               resumeBlocked
                                                                   ? null
@@ -4390,18 +4416,19 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                       if (resumeBlocked)
                                                         Padding(
                                                           padding:
-                                                              const EdgeInsets.only(
-                                                                top: 10,
-                                                              ),
+                                                              const EdgeInsets
+                                                                  .only(
+                                                            top: 10,
+                                                          ),
                                                           child: Text(
                                                             blockedLabel,
                                                             style:
                                                                 const TextStyle(
-                                                                  color: Color(
-                                                                    0xFF92400E,
-                                                                  ),
-                                                                  height: 1.35,
-                                                                ),
+                                                              color: Color(
+                                                                0xFF92400E,
+                                                              ),
+                                                              height: 1.35,
+                                                            ),
                                                           ),
                                                         ),
                                                     ],

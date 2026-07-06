@@ -212,6 +212,44 @@ void main() {
     });
   });
 
+  group('learnerReleaseBuildConfigIssues', () {
+    test('requires an explicit tablet identity for shippable release builds',
+        () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: '',
+        ),
+        contains(contains('missing LUMO_DEVICE_IDENTIFIER')),
+      );
+    });
+
+    test('requires an explicit backend target even for the canonical host', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: false,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+        ),
+        contains(contains('must set LUMO_API_BASE_URL explicitly')),
+      );
+    });
+
+    test(
+        'accepts a shippable release config when backend and tablet identity are explicit',
+        () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('LumoApiClient.productionBaseUrlIssue', () {
     test(
         'accepts the canonical production host when release config falls back to the built-in default',

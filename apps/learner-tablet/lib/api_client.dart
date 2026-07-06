@@ -14,6 +14,44 @@ const String kConfiguredApiBaseUrl = String.fromEnvironment(
 );
 const bool kTabletReleaseBuild = bool.fromEnvironment('dart.vm.product');
 
+List<String> learnerReleaseBuildConfigIssues({
+  required String rawApiBaseUrl,
+  required bool hasExplicitApiBaseUrl,
+  required String rawDeviceIdentifier,
+  bool includeSeedDemoContent = false,
+}) {
+  final issues = <String>[];
+  if (!includeSeedDemoContent && rawDeviceIdentifier.trim().isEmpty) {
+    issues.add(
+      'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
+    );
+  }
+
+  final trimmedApiBaseUrl = rawApiBaseUrl.trim();
+  if (trimmedApiBaseUrl.isEmpty) {
+    issues.add(
+      'Learner-tablet release build is missing LUMO_API_BASE_URL. Pass the real production learner API host with --dart-define=LUMO_API_BASE_URL=... before shipping a release artifact.',
+    );
+    return issues;
+  }
+
+  if (!hasExplicitApiBaseUrl) {
+    issues.add(
+      'Learner-tablet release build must set LUMO_API_BASE_URL explicitly instead of relying on the baked-in default backend target.',
+    );
+  }
+
+  final apiIssue = LumoApiClient.productionBaseUrlIssue(
+    trimmedApiBaseUrl,
+    hasExplicitConfig: true,
+  );
+  if (apiIssue != null) {
+    issues.add(apiIssue);
+  }
+
+  return issues;
+}
+
 class TutorVoiceClip {
   final Uint8List audioBytes;
   final String contentType;
