@@ -1323,6 +1323,21 @@ export default async function HomePage() {
         ) : (
           <Card title="Full LMS route map" eyebrow="Visible shell">
             <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#991B1B', fontWeight: 800 }}>Pilot deployment warning</div>
+                <strong style={{ marginTop: 6, display: 'block', color: '#7F1D1D', fontSize: 18 }}>Full LMS chrome is visible, but only the pilot control plane should count as a deployment target.</strong>
+                <div style={{ marginTop: 10, color: '#991B1B', lineHeight: 1.6 }}>
+                  The broader LMS shell is useful for internal admin work, not pilot sign-off. If reviewers treat every visible route as equally deployment-ready, the UI is overselling current pilot scope.
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {pilotNavigationItems.map((item) => (
+                    <Pill key={item.id} label={item.label} tone="#FFFFFF" text="#991B1B" />
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, color: '#991B1B', lineHeight: 1.6 }}>
+                  For pilot deployment review, trust Dashboard, Content, Assignments, Progress, and Settings first. Everything else needs explicit operational justification before it should influence go-live decisions.
+                </div>
+              </div>
               <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#64748b', fontWeight: 800 }}>Visible LMS routes</div>
                 <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
