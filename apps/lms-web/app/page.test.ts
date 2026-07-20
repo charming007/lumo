@@ -75,6 +75,21 @@ test('dashboard keeps the pilot route map as the production-safe default and lea
   );
   assert.match(
     dashboardPageSource,
+    /Pilot deployment warning/,
+    'default full-shell dashboard should still warn that the broader LMS chrome is not the same thing as a pilot-safe deployment target',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Full LMS chrome is visible, but only the pilot control plane should count as a deployment target\./,
+    'full-shell route map should call out the deployment-scope risk directly instead of treating every visible route as equally shippable',
+  );
+  assert.match(
+    dashboardPageSource,
+    /For pilot deployment review, trust Dashboard, Content, Assignments, Progress, and Settings first\./,
+    'full-shell route map should still anchor reviewers on the narrow pilot control plane when the broader admin shell is visible',
+  );
+  assert.match(
+    dashboardPageSource,
     /\{PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
     'dashboard should keep rendering the specialist off-shell pills from the shared pilot-nav list',
   );
