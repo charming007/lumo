@@ -1,5 +1,6 @@
 import type { BuildSignature } from '../lib/build-signature';
 import type { describePilotShellRoute } from '../lib/pilot-shell';
+import { PILOT_BLOCKED_ROUTE_LABELS } from '../lib/pilot-nav';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
 type TopbarProps = {
@@ -32,6 +33,17 @@ export function Topbar({
       : pilotRoute?.status === 'blocked'
         ? { label: 'Blocked pilot surface', background: '#EEF2FF', color: '#3730A3' }
         : { label: 'Unclassified route', background: '#E2E8F0', color: '#334155' };
+  const fullShellChip = PILOT_BLOCKED_ROUTE_LABELS.length
+    ? {
+        label: `${PILOT_BLOCKED_ROUTE_LABELS.length} pilot surfaces blocked`,
+        background: '#EEF2FF',
+        color: '#3730A3',
+      }
+    : {
+        label: 'Full LMS shell live',
+        background: '#eefaf1',
+        color: '#2f7a52',
+      };
 
   return (
     <>
@@ -62,8 +74,8 @@ export function Topbar({
               {navStatusChip.label}
             </div>
           ) : (
-            <div className="topbar__meta-chip" style={{ background: '#eefaf1', color: '#2f7a52', padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: '1px solid #d9f0df' }}>
-              Full LMS shell live
+            <div className="topbar__meta-chip" style={{ background: fullShellChip.background, color: fullShellChip.color, padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: `1px solid ${fullShellChip.color === '#2f7a52' ? '#d9f0df' : '#C7D2FE'}` }}>
+              {fullShellChip.label}
             </div>
           )}
           <div className="topbar__meta-chip" style={{ background: '#f5f4ff', color: '#5b56c8', padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: '1px solid #dedcff' }} title={buildSignature.summary}>
