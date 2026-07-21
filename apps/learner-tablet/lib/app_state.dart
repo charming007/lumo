@@ -361,7 +361,7 @@ class LumoAppState {
     final hasVisibleCurriculumShell =
         data.modules.isNotEmpty || data.learners.isNotEmpty;
 
-    if (!hasLearnerVisibleLessons &&
+    if (!hasLaunchableLearnerLesson &&
         !hasLiveAssignments &&
         hasVisibleCurriculumShell) {
       return 'Production bootstrap returned the learner roster and curriculum shell, but zero learner-visible lessons and zero assignments. That tablet would open into a dead-end learner experience.';
@@ -1512,7 +1512,6 @@ class LumoAppState {
     return source
         .where(
           (lesson) =>
-              lesson.steps.isNotEmpty &&
               !_isDeprecatedDemoModule(
                 moduleId: lesson.moduleId,
                 title: lesson.title,

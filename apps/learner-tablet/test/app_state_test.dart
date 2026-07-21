@@ -965,7 +965,7 @@ void main() {
       },
     );
 
-    test('drops backend lessons that have no activity steps', () async {
+    test('keeps backend lessons with no activity steps visible but blocked', () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
@@ -1102,10 +1102,20 @@ void main() {
 
       expect(
         state.assignedLessons.map((lesson) => lesson.id),
-        equals(['english-live']),
+        equals(['english-empty', 'english-live']),
+      );
+      expect(state.hasAssignmentPayloadGaps, isTrue);
+      expect(
+        state.learnerCanOpenLesson(
+          state.learners.first,
+          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-empty'),
+        ),
+        isFalse,
       );
       expect(
-        () => state.startLesson(state.assignedLessons.first),
+        () => state.startLesson(
+          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-live'),
+        ),
         returnsNormally,
       );
       state.dispose();
