@@ -326,7 +326,7 @@ String learnerReleaseBuildCommandForPlatform({
 
   return switch (platform) {
     TargetPlatform.iOS => 'flutter build ipa --release',
-    TargetPlatform.android => 'flutter build appbundle --release',
+    TargetPlatform.android => 'flutter build apk --release',
     TargetPlatform.macOS => 'flutter build macos --release',
     TargetPlatform.windows => 'flutter build windows --release',
     TargetPlatform.linux => 'flutter build linux --release',
@@ -344,7 +344,7 @@ String learnerReleaseTargetForPlatform({
 
   return switch (platform) {
     TargetPlatform.iOS => 'ipa',
-    TargetPlatform.android => 'appbundle',
+    TargetPlatform.android => 'apk',
     TargetPlatform.macOS => 'macos',
     TargetPlatform.windows => 'windows',
     TargetPlatform.linux => 'linux',

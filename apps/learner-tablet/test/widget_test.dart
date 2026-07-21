@@ -164,7 +164,7 @@ void main() {
         isWeb: false,
         platform: TargetPlatform.android,
       ),
-      'flutter build appbundle --release',
+      'flutter build apk --release',
     );
     expect(
       learnerReleaseBuildCommandForPlatform(
@@ -206,7 +206,7 @@ void main() {
         isWeb: false,
         platform: TargetPlatform.android,
       ),
-      'appbundle',
+      'apk',
     );
     expect(
       learnerReleaseTargetForPlatform(
