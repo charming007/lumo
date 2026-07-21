@@ -20,6 +20,11 @@ test('settings route blocks when core storage audit feeds degrade instead of lea
   assert.match(settingsPageSource, /storage control surface should stop cold when the storage audit feeds disappear\./, 'settings blocker should distinguish critical storage blindness from tolerable secondary degradation');
 });
 
+test('settings route blocker docs stay inside the live pilot-safe control plane', () => {
+  assert.match(settingsPageSource, /\{ label: 'Open content blockers', href: '\/content\?view=blocked'/, 'settings storage blocker should send operators to the live blocker board, not a blocked specialist surface');
+  assert.doesNotMatch(settingsPageSource, /\{ label: 'Open reports', href: '\/reports'/, 'settings blocker docs should not route deployment recovery into the pilot-blocked reports surface');
+});
+
 test('settings route normalizes progression status before computing ops counts and reward-surface badges', () => {
   assert.match(settingsPageSource, /import \{ formatProgressionStatusLabel, normalizeProgressionStatus, progressionStatusTone \} from '\.\.\/\.\.\/lib\/progression-status';/);
   assert.match(settingsPageSource, /const ready = workboard\.filter\(\(item\) => normalizeProgressionStatus\(item\.progressionStatus\) === 'ready'\)\.length;/);
