@@ -1178,6 +1178,18 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        find.textContaining(
+          'there is nothing useful to compare against the LMS yet',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Compare this exact identifier against the LMS device record before retrying',
+        ),
+        findsNothing,
+      );
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
       expect(

@@ -436,6 +436,11 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         normalizedBlockerReason.contains('lumo_device_identifier');
     final blockerRegistrationMismatch =
         blockerNeedsDeviceIdentity && !blockerMissingProvisionedIdentifier;
+    final deviceIdentifierCardCopy = blockerMissingProvisionedIdentifier
+        ? 'This build never received a tablet identifier, so there is nothing useful to compare against the LMS yet. Copy the correct identifier from the dashboard, rebuild, and redeploy before retrying on-device.'
+        : blockerNeedsDeviceIdentity
+            ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
+            : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.';
     final blockerHeroTitle = blockerMissingProvisionedIdentifier
         ? 'Deployment blocker: this release build was shipped without its tablet identity.'
         : blockerRegistrationMismatch
@@ -656,9 +661,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                blockerNeedsDeviceIdentity
-                                    ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
-                                    : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.',
+                                deviceIdentifierCardCopy,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,

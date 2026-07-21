@@ -61,6 +61,17 @@ test('buildReviewBlockersHref preserves blocker scope when lesson studio was lau
   );
 });
 
+test('buildReviewBlockersHref preserves blocker scope when lesson studio return paths wrap the content board in nested from params', () => {
+  assert.equal(
+    buildReviewBlockersHref('/content/lessons/new?subjectId=subject-english&moduleId=module-reading-1&from=%2Fcontent%3Fq%3DReading%2Blane%26subject%3Dsubject-english%26status%3Ddraft'),
+    '/content?q=Reading+lane&subject=subject-english&status=draft&view=blocked',
+  );
+});
+
+test('buildReviewBlockersHref falls back to the generic blocker board when nested content routes do not carry a recoverable board handoff', () => {
+  assert.equal(buildReviewBlockersHref('/content/lessons/new?subjectId=subject-english&moduleId=module-reading-1'), '/content?view=blocked');
+});
+
 test('buildReviewBlockersHref falls back to the generic blocker board for non-content return paths', () => {
   assert.equal(buildReviewBlockersHref('/assignments'), '/content?view=blocked');
 });
