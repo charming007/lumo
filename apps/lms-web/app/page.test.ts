@@ -27,7 +27,7 @@ test('dashboard hard-blocks when the subject feed is degraded', () => {
   );
 });
 
-test('dashboard keeps the pilot route map available for the explicit override and leaves the full LMS shell as the default path', () => {
+test('dashboard keeps the pilot route map as the production-safe default and leaves the full LMS shell for explicit override', () => {
   assert.match(
     dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
@@ -46,7 +46,7 @@ test('dashboard keeps the pilot route map available for the explicit override an
   assert.match(
     dashboardPageSource,
     /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
-    'dashboard should keep the pilot-safe route map copy available for the explicit override mode',
+    'dashboard should keep the pilot-safe route map copy available for the production-default shell',
   );
   assert.match(
     dashboardPageSource,
