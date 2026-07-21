@@ -11,7 +11,7 @@ function normalizeBaseUrl(value: string) {
   const withoutHash = trimmed.split('#', 1)[0] ?? trimmed;
   const withoutQuery = withoutHash.split('?', 1)[0] ?? withoutHash;
   const withScheme = withoutQuery.includes('://') ? withoutQuery : `https://${withoutQuery}`;
-  const withoutKnownSuffix = withScheme.replace(/\/api\/v1(?:\/learner-app(?:\/bootstrap)?)?\/+$/i, '');
+  const withoutKnownSuffix = withScheme.replace(/\/api\/v1(?:\/(?:learner-app(?:\/bootstrap)?|meta|dashboard(?:\/[a-z-]+)?|admin\/[a-z-]+(?:\/[a-z-]+)?))?\/+$/i, '');
 
   return withoutKnownSuffix.replace(/\/+$/, '');
 }

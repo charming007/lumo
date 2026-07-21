@@ -83,6 +83,10 @@ const isStrictDeploymentBuild = isBuildCommand && (isHostedDeployment || isProdu
 const shouldBlockBuild = isStrictDeploymentBuild;
 const shouldBlockForAdminApiKey = isStrictDeploymentBuild;
 
+function hasOnlyOriginPath(parsed) {
+  return parsed.pathname === '' || parsed.pathname === '/';
+}
+
 function invalidProductionApiReason(value) {
   try {
     const parsed = new URL(value);
@@ -101,6 +105,10 @@ function invalidProductionApiReason(value) {
 
     if (looksLocal) {
       return `NEXT_PUBLIC_API_BASE_URL points at ${hostname}, which is only reachable from the local machine. Production LMS users would hit a dead backend.`;
+    }
+
+    if (!hasOnlyOriginPath(parsed) || parsed.search || parsed.hash) {
+      return `NEXT_PUBLIC_API_BASE_URL must be the API origin only (for example https://lumo-api-production-303a.up.railway.app), not a nested path or URL with query/hash. Current value: ${value}`;
     }
 
     return null;
