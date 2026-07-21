@@ -540,6 +540,21 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /dart run tool\/verify_release_config\.dart/,
+    'learner provisioning bundle should preflight release config before exposing copyable release commands',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--release-target=\$\{shellEscape\(releaseTarget\)\}/,
+    'learner provisioning bundle should pass the normalized release target into the release-config preflight',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const releaseTarget = buildTarget === 'appbundle' \? 'apk' : buildTarget;/,
+    'Android App Bundle handoff should reuse the APK release-config gate so signing and provisioning checks stay aligned',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /flutter build web --release/,
     'learner web provisioning bundle should use the real Flutter release build command',
   );
