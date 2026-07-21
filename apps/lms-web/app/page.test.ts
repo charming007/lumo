@@ -70,13 +70,17 @@ test('dashboard keeps the pilot route map as the production-safe default and lea
   );
   assert.match(
     dashboardPageSource,
-    /\{PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard should keep rendering the specialist off-shell pills from the shared pilot-nav list',
+    /Even in the full LMS shell, these routes stay explicitly blocked for pilot deployment review until their own trust evidence catches up\./,
+    'full-shell route map should still spell out explicitly blocked pilot surfaces instead of making reviewers infer them from broader shell visibility',
   );
   assert.match(
     dashboardPageSource,
-    /\{PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard should render blocked pilot surfaces from the dedicated blocked-route list',
+    /\{PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
+    'dashboard should keep rendering the specialist off-shell pills from the shared pilot-nav list',
+  );
+  assert.ok(
+    (dashboardPageSource.match(/\{PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/g) ?? []).length >= 2,
+    'dashboard should render blocked pilot surfaces in both pilot-shell and full-shell route maps',
   );
   assert.doesNotMatch(
     dashboardPageSource,

@@ -1355,6 +1355,17 @@ export default async function HomePage() {
                   This deployment is running the standard LMS admin shell with the full route set. Route-specific deployment and outage blockers still appear where they belong instead of replacing the shared chrome.
                 </div>
               </div>
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#EEF2FF', border: '1px solid #C7D2FE' }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#3730A3', fontWeight: 800 }}>Explicitly blocked pilot surfaces</div>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {PILOT_BLOCKED_ROUTE_LABELS.map((label) => (
+                    <Pill key={label} label={label} tone="#FFFFFF" text="#3730A3" />
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, color: '#3730A3', lineHeight: 1.6 }}>
+                  Even in the full LMS shell, these routes stay explicitly blocked for pilot deployment review until their own trust evidence catches up.
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Link href="/students" style={{ ...quickActionStyle, background: '#111827', color: 'white' }}>Open learners</Link>
                 <Link href="/mallams" style={{ ...quickActionStyle, background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' }}>Open mallams</Link>
