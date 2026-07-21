@@ -191,8 +191,8 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
 
   const activeRegistrations = registrations.filter((item) => (item.status || '').toLowerCase() === 'active');
   const activeCount = activeRegistrations.length;
-  const assignedCount = registrations.filter((item) => item.podId).length;
   const activeAssignedCount = activeRegistrations.filter((item) => item.podId).length;
+  const activeMissingPodCount = activeRegistrations.filter((item) => !item.podId).length;
   const activePodCount = new Set(activeRegistrations.map((item) => item.podId).filter(Boolean)).size;
   const deviceDeploymentReadiness = getDeviceDeploymentReadiness(registrations);
   const duplicateActivePodCount = new Set(
@@ -248,7 +248,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
             <MetricList items={[
               { label: 'Registered tablets', value: String(registrations.length) },
               { label: 'Active tablets assigned to pods', value: String(activeAssignedCount) },
-              { label: 'Records missing pod linkage', value: String(registrations.length - assignedCount) },
+              { label: 'Active tablets missing pod linkage', value: String(activeMissingPodCount) },
               { label: 'Active status', value: String(activeCount) },
             ]} />
           </Card>

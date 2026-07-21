@@ -31,9 +31,12 @@ test('devices page treats a zero-tablet registry as an explicit rollout blocker 
 test('devices page rollout coverage metrics stay honest about active tablets only', () => {
   assert.match(devicesPageSource, /const activeRegistrations = registrations\.filter\(\(item\) => \(item\.status \|\| ''\)\.toLowerCase\(\) === 'active'\);/, 'devices page should derive active registrations before rollout coverage metrics');
   assert.match(devicesPageSource, /const activeAssignedCount = activeRegistrations\.filter\(\(item\) => item\.podId\)\.length;/, 'devices page should count pod assignment coverage from active tablets only');
+  assert.match(devicesPageSource, /const activeMissingPodCount = activeRegistrations\.filter\(\(item\) => !item\.podId\)\.length;/, 'devices page should count missing pod linkage from active tablets only so retired cleanup records do not masquerade as live rollout blockers');
   assert.match(devicesPageSource, /const activePodCount = new Set\(activeRegistrations\.map\(\(item\) => item\.podId\)\.filter\(Boolean\)\)\.size;/, 'devices page should count receiving pods from active tablets only');
   assert.match(devicesPageSource, /\{ label: 'Active tablets assigned to pods', value: String\(activeAssignedCount\) \}/, 'devices snapshot should call out active pod-linked tablets instead of every pod-linked record');
+  assert.match(devicesPageSource, /\{ label: 'Active tablets missing pod linkage', value: String\(activeMissingPodCount\) \}/, 'devices snapshot should call out active tablets missing pod linkage instead of every unassigned historical record');
   assert.match(devicesPageSource, /\['Pods receiving active tablets', String\(activePodCount\)\]/, 'devices page should label pod coverage as active-tablet coverage');
+  assert.doesNotMatch(devicesPageSource, /\{ label: 'Records missing pod linkage', value: String\(registrations\.length - assignedCount\) \}/, 'devices page should stop counting inactive or retired unassigned records as live rollout pod-linkage blockers');
   assert.doesNotMatch(devicesPageSource, /\['Pods receiving devices', String\(new Set\(registrations\.map\(\(item\) => item\.podId\)\.filter\(Boolean\)\)\.size\)\]/, 'devices page should stop counting retired or inactive pod links as active rollout coverage');
 });
 
