@@ -1,5 +1,6 @@
 'use client';
 
+import { getDeviceDeploymentReadiness } from '../lib/device-deployment';
 import type { DeviceRegistration } from '../lib/types';
 import { CopyableTextCard } from './copyable-text-card';
 
@@ -141,35 +142,28 @@ function normalizePodIdentifier(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
 
-function getDeploymentBlockingReasons(
-  registration: DeviceRegistration,
-  duplicateScopeCount: number,
-  duplicateDeviceIdentifierCount: number,
-) {
-  const reasons: string[] = [];
-  const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-
-  if (!normalizeDeviceIdentifier(registration.deviceIdentifier)) {
-    reasons.push('Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet.');
+function describeDeploymentBlockingReason(reason: string, registration: DeviceRegistration) {
+  if (reason === 'missing-device-identifier') {
+    return 'Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet.';
   }
 
-  if (!normalizePodIdentifier(registration.podId)) {
-    reasons.push('Pod ownership is missing, so geography and mallam handoff are not trustworthy yet.');
+  if (reason === 'missing-pod') {
+    return 'Pod ownership is missing, so geography and mallam handoff are not trustworthy yet.';
   }
 
-  if (normalizedStatus !== 'active') {
-    reasons.push(`Tablet status is ${registration.status || 'unknown'}, so ops should not ship a fresh learner build from this row.`);
+  if (reason === 'non-active-status') {
+    return `Tablet status is ${registration.status || 'unknown'}, so ops should not ship a fresh learner build from this row.`;
   }
 
-  if (normalizePodIdentifier(registration.podId) && duplicateScopeCount > 1) {
-    reasons.push('This pod currently has multiple active tablets attached. Resolve the duplicate live device scope before provisioning another learner build.');
+  if (reason === 'duplicate-live-scope') {
+    return 'This pod currently has multiple active tablets attached. Resolve the duplicate live device scope before provisioning another learner build.';
   }
 
-  if (normalizeDeviceIdentifier(registration.deviceIdentifier) && duplicateDeviceIdentifierCount > 1) {
-    reasons.push('This device identifier is duplicated across active tablet records. Fix the collision before copying any learner release env bundle from this dashboard.');
+  if (reason === 'duplicate-device-identifier') {
+    return 'This device identifier is duplicated across active tablet records. Fix the collision before copying any learner release env bundle from this dashboard.';
   }
 
-  return reasons;
+  return reason;
 }
 
 function describeTabletTarget(registration: DeviceRegistration) {
@@ -185,20 +179,7 @@ export function DeviceDeploymentHandoff({
   apiBase: string;
   provisioningBlocked?: boolean;
 }) {
-  const duplicateScopeCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
-    const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    const normalizedPodId = normalizePodIdentifier(registration.podId);
-    if (!normalizedPodId || normalizedStatus !== 'active') return accumulator;
-    accumulator[normalizedPodId] = (accumulator[normalizedPodId] || 0) + 1;
-    return accumulator;
-  }, {});
-  const duplicateDeviceIdentifierCounts = registrations.reduce<Record<string, number>>((accumulator, registration) => {
-    const normalizedStatus = String(registration.status || '').trim().toLowerCase();
-    const normalizedIdentifier = normalizeDeviceIdentifier(registration.deviceIdentifier);
-    if (!normalizedIdentifier || normalizedStatus !== 'active') return accumulator;
-    accumulator[normalizedIdentifier] = (accumulator[normalizedIdentifier] || 0) + 1;
-    return accumulator;
-  }, {});
+  const readiness = getDeviceDeploymentReadiness(registrations);
   const activePodCollisions = registrations.reduce<Record<string, string[]>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
     const normalizedPodId = normalizePodIdentifier(registration.podId);
@@ -214,19 +195,12 @@ export function DeviceDeploymentHandoff({
     return accumulator;
   }, {});
 
-  const prioritized = [...registrations]
-    .map((registration) => {
-      const deploymentBlockingReasons = getDeploymentBlockingReasons(
-        registration,
-        duplicateScopeCounts[normalizePodIdentifier(registration.podId)] || 0,
-        duplicateDeviceIdentifierCounts[normalizeDeviceIdentifier(registration.deviceIdentifier)] || 0,
-      );
-      return {
-        registration,
-        deploymentBlockingReasons,
-        rolloutReady: deploymentBlockingReasons.length === 0,
-      };
-    })
+  const prioritized = readiness.annotated
+    .map(({ registration, blockingReasons, rolloutReady }) => ({
+      registration,
+      deploymentBlockingReasons: blockingReasons.map((reason) => describeDeploymentBlockingReason(reason, registration)),
+      rolloutReady,
+    }))
     .sort((left, right) => {
       const leftReady = left.rolloutReady ? 0 : 1;
       const rightReady = right.rolloutReady ? 0 : 1;
@@ -251,7 +225,7 @@ export function DeviceDeploymentHandoff({
     blockedRegistrations
       .filter((entry) => {
         const normalizedPodId = normalizePodIdentifier(entry.registration.podId);
-        return normalizedPodId && (duplicateScopeCounts[normalizedPodId] || 0) > 1;
+        return normalizedPodId && (activePodCollisions[normalizedPodId] || []).length > 1;
       })
       .map((entry) => normalizePodIdentifier(entry.registration.podId))
       .filter(Boolean),
@@ -260,7 +234,7 @@ export function DeviceDeploymentHandoff({
     blockedRegistrations
       .filter((entry) => {
         const normalizedIdentifier = normalizeDeviceIdentifier(entry.registration.deviceIdentifier);
-        return normalizedIdentifier && (duplicateDeviceIdentifierCounts[normalizedIdentifier] || 0) > 1;
+        return normalizedIdentifier && (activeDeviceIdentifierCollisions[normalizedIdentifier] || []).length > 1;
       })
       .map((entry) => normalizeDeviceIdentifier(entry.registration.deviceIdentifier))
       .filter(Boolean),

@@ -505,6 +505,16 @@ test('dashboard surfaces learner app deployment handoff from live device registr
 test('device deployment handoff only treats active tablets as duplicate live scope and shell-escapes provisioning commands', () => {
   assert.match(
     deviceDeploymentHandoffSource,
+    /import \{ getDeviceDeploymentReadiness \} from '\.\.\/lib\/device-deployment';/,
+    'device deployment handoff should reuse the shared rollout-readiness helper so the dashboard blocker gate and handoff table cannot drift apart',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const readiness = getDeviceDeploymentReadiness\(registrations\);/,
+    'device deployment handoff should derive rollout readiness from the same shared helper the dashboard uses for deployment blocking',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /function shellEscape\(value: string\)/,
     'device deployment handoff should shell-escape provisioning snippets before copy-paste',
   );

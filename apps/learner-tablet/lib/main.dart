@@ -327,9 +327,9 @@ String learnerReleaseBuildCommandForPlatform({
   return switch (platform) {
     TargetPlatform.iOS => 'flutter build ipa --release',
     TargetPlatform.android => 'flutter build appbundle --release',
-    TargetPlatform.macOS => 'flutter build web --release',
-    TargetPlatform.windows => 'flutter build web --release',
-    TargetPlatform.linux => 'flutter build web --release',
+    TargetPlatform.macOS => 'flutter build macos --release',
+    TargetPlatform.windows => 'flutter build windows --release',
+    TargetPlatform.linux => 'flutter build linux --release',
     TargetPlatform.fuchsia => 'flutter build web --release',
   };
 }
@@ -345,9 +345,9 @@ String learnerReleaseTargetForPlatform({
   return switch (platform) {
     TargetPlatform.iOS => 'ipa',
     TargetPlatform.android => 'appbundle',
-    TargetPlatform.macOS => 'web',
-    TargetPlatform.windows => 'web',
-    TargetPlatform.linux => 'web',
+    TargetPlatform.macOS => 'macos',
+    TargetPlatform.windows => 'windows',
+    TargetPlatform.linux => 'linux',
     TargetPlatform.fuchsia => 'web',
   };
 }

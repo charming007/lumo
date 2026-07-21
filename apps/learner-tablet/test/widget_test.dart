@@ -174,6 +174,27 @@ void main() {
       'flutter build ipa --release',
     );
     expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.macOS,
+      ),
+      'flutter build macos --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.windows,
+      ),
+      'flutter build windows --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.linux,
+      ),
+      'flutter build linux --release',
+    );
+    expect(
       learnerReleaseTargetForPlatform(
         isWeb: true,
         platform: TargetPlatform.iOS,
@@ -193,6 +214,27 @@ void main() {
         platform: TargetPlatform.iOS,
       ),
       'ipa',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.macOS,
+      ),
+      'macos',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.windows,
+      ),
+      'windows',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.linux,
+      ),
+      'linux',
     );
   });
 
