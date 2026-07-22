@@ -122,6 +122,29 @@ test('dashboard bulk blocker handoff copy keeps multi-lesson fixes on the scoped
   );
 });
 
+test('dashboard ready-to-progress metric reuses the live workboard instead of a drift-prone summary count', () => {
+  assert.match(
+    dashboardPageSource,
+    /const readyToProgressCount = workboardAvailable \? readyLearners\.length : null;/,
+    'dashboard should derive the ready-to-progress KPI from the same live workboard rows that power the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*value: metricDisplay\(String\(readyToProgressCount \?\? 0\), readyToProgressCount !== null\),/,
+    'dashboard should render the ready-to-progress KPI from the normalized workboard count instead of a separate summary payload',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*note: workboardAvailable[\s\S]*'Pulled from the live progression workboard'[\s\S]*'Unavailable until the live progression workboard feed recovers\.'/, 
+    'dashboard should tie the KPI copy to the workboard feed it actually depends on',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*String\(summary\.learnersReadyToProgress\)/,
+    'dashboard should stop mixing summary-feed counts into the workboard-backed ready-to-progress KPI',
+  );
+});
+
 test('dashboard normalizes progression status before building the priority queue', () => {
   assert.match(
     dashboardPageSource,

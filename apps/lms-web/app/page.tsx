@@ -420,6 +420,7 @@ export default async function HomePage() {
   const readyLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready');
   const watchLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'watch');
   const priorityQueue = [...watchLearners, ...readyLearners];
+  const readyToProgressCount = workboardAvailable ? readyLearners.length : null;
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
   const hasCriticalDashboardGap = criticalDashboardFailures.length > 0;
   const apiSourceDetail = dashboardApiSourceDetail();
@@ -900,11 +901,11 @@ export default async function HomePage() {
           },
           {
             label: 'Ready to progress',
-            value: metricDisplay(String(summary.learnersReadyToProgress), summaryAvailable),
+            value: metricDisplay(String(readyToProgressCount ?? 0), readyToProgressCount !== null),
             gradient: 'linear-gradient(135deg, #F4EDFF 0%, #DDD0FF 100%)',
-            note: summaryAvailable
+            note: workboardAvailable
               ? 'Pulled from the live progression workboard'
-              : 'Unavailable until the live dashboard summary feed recovers.',
+              : 'Unavailable until the live progression workboard feed recovers.',
           },
           {
             label: 'Active assignments',
