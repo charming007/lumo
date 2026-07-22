@@ -29,11 +29,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const seedCount = Object.values(meta.seedSummary ?? {}).reduce((sum, count) => sum + count, 0);
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
+  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production' && !pilotControlPlaneEnabled;
 
   return (
     <html lang="en">
       <body style={{ margin: 0, overflowX: 'hidden', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', background: '#eef2f7', color: '#202436' }}>
-        <AppShell seedCount={seedCount} buildSignature={buildSignature} pilotControlPlaneEnabled={pilotControlPlaneEnabled}>
+        <AppShell
+          seedCount={seedCount}
+          buildSignature={buildSignature}
+          pilotControlPlaneEnabled={pilotControlPlaneEnabled}
+          shellScopeDeploymentBlocked={shellScopeDeploymentBlocked}
+        >
           <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />
           {children}

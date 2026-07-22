@@ -26,14 +26,17 @@ export function AppShell({
   seedCount = 0,
   buildSignature,
   pilotControlPlaneEnabled = false,
+  shellScopeDeploymentBlocked = false,
 }: {
   children: React.ReactNode;
   seedCount?: number;
   buildSignature: BuildSignature;
   pilotControlPlaneEnabled?: boolean;
+  shellScopeDeploymentBlocked?: boolean;
 }) {
   const pathname = usePathname() || '/';
-  const pilotRoute = pilotControlPlaneEnabled ? describePilotShellRoute(pathname) : undefined;
+  const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || shellScopeDeploymentBlocked;
+  const pilotRoute = effectivePilotControlPlaneEnabled ? describePilotShellRoute(pathname) : undefined;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -54,7 +57,7 @@ export function AppShell({
         mobileNavOpen={mobileNavOpen}
         sidebarCollapsed={sidebarCollapsed}
         buildSignature={buildSignature}
-        pilotControlPlaneEnabled={pilotControlPlaneEnabled}
+        pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}
         onCloseMobileNav={() => setMobileNavOpen(false)}
         onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
       />
@@ -67,7 +70,7 @@ export function AppShell({
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
           seedCount={seedCount}
           buildSignature={buildSignature}
-          pilotControlPlaneEnabled={pilotControlPlaneEnabled}
+          pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}
           pilotRoute={pilotRoute}
         />
         {children}
