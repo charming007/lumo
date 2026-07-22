@@ -116,10 +116,8 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    final canonicalProductionBaseUrl =
-        normalizeBaseUrl(kDefaultProductionApiBaseUrl);
-    if (!hasExplicitConfig && normalized != canonicalProductionBaseUrl) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets, even for non-canonical learner API targets.';
+    if (!hasExplicitConfig) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets instead of relying on the baked-in default backend target.';
     }
 
     final parsed = Uri.tryParse(normalized);
