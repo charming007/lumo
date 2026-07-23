@@ -251,6 +251,7 @@ export default async function HomePage() {
   const buildSignature = getBuildSignature();
   const apiTarget = describeApiTarget();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
+  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production' && !pilotControlPlaneEnabled;
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -507,6 +508,56 @@ export default async function HomePage() {
     && topReleaseBlockerAssessmentSubjectId
     && topReleaseBlockerAssessmentSubjects.length,
   );
+
+  if (shellScopeDeploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Dashboard"
+        subtitle="Pilot deployment review is blocked because the full LMS shell is visible again instead of the narrow pilot control plane."
+        blockerHeadline="Deployment blocker: full LMS shell is widening the production deployment target."
+        blockerDetail={(
+          <>
+            This production build is rendering the broader LMS admin shell instead of the pilot-safe route set. If deployment reviewers can see learners, pods, devices, attendance, and other wider admin surfaces from the front door, the UI is overselling what should count as a go-live target.
+          </>
+        )}
+        whyBlocked={[
+          'The dashboard is the first trust surface. If it renders the broader LMS shell in production, reviewers can mistake internal admin routes for deployment-approved pilot surfaces.',
+          'A warning card buried inside the dashboard is too weak here. The front door should stop deployment review cold until the visible shell matches the intended pilot control plane again.',
+          'Pilot scope is intentionally narrow: Dashboard, Content, Assignments, Progress, and Settings. Anything broader needs an explicit internal override, not a production-looking sign-off surface.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Visible dashboard shell',
+            expected: 'Pilot route map is active and the visible shell is limited to Dashboard, Content, Assignments, Progress, and Settings',
+            failure: 'Full LMS route map is visible from the production dashboard, widening deployment scope before the team explicitly signs off on those extra routes',
+          },
+          {
+            surface: 'Sidebar navigation',
+            expected: 'Primary navigation matches the pilot control plane instead of the broader LMS admin shell',
+            failure: 'Learners, mallams, pods, devices, attendance, or other wider admin routes are presented as first-class production navigation',
+          },
+          {
+            surface: 'Pilot scope contract',
+            expected: 'Deployment review treats only the pilot control plane as a valid UI target',
+            failure: 'The dashboard itself implies a broader admin rollout is already deployment-ready',
+          },
+        ]}
+        fixItems={[
+          { label: 'Frontend build', value: buildSignature.summary },
+          { label: 'Current API target', value: apiTarget },
+          { label: 'Failing area', value: 'pilot control plane override is disabled in production' },
+          { label: 'Operator action', value: 'Re-enable the pilot control plane for production so the dashboard and sidebar collapse back to the narrow pilot deployment shell' },
+          { label: 'Cross-check', value: 'Verify the dashboard switches back to the pilot route map and the sidebar only exposes Dashboard, Content, Assignments, Progress, and Settings' },
+        ]}
+        docs={[
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Open content blockers', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
 
   if (shouldBlockDashboardPage({
     criticalDashboardFailureCount: criticalDashboardFailures.length,
