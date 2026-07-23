@@ -70,6 +70,10 @@ String _normalizeAssignmentLookupValue(String value) {
       .trim();
 }
 
+String _normalizeAssignmentLookupKey(String value) {
+  return _normalizeAssignmentLookupValue(value).replaceAll(' ', '-');
+}
+
 enum ContentOrigin {
   liveBackend,
   localCache,
@@ -2620,39 +2624,61 @@ class LumoAppState {
     Iterable<LessonCardModel>? lessons,
     Iterable<LearningModule>? availableModules,
   }) {
-    final lessonPool = lessons ?? assignedLessons;
+    final lessonList = (lessons ?? assignedLessons).toList(growable: false);
+    final normalizedLessonId = pack.lessonId.trim();
+    if (normalizedLessonId.isNotEmpty) {
+      for (final lesson in lessonList) {
+        if (lesson.id == normalizedLessonId) return lesson;
+      }
+    }
+
     final normalizedLessonTitle = _normalizeAssignmentLookupValue(
       pack.lessonTitle,
     );
-    final preferredModuleIds = {
-      pack.curriculumModuleId?.trim(),
-      pack.moduleId.trim(),
-    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
-    final matchedModule = availableModules?.cast<LearningModule?>().firstWhere(
-      (module) {
-        if (module == null) return false;
-        final moduleId = module.id.trim();
-        return moduleId.isNotEmpty && preferredModuleIds.contains(moduleId);
-      },
-      orElse: () => null,
-    );
-
-    for (final lesson in lessonPool) {
-      if (lesson.id == pack.lessonId) return lesson;
+    if (normalizedLessonTitle.isEmpty) {
+      return null;
     }
 
-    for (final lesson in lessonPool) {
-      final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
-      if (normalizedLessonTitle.isEmpty ||
-          lessonTitle != normalizedLessonTitle) {
-        continue;
+    final titleMatches = lessonList
+        .where(
+          (lesson) =>
+              _normalizeAssignmentLookupValue(lesson.title) ==
+              normalizedLessonTitle,
+        )
+        .toList(growable: false);
+    if (titleMatches.isEmpty) {
+      return null;
+    }
+
+    final preferredModuleKeys = {
+      _normalizeAssignmentLookupKey(pack.curriculumModuleId ?? ''),
+      _normalizeAssignmentLookupKey(pack.moduleId),
+    }.where((value) => value.isNotEmpty).toSet();
+
+    final scopedTitleMatches = titleMatches.where((lesson) {
+      if (preferredModuleKeys.isEmpty) {
+        return true;
       }
-      if (preferredModuleIds.isEmpty ||
-          preferredModuleIds.contains(lesson.moduleId.trim()) ||
-          (matchedModule != null &&
-              _lessonMatchesModule(lesson: lesson, module: matchedModule))) {
-        return lesson;
-      }
+
+      final lessonModule = availableModules?.cast<LearningModule?>().firstWhere(
+            (module) => module?.id == lesson.moduleId,
+            orElse: () => null,
+          );
+      final lessonKeys = {
+        _normalizeAssignmentLookupKey(lesson.moduleId),
+        _normalizeAssignmentLookupKey(lesson.subject),
+        if (lessonModule != null)
+          _normalizeAssignmentLookupKey(lessonModule.title),
+      }.where((value) => value.isNotEmpty).toSet();
+
+      return lessonKeys.any(preferredModuleKeys.contains);
+    }).toList(growable: false);
+
+    if (scopedTitleMatches.length == 1) {
+      return scopedTitleMatches.first;
+    }
+    if (titleMatches.length == 1) {
+      return titleMatches.first;
     }
 
     return null;
@@ -3153,13 +3179,11 @@ class LumoAppState {
     );
     final lessonUsesPublishedLaunchGuard =
         lesson.status.trim().toLowerCase() == 'published';
-    if (
-      resumeFrom == null &&
-      (_lessonRequiresSyncBeforeStarting(lesson) ||
-          (lessonIsTrackedForLaunchGuard &&
-              lessonUsesPublishedLaunchGuard &&
-              lessonLockedForLearner(learner, lesson)))
-    ) {
+    if (resumeFrom == null &&
+        (_lessonRequiresSyncBeforeStarting(lesson) ||
+            (lessonIsTrackedForLaunchGuard &&
+                lessonUsesPublishedLaunchGuard &&
+                lessonLockedForLearner(learner, lesson)))) {
       throw StateError(
         'Cannot open lesson ${lesson.id} for ${learner.name} because it is not currently learner-safe to launch on this tablet.',
       );

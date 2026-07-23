@@ -965,7 +965,8 @@ void main() {
       },
     );
 
-    test('keeps backend lessons with no activity steps visible but blocked', () async {
+    test('keeps backend lessons with no activity steps visible but blocked',
+        () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
@@ -1108,13 +1109,15 @@ void main() {
       expect(
         state.learnerCanOpenLesson(
           state.learners.first,
-          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-empty'),
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-empty'),
         ),
         isFalse,
       );
       expect(
         () => state.startLesson(
-          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-live'),
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-live'),
         ),
         returnsNormally,
       );
@@ -2946,6 +2949,107 @@ void main() {
     );
 
     test(
+      'resolves assignment title aliases to the uniquely scoped learner lesson before falling back to a placeholder',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+
+        state.modules.addAll([
+          const LearningModule(
+            id: 'english-reading',
+            title: 'English Reading',
+            description: 'Reading lane',
+            voicePrompt: 'Open English Reading.',
+            readinessGoal: 'Reading flow',
+            badge: '2 lessons',
+          ),
+          const LearningModule(
+            id: 'math-reading',
+            title: 'Math Reading',
+            description: 'Math lane',
+            voicePrompt: 'Open Math Reading.',
+            readinessGoal: 'Number reading flow',
+            badge: '2 lessons',
+          ),
+        ]);
+
+        state.assignedLessons.addAll([
+          LessonCardModel(
+            id: 'english-reading-authored',
+            moduleId: 'english-reading',
+            title: 'Read with me',
+            subject: 'English',
+            durationMinutes: 8,
+            status: 'assigned',
+            mascotName: 'Mallam',
+            readinessFocus: 'English reading practice',
+            scenario: 'Learner reads the English lane content.',
+            steps: const [
+              LessonStep(
+                id: 'english-reading-step',
+                type: LessonStepType.practice,
+                title: 'Read with me',
+                instruction: 'Read the English prompt.',
+                expectedResponse: 'Learner reads the English prompt.',
+                coachPrompt: 'Read the English prompt aloud.',
+                facilitatorTip: 'Keep the learner on the English lane.',
+                realWorldCheck: 'The learner follows the English reading cue.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+          LessonCardModel(
+            id: 'math-reading-authored',
+            moduleId: 'math-reading',
+            title: 'Read with me',
+            subject: 'Math',
+            durationMinutes: 8,
+            status: 'assigned',
+            mascotName: 'Mallam',
+            readinessFocus: 'Math reading practice',
+            scenario: 'Learner reads the Math lane content.',
+            steps: const [
+              LessonStep(
+                id: 'math-reading-step',
+                type: LessonStepType.practice,
+                title: 'Read with me',
+                instruction: 'Read the Math prompt.',
+                expectedResponse: 'Learner reads the Math prompt.',
+                coachPrompt: 'Read the Math prompt aloud.',
+                facilitatorTip: 'Keep the learner on the Math lane.',
+                realWorldCheck: 'The learner follows the Math reading cue.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        ]);
+
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-alias-reading',
+            lessonId: 'english-reading-runtime-alias',
+            moduleId: 'english-reading',
+            curriculumModuleId: 'english-reading',
+            lessonTitle: 'Read with me',
+            cohortName: beginner.cohort,
+            mallamName: 'Mallam Idris',
+            dueDate: '2026-04-20T10:00:00.000Z',
+            eligibleLearnerIds: [beginner.id],
+          ),
+        );
+
+        final lessons = state.backendAssignedLessonsForLearner(beginner);
+
+        expect(lessons, isNotEmpty);
+        expect(lessons.first.id, 'english-reading-authored');
+        expect(
+          lessons.where(
+              (lesson) => lesson.id.startsWith('assignment-placeholder:')),
+          isEmpty,
+        );
+      },
+    );
+
+    test(
       'keeps multiple learner lessons visible inside a module when assignments map them there',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -3507,7 +3611,9 @@ void main() {
         expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
         expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
         expect(
-          state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
           'session-alias-progress',
         );
         expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
