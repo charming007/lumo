@@ -43,6 +43,9 @@ void main(List<String> args) async {
     'build',
     flutterTarget,
     '--release',
+    if (releaseTarget.trim().toLowerCase() == 'web' &&
+        !parsed.forwardedArgs.contains('--no-wasm-dry-run'))
+      '--no-wasm-dry-run',
     ...parsed.dartDefines.entries.map(
       (entry) => '--dart-define=${entry.key}=${entry.value}',
     ),
