@@ -21,7 +21,11 @@ Flutter app for shared Android tablets used by learners in low-resource environm
 
 Production Android builds must use a real release keystore. This app now refuses to build a `release` artifact if signing is missing instead of silently using the debug key.
 
-Production release builds must also pass the tablet deployment identity and backend target explicitly:
+Production release builds must also pass the tablet deployment identity and backend target explicitly. Use the guarded wrapper so every release target (web, Android, iPadOS, desktop) verifies shippability before Flutter starts building:
+
+- `dart run tool/build_release.dart --release-target=<web|apk|appbundle|ipa|macos|windows|linux> --dart-define=LUMO_DEVICE_IDENTIFIER=<exact LMS device identifier> --dart-define=LUMO_API_BASE_URL=<https production learner API host>`
+
+Production release arguments still need:
 
 - `--dart-define=LUMO_DEVICE_IDENTIFIER=<exact LMS device identifier>`
 - `--dart-define=LUMO_API_BASE_URL=<https production learner API host>`

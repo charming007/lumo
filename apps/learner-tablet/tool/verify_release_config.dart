@@ -7,7 +7,7 @@ void main(List<String> args) {
   final releaseTarget = parsed.releaseTarget;
   if (releaseTarget == null || releaseTarget.isEmpty) {
     stderr.writeln(
-      'Learner-tablet release config check needs --release-target=<web|apk|ipa|macos|windows|linux>.',
+      'Learner-tablet release config check needs --release-target=<web|apk|appbundle|ipa|macos|windows|linux>.',
     );
     exitCode = 64;
     return;

@@ -250,10 +250,10 @@ void main() {
 
     expect(
       command,
-      contains('dart run tool/verify_release_config.dart'),
+      contains('dart run tool/build_release.dart'),
     );
     expect(command, contains("--release-target='ipa'"));
-    expect(command, contains('flutter build ipa --release'));
+    expect(command, isNot(contains('flutter build ipa --release')));
     expect(
       command,
       contains("--dart-define=LUMO_API_BASE_URL='https://lumo.example.com'"),

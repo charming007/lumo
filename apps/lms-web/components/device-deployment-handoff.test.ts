@@ -41,24 +41,24 @@ test('device deployment handoff generates a shell-valid learner release command'
   assert.match(
     source,
     /'cd apps\/learner-tablet &&'/,
-    'release command should cd into the learner tablet app before chaining verification and build steps',
+    'release command should cd into the learner tablet app before running the guarded build wrapper',
   );
 
   assert.match(
     source,
-    /'dart run tool\/verify_release_config\.dart \\\\'/,
-    'verification step should use line continuations on its own arguments instead of escaping the cd line',
+    /'dart run tool\/build_release\.dart \\\\'/,
+    'handoff should use the guarded learner release wrapper instead of asking ops to manually remember verification first',
   );
 
   assert.match(
     source,
-    /\$\{buildCommand\} \\\\/,
-    'build step should remain copyable as a multi-line command after verification succeeds',
+    /--release-target=\$\{shellEscape\(buildTarget\)\}/,
+    'handoff should pass the exact requested release target into the guarded build wrapper',
   );
 
   assert.doesNotMatch(
     source,
-    /\.join\(' \\\\\\\n'\)/,
+    /\.join\(' \\\\\\n'\)/,
     'release command should not join every line with a trailing backslash because that turns the copied shell into malformed syntax',
   );
 });

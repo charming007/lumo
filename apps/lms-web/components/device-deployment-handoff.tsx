@@ -112,22 +112,11 @@ function platformLabel(platform: string | null | undefined) {
 
 function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle' | 'ipa') {
   const normalizedApiBase = normalizeBaseUrl(apiBase);
-  const releaseTarget = buildTarget === 'appbundle' ? 'apk' : buildTarget;
-  const buildCommand = buildTarget === 'web'
-    ? 'flutter build web --release'
-    : buildTarget === 'appbundle'
-      ? 'flutter build appbundle --release'
-      : buildTarget === 'ipa'
-        ? 'flutter build ipa --release'
-        : 'flutter build apk --release';
 
   return [
     'cd apps/learner-tablet &&',
-    'dart run tool/verify_release_config.dart \\',
-    `  --release-target=${shellEscape(releaseTarget)} \\`,
-    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
-    `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)} &&`,
-    `${buildCommand} \\`,
+    'dart run tool/build_release.dart \\',
+    `  --release-target=${shellEscape(buildTarget)} \\`,
     `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
     `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
   ].join('\n');

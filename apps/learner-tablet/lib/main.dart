@@ -367,11 +367,8 @@ String buildReleaseRebuildCommand({
   );
   return [
     'cd apps/learner-tablet',
-    'dart run tool/verify_release_config.dart',
+    'dart run tool/build_release.dart',
     '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
-    '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
-    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
-    '&& ${learnerReleaseBuildCommandForPlatform(isWeb: isWeb, platform: platform)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
     '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
   ].join(' \\\n');
