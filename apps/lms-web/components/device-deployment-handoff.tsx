@@ -13,10 +13,11 @@ function stripKnownApiSuffix(segments: string[]) {
     ['api', 'v1'],
     ['bootstrap'],
   ];
+  const normalizedSegments = segments.map((segment) => segment.toLowerCase());
 
   for (const suffix of suffixes) {
     if (segments.length < suffix.length) continue;
-    const tail = segments.slice(-suffix.length);
+    const tail = normalizedSegments.slice(-suffix.length);
     if (suffix.every((part, index) => tail[index] === part)) {
       return segments.slice(0, -suffix.length);
     }

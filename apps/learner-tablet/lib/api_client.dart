@@ -216,10 +216,14 @@ class LumoApiClient {
       ['api', 'v1'],
       ['bootstrap'],
     ];
+    final normalizedSegments =
+        segments.map((segment) => segment.toLowerCase()).toList();
 
     for (final suffix in suffixes) {
       if (segments.length < suffix.length) continue;
-      final tail = segments.sublist(segments.length - suffix.length);
+      final tail = normalizedSegments.sublist(
+        normalizedSegments.length - suffix.length,
+      );
       var matches = true;
       for (var index = 0; index < suffix.length; index++) {
         if (tail[index] != suffix[index]) {

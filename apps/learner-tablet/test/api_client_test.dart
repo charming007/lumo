@@ -210,6 +210,22 @@ void main() {
         'https://lumo-api-production-303a.up.railway.app',
       );
     });
+
+    test('strips known API suffixes even when pasted with mixed-case path segments', () {
+      expect(
+        LumoApiClient.normalizeBaseUrl(
+          'https://lumo-api-production-303a.up.railway.app/API/V1/Learner-App/Bootstrap',
+        ),
+        'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      expect(
+        LumoApiClient.normalizeBaseUrl(
+          'https://lumo-api-production-303a.up.railway.app/Api/V1',
+        ),
+        'https://lumo-api-production-303a.up.railway.app',
+      );
+    });
   });
 
   group('learnerReleaseBuildConfigIssues', () {

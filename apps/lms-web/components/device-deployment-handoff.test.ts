@@ -29,4 +29,10 @@ test('device deployment handoff strips canonical learner API suffixes before gen
     /replace\(\/\\\/api\\\/v1\(\?:\\\/\.\*\)\?\\\/\+\$\/i, ''\)/,
     'normalization should not rely on the old trailing-slash regex because a pasted .../api/v1 URL would leak into rollout commands',
   );
+
+  assert.match(
+    source,
+    /const normalizedSegments = segments\.map\(\(segment\) => segment\.toLowerCase\(\)\);/,
+    'normalization should compare suffixes case-insensitively because operators paste mixed-case API URLs in the real world',
+  );
 });
