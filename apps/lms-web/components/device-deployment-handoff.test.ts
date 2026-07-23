@@ -5,22 +5,28 @@ import { fileURLToPath } from 'node:url';
 
 const source = readFileSync(fileURLToPath(new URL('./device-deployment-handoff.tsx', import.meta.url)), 'utf8');
 
-test('device deployment handoff strips any nested /api/v1 path before generating rollout commands', () => {
+test('device deployment handoff strips canonical learner API suffixes before generating rollout commands', () => {
   assert.match(
     source,
-    /withScheme\.replace\(/,
+    /function stripKnownApiSuffix\(segments: string\[]\)/,
     'device deployment handoff should normalize LMS API targets before generating learner rollout commands',
   );
 
   assert.match(
     source,
-    /\/api\\\/v1\(\?:\\\/\.\*\)\?\\\/\+\$\/i/,
-    'normalization should strip arbitrary nested /api/v1 dashboard or admin paths so rollout bundles keep the real API origin',
+    /\['api', 'v1', 'learner-app', 'bootstrap'\]/,
+    'normalization should strip full learner bootstrap URLs back to the real API origin',
+  );
+
+  assert.match(
+    source,
+    /\['api', 'v1'\]/,
+    'normalization should also strip pasted /api/v1 origins so bootstrap probes do not duplicate the path',
   );
 
   assert.doesNotMatch(
     source,
-    /dashboard\(\?:\\\/\[a-z-\]\+\)\?\|admin\\\/\[a-z-\]\+\(\?:\\\/\[a-z-\]\+\)\?/,
-    'normalization should not rely on a short allowlist of dashboard/admin suffixes because deeper live API paths would leak into rollout commands',
+    /replace\(\/\\\/api\\\/v1\(\?:\\\/\.\*\)\?\\\/\+\$\/i, ''\)/,
+    'normalization should not rely on the old trailing-slash regex because a pasted .../api/v1 URL would leak into rollout commands',
   );
 });

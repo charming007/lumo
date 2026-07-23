@@ -4,6 +4,27 @@ import { getDeviceDeploymentReadiness } from '../lib/device-deployment';
 import type { DeviceRegistration } from '../lib/types';
 import { CopyableTextCard } from './copyable-text-card';
 
+function stripKnownApiSuffix(segments: string[]) {
+  if (!segments.length) return segments;
+
+  const suffixes = [
+    ['api', 'v1', 'learner-app', 'bootstrap'],
+    ['api', 'v1', 'learner-app'],
+    ['api', 'v1'],
+    ['bootstrap'],
+  ];
+
+  for (const suffix of suffixes) {
+    if (segments.length < suffix.length) continue;
+    const tail = segments.slice(-suffix.length);
+    if (suffix.every((part, index) => tail[index] === part)) {
+      return segments.slice(0, -suffix.length);
+    }
+  }
+
+  return segments;
+}
+
 function normalizeBaseUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
@@ -11,9 +32,16 @@ function normalizeBaseUrl(value: string) {
   const withoutHash = trimmed.split('#', 1)[0] ?? trimmed;
   const withoutQuery = withoutHash.split('?', 1)[0] ?? withoutHash;
   const withScheme = withoutQuery.includes('://') ? withoutQuery : `https://${withoutQuery}`;
-  const withoutKnownSuffix = withScheme.replace(/\/api\/v1(?:\/.*)?\/+$/i, '');
 
-  return withoutKnownSuffix.replace(/\/+$/, '');
+  try {
+    const parsed = new URL(withScheme);
+    const normalizedSegments = stripKnownApiSuffix(parsed.pathname.split('/').filter(Boolean));
+    const normalizedPath = normalizedSegments.length ? `/${normalizedSegments.join('/')}` : '';
+    const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}`;
+    return normalized.replace(/\/+$/, '');
+  } catch {
+    return withScheme.replace(/\/+$/, '');
+  }
 }
 
 function toneForStatus(status?: string | null) {
