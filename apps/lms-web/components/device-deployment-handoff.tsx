@@ -122,15 +122,15 @@ function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTar
         : 'flutter build apk --release';
 
   return [
-    'cd apps/learner-tablet',
-    'dart run tool/verify_release_config.dart',
-    `  --release-target=${shellEscape(releaseTarget)}`,
-    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)}`,
+    'cd apps/learner-tablet &&',
+    'dart run tool/verify_release_config.dart \\',
+    `  --release-target=${shellEscape(releaseTarget)} \\`,
+    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
+    `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)} &&`,
+    `${buildCommand} \\`,
+    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
     `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-    `&& ${buildCommand}`,
-    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)}`,
-    `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-  ].join(' \\\n');
+  ].join('\n');
 }
 
 function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
@@ -183,6 +183,10 @@ function describeDeploymentBlockingReason(reason: string, registration: DeviceRe
 
   if (reason === 'missing-pod') {
     return 'Pod ownership is missing, so geography and mallam handoff are not trustworthy yet.';
+  }
+
+  if (reason === 'unsupported-platform') {
+    return `Platform is ${platformLabel(registration.platform)}, so the dashboard cannot generate a trustworthy learner provisioning command for this tablet yet.`;
   }
 
   if (reason === 'non-active-status') {
@@ -254,6 +258,7 @@ export function DeviceDeploymentHandoff({
   const readyRegistrations = prioritized.filter((entry) => entry.rolloutReady);
   const missingDeviceIdentifierCount = blockedRegistrations.filter((entry) => !normalizeDeviceIdentifier(entry.registration.deviceIdentifier)).length;
   const missingPodCount = blockedRegistrations.filter((entry) => !normalizePodIdentifier(entry.registration.podId)).length;
+  const unsupportedPlatformCount = blockedRegistrations.filter((entry) => !['android', 'ios', 'web'].includes(normalizePlatform(entry.registration.platform))).length;
   const nonActiveCount = blockedRegistrations.filter((entry) => String(entry.registration.status || '').trim().toLowerCase() !== 'active').length;
   const duplicateScopePodCount = new Set(
     blockedRegistrations
@@ -329,6 +334,7 @@ export function DeviceDeploymentHandoff({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {missingDeviceIdentifierCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{missingDeviceIdentifierCount} blank device ID{missingDeviceIdentifierCount === 1 ? '' : 's'}</div> : null}
             {missingPodCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{missingPodCount} missing pod link{missingPodCount === 1 ? '' : 's'}</div> : null}
+            {unsupportedPlatformCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{unsupportedPlatformCount} unsupported platform{unsupportedPlatformCount === 1 ? '' : 's'}</div> : null}
             {nonActiveCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{nonActiveCount} non-active tablet{nonActiveCount === 1 ? '' : 's'}</div> : null}
             {duplicateScopePodCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{duplicateScopePodCount} pod scope conflict{duplicateScopePodCount === 1 ? '' : 's'}</div> : null}
             {duplicateDeviceIdentifierCount ? <div style={{ padding: '8px 10px', borderRadius: 999, background: 'white', color: '#9A3412', border: '1px solid #FDBA74', fontWeight: 700 }}>{duplicateDeviceIdentifierCount} duplicate device ID{duplicateDeviceIdentifierCount === 1 ? '' : 's'}</div> : null}

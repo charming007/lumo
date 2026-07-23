@@ -36,3 +36,55 @@ test('device deployment handoff strips canonical learner API suffixes before gen
     'normalization should compare suffixes case-insensitively because operators paste mixed-case API URLs in the real world',
   );
 });
+
+test('device deployment handoff generates a shell-valid learner release command', () => {
+  assert.match(
+    source,
+    /'cd apps\/learner-tablet &&'/,
+    'release command should cd into the learner tablet app before chaining verification and build steps',
+  );
+
+  assert.match(
+    source,
+    /'dart run tool\/verify_release_config\.dart \\\\'/,
+    'verification step should use line continuations on its own arguments instead of escaping the cd line',
+  );
+
+  assert.match(
+    source,
+    /\$\{buildCommand\} \\\\/,
+    'build step should remain copyable as a multi-line command after verification succeeds',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /\.join\(' \\\\\\\n'\)/,
+    'release command should not join every line with a trailing backslash because that turns the copied shell into malformed syntax',
+  );
+});
+
+test('device deployment handoff treats unsupported tablet platforms as rollout blockers instead of fake-ready bundles', () => {
+  assert.match(
+    source,
+    /if \(reason === 'unsupported-platform'\)/,
+    'handoff should explain why an unknown platform blocks provisioning',
+  );
+
+  assert.match(
+    source,
+    /Platform is \$\{platformLabel\(registration\.platform\)\}, so the dashboard cannot generate a trustworthy learner provisioning command for this tablet yet\./,
+    'handoff should explicitly call out unsupported platform records as non-provisionable',
+  );
+
+  assert.match(
+    source,
+    /const unsupportedPlatformCount = blockedRegistrations\.filter\(\(entry\) => !\['android', 'ios', 'web'\]\.includes\(normalizePlatform\(entry\.registration\.platform\)\)\)\.length;/,
+    'handoff should summarize unsupported platform blockers alongside missing IDs and pod issues',
+  );
+
+  assert.match(
+    source,
+    /unsupportedPlatformCount \? <div[\s\S]*unsupported platform\{unsupportedPlatformCount === 1 \? '' : 's'\}/,
+    'handoff blocker chips should surface unsupported platform counts to operators',
+  );
+});
