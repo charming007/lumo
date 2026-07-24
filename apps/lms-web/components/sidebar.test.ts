@@ -19,6 +19,20 @@ test('sidebar normalizes nullable pathname values before active-path checks', ()
   );
 });
 
+test('sidebar closes mobile navigation on route changes even if menu state lags a render behind', () => {
+  assert.match(
+    source,
+    /if \(previousPathnameRef\.current !== safePathname\) \{\s+onCloseMobileNav\?\.\(\);\s+\}/s,
+    'route changes must close the mobile drawer unconditionally so the overlay does not get stuck open when navigation state settles asynchronously',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /if \(previousPathnameRef\.current !== safePathname && mobileNavOpen\)/,
+    'gating the route-change close behind the previous mobile-nav flag reintroduces the stuck overlay race on mobile navigation',
+  );
+});
+
 test('sidebar keeps pilot copy behind the override and restores normal LMS shell copy by default', () => {
   assert.match(source, /Pilot control plane for curriculum readiness and learner progress/);
   assert.match(source, /Pilot-ready routes/);
