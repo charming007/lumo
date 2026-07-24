@@ -441,12 +441,20 @@ export default async function HomePage() {
     (modules.length > 0 && lessons.length === 0 && modules.some((module) => module.lessonCount > 0))
     || (modules.length === 0 && (lessons.length > 0 || assessments.length > 0))
   );
-  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
+  const dashboardPageBlocked = shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+    hasEmptyReleaseBoard,
+    hasDeviceDeploymentGap,
+    hasReleaseGraphMismatch,
+  });
+  const dashboardTrustBadge = dashboardPageBlocked
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
+  const dashboardTrustTone = dashboardPageBlocked
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
@@ -558,14 +566,7 @@ export default async function HomePage() {
     );
   }
 
-  if (shouldBlockDashboardPage({
-    criticalDashboardFailureCount: criticalDashboardFailures.length,
-    criticalReleaseFailureCount: criticalReleaseFailures.length,
-    hasCriticalAssetOpsGap,
-    hasEmptyReleaseBoard,
-    hasDeviceDeploymentGap,
-    hasReleaseGraphMismatch,
-  })) {
+  if (dashboardPageBlocked) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
       : hasCriticalDashboardGap
