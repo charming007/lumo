@@ -629,6 +629,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /cd apps\/learner-tablet &&[\s\S]*dart run tool\/build_release\.dart/,
+    'learner provisioning bundle should chain into the guarded release wrapper instead of emitting a broken multiline shell snippet',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /dart run tool\/build_release\.dart/,
     'learner provisioning bundle should run through the guarded release wrapper before exposing copyable release commands',
   );
