@@ -27,31 +27,21 @@ test('dashboard hard-blocks when the subject feed is degraded', () => {
   );
 });
 
-test('dashboard hard-blocks pilot deployment review when the full LMS shell is forced on in production', () => {
+test('dashboard mirrors the shared shell clamp and stays in the pilot route map throughout production', () => {
   assert.match(
     dashboardPageSource,
-    /const shellScopeDeploymentBlocked = process\.env\.NODE_ENV === 'production' && !pilotControlPlaneEnabled;/,
-    'dashboard should derive a dedicated deployment blocker when the full LMS shell is visible in production',
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| process\.env\.NODE_ENV === 'production';/,
+    'dashboard should mirror the shared shell clamp so production defaults to the pilot-safe route map even if the raw override flag is off',
   );
-  assert.match(
+  assert.doesNotMatch(
     dashboardPageSource,
     /if \(shellScopeDeploymentBlocked\) \{/,
-    'dashboard should stop deployment review before rendering the rest of the page when production shell scope widens',
+    'dashboard should stop hard-blocking deployment review once the shared shell already clamps production back to the pilot-safe route set',
   );
-  assert.match(
+  assert.doesNotMatch(
     dashboardPageSource,
     /Deployment blocker: full LMS shell is widening the production deployment target\./,
-    'dashboard should call out the widened full-shell production state as an explicit deployment blocker',
-  );
-  assert.match(
-    dashboardPageSource,
-    /A warning card buried inside the dashboard is too weak here\./,
-    'dashboard blocker copy should explain why a buried warning is not enough once production shell scope widens',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Re-enable the pilot control plane for production so the dashboard and sidebar collapse back to the narrow pilot deployment shell/,
-    'dashboard should give operators a direct recovery action for the widened production shell state',
+    'dashboard should stop advertising a full-shell production blocker once the broader shell no longer renders in production by default',
   );
 });
 
@@ -60,6 +50,16 @@ test('dashboard keeps the pilot route map as the production-safe default and lea
     dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
     'dashboard should still derive shell mode from the shared pilot control-plane helper',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| process\.env\.NODE_ENV === 'production';/,
+    'dashboard should clamp its route-map state the same way the shared shell clamps production back to the pilot-safe workspace',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{effectivePilotControlPlaneEnabled \? \(/,
+    'dashboard should render its route-map branch from the clamped pilot-safe shell state instead of the raw override flag',
   );
   assert.match(
     dashboardPageSource,
