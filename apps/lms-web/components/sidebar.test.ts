@@ -28,3 +28,17 @@ test('sidebar keeps pilot copy behind the override and restores normal LMS shell
   assert.match(source, /All admin routes stay available; this redesign only changes presentation\./);
   assert.doesNotMatch(source, /forcing operators through the pilot-only control-plane chrome/);
 });
+
+test('sidebar closes the mobile sheet on route changes even if the open flag lags behind the navigation commit', () => {
+  assert.match(
+    source,
+    /if \(previousPathnameRef\.current !== safePathname\) \{\s*onCloseMobileNav\?\.\(\);/,
+    'route transitions should always trigger the close callback so the mobile overlay cannot stay stuck over the next screen',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /if \(previousPathnameRef\.current !== safePathname && mobileNavOpen\)/,
+    'gating the close callback behind the stale mobileNavOpen prop can leave the mobile sheet covering the newly selected route',
+  );
+});
