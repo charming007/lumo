@@ -942,6 +942,9 @@ class LumoAppState {
       acknowledgedOfflineFallbackRisk =
           !kReleaseBuild && snapshot['acknowledgedOfflineFallbackRisk'] == true;
       backendError = _readNullableString(snapshot['backendError']);
+      deploymentBlockerReason = _readNullableString(
+        snapshot['deploymentBlockerReason'],
+      );
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
       lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
@@ -1030,7 +1033,7 @@ class LumoAppState {
         pendingRecoveredSessionSnapshot = null;
       }
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
-      deploymentBlockerReason =
+      deploymentBlockerReason ??=
           hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       await ensureStableDeviceIdentifier();
@@ -6037,6 +6040,7 @@ class LumoAppState {
       'usingFallbackData': usingFallbackData,
       'acknowledgedOfflineFallbackRisk': acknowledgedOfflineFallbackRisk,
       'backendError': backendError,
+      'deploymentBlockerReason': deploymentBlockerReason,
       'lastSyncedAt': lastSyncedAt?.toIso8601String(),
       'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
       'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),

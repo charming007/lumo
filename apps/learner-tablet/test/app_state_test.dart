@@ -1860,6 +1860,40 @@ void main() {
     });
 
     test(
+      'persists hard deployment identity blockers across tablet restarts',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+
+        final state = LumoAppState(includeSeedDemoContent: true)
+          ..usingFallbackData = true
+          ..snapshotTrustedFromLiveBootstrap = true
+          ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 5))
+          ..snapshotSavedAt = DateTime.now().subtract(
+            const Duration(minutes: 6),
+          )
+          ..backendError =
+              'Production bootstrap did not return a tablet registration for this device.'
+          ..deploymentBlockerReason =
+              'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+
+        expect(state.hasUsableOfflineSnapshot, isTrue);
+        expect(state.hasHardDeploymentIdentityBlocker, isTrue);
+
+        await state.flushPersistence();
+        state.dispose();
+
+        final restored = LumoAppState(includeSeedDemoContent: true);
+        await restored.restorePersistedState();
+
+        expect(restored.hasUsableOfflineSnapshot, isTrue);
+        expect(restored.deploymentBlockerReason, state.deploymentBlockerReason);
+        expect(restored.hasHardDeploymentIdentityBlocker, isTrue);
+        restored.dispose();
+      },
+    );
+
+    test(
       'restored offline roster keeps learner pod scope and drops cross-pod learners',
       () async {
         SharedPreferences.setMockInitialValues({
