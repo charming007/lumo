@@ -553,6 +553,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /cd apps\/learner-tablet && \\\\/,
+    'learner provisioning bundle should chain into the Flutter build command instead of emitting a broken multiline shell snippet',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /flutter build web --release/,
     'learner web provisioning bundle should use the real Flutter release build command',
   );

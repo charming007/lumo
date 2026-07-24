@@ -92,11 +92,11 @@ function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTar
         : 'flutter build apk --release';
 
   return [
-    'cd apps/learner-tablet',
-    buildCommand,
-    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)}`,
+    'cd apps/learner-tablet && \\',
+    `  ${buildCommand} \\`,
+    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
     `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-  ].join(' \\\n');
+  ].join('\n');
 }
 
 function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
