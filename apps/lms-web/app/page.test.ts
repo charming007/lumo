@@ -315,6 +315,34 @@ test('dashboard blocked modules snapshot summarizes all blocker types instead of
   );
 });
 
+test('dashboard surfaces assessment-gate pressure instead of silently dropping missing-gate blockers', () => {
+  assert.match(
+    dashboardPageSource,
+    /\{releaseFeedsAvailable && missingGateBlockers\.length \? \(/,
+    'dashboard should render a dedicated assessment-gate warning when visible release lanes are still missing progression gates',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Assessment gate pressure/,
+    'dashboard should label the missing-gate callout plainly instead of burying it inside generic blocker counts',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Assignment should stay frozen until every visible release lane has a progression gate\./,
+    'dashboard should tell operators that assignment remains frozen while gates are missing',
+  );
+  assert.match(
+    dashboardPageSource,
+    /describeGateWarning\(missingGateBlockers\.length, liveMissingGateBlockers\.length\)/,
+    'dashboard should actually render the gate-pressure copy it already computes instead of leaving the helper unused',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Review gate blockers/,
+    'dashboard should give operators a direct blocker-board CTA for missing progression gates',
+  );
+});
+
 test('dashboard blocker-state content CTAs land on the blocker board instead of generic content home', () => {
   assert.match(
     dashboardPageSource,

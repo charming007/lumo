@@ -1029,6 +1029,28 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
+            {releaseFeedsAvailable && missingGateBlockers.length ? (
+              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA', display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Assessment gate pressure</div>
+                    <strong style={{ color: '#7C2D12', fontSize: 18 }}>Assignment should stay frozen until every visible release lane has a progression gate.</strong>
+                    <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
+                      {describeGateWarning(missingGateBlockers.length, liveMissingGateBlockers.length)}
+                    </div>
+                  </div>
+                  <Pill label={`${missingGateBlockers.length} missing gate${missingGateBlockers.length === 1 ? '' : 's'}`} tone="#FFFFFF" text="#9A3412" />
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
+                    Review gate blockers
+                  </Link>
+                  <Link href="/assignments" style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
+                    Cross-check assignments
+                  </Link>
+                </div>
+              </div>
+            ) : null}
             {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane. Use Content Library if you need the full blocker board.', 'warning') : null}
             {releaseFeedsAvailable && topReleaseBlocker ? (
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
