@@ -437,8 +437,18 @@ test('dashboard live pull freshness uses the real feed count instead of a hard-c
   );
   assert.match(
     dashboardPageSource,
-    /with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
-    'dashboard live pull freshness copy should show the real dynamic feed denominator',
+    /Snapshot generated at \{formatDateTime\(dashboardRenderedAt\)\} with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
+    'dashboard live pull freshness copy should show the real dynamic feed denominator without pretending a stale tab is still “just now”',
+  );
+  assert.match(
+    dashboardPageSource,
+    /This is a server-rendered snapshot, not a self-updating freshness clock\./,
+    'dashboard should warn that the freshness stamp is a snapshot so operators refresh before sign-off',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /Rendered \{formatRelativeMinutes\(dashboardRenderedAt\)\} at \{formatDateTime\(dashboardRenderedAt\)\} with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
+    'dashboard should stop presenting a server-rendered relative age string as if it keeps updating in a stale tab',
   );
   assert.doesNotMatch(
     dashboardPageSource,

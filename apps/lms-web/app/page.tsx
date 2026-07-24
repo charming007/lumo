@@ -98,22 +98,6 @@ function formatDateTime(value: Date) {
   });
 }
 
-function formatRelativeMinutes(value: Date) {
-  const diffMs = Date.now() - value.getTime();
-  const diffMinutes = Math.max(0, Math.round(diffMs / (60 * 1000)));
-
-  if (diffMinutes < 1) return 'just now';
-  if (diffMinutes === 1) return '1 minute ago';
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours === 1) return '1 hour ago';
-  if (diffHours < 24) return `${diffHours} hours ago`;
-
-  const diffDays = Math.round(diffHours / 24);
-  return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
-}
-
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -909,11 +893,11 @@ export default async function HomePage() {
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
             <div style={{ color: '#5d6679', lineHeight: 1.65 }}>
-              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
+              Snapshot generated at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
             <div style={{ color: '#747b8f', lineHeight: 1.65 }}>
-              If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
+              This is a server-rendered snapshot, not a self-updating freshness clock. Refresh the dashboard before deployment sign-off if the timestamp is no longer current.
             </div>
           </div>
 
