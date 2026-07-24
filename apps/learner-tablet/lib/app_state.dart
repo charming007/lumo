@@ -5001,6 +5001,9 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return 'Offline roster blocked from trust';
       }
+      if (hasPendingLocalFallbackRegistration) {
+        return 'Roster trust blocked until learner registration sync lands';
+      }
       return usingFallbackData
           ? 'Roster running from offline seed fallback'
           : 'Roster not synced yet';
@@ -5009,6 +5012,9 @@ class LumoAppState {
     final freshness = _formatRelativeTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Roster last synced $freshness • offline fallback active • trust blocked';
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      return 'Roster last synced $freshness • learner registration sync still blocking trust';
     }
     if (usingFallbackData) {
       return 'Roster last synced $freshness • offline fallback active';
@@ -5022,6 +5028,9 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return 'No trusted live sync on this tablet';
       }
+      if (hasPendingLocalFallbackRegistration) {
+        return 'Learner registration sync is still blocking roster trust';
+      }
       return usingFallbackData
           ? 'No live sync on this tablet yet'
           : 'Waiting for the first live sync';
@@ -5031,6 +5040,9 @@ class LumoAppState {
     final syncedAt = _formatTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Last trusted sync $freshness at $syncedAt • trust blocked';
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      return 'Last backend sync $freshness at $syncedAt • learner registration sync still blocks trust';
     }
     if (usingFallbackData) {
       return 'Last trusted sync $freshness at $syncedAt • offline fallback active';
@@ -5044,6 +5056,9 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return '$trustProblem Reconnect to $backendBaseUrl and refresh the learner bootstrap before trusting this tablet for live delivery.';
       }
+      if (hasPendingLocalFallbackRegistration) {
+        return '${pendingLocalFallbackRegistrationCount == 1 ? '1 learner registration is still waiting to sync upstream.' : '$pendingLocalFallbackRegistrationCount learner registrations are still waiting to sync upstream.'} Until that lands, the roster on this tablet is not trustworthy for deployment signoff.';
+      }
       return usingFallbackData
           ? 'This tablet is teaching from cached learners and lessons until the backend comes back.'
           : 'This tablet has not completed its first backend roster refresh yet.';
@@ -5052,6 +5067,9 @@ class LumoAppState {
     final syncAge = _formatRelativeTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Learners and lessons were last confirmed $syncAge, but this roster is still blocked from trust. $trustProblem Reconnect to $backendBaseUrl and refresh before trusting this tablet for live delivery.';
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      return 'Learners and lessons were refreshed $syncAge, but ${pendingLocalFallbackRegistrationCount == 1 ? '1 learner registration is still queued locally' : '$pendingLocalFallbackRegistrationCount learner registrations are still queued locally'} and the roster is not trustworthy until that sync lands.';
     }
     if (usingFallbackData) {
       return 'Learners and lessons were last confirmed $syncAge. Keep teaching, but refresh before trusting any newly assigned content.';

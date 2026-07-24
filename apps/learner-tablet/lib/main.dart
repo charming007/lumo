@@ -1972,7 +1972,8 @@ class HomePage extends StatelessWidget {
     final ultraShortHeight = viewportHeight <= 640;
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
-        state.registrationBlockerReason != null;
+        state.registrationBlockerReason != null ||
+        state.hasPendingLocalFallbackRegistration;
     final forceTrustBannerOnUltraShort =
         state.deploymentBlockerReason != null ||
             state.backendError != null ||
@@ -2621,11 +2622,15 @@ class _HomeTrustBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final registrationBlocked = state.registrationBlockerReason;
+    final pendingRegistrationCount =
+        state.pendingLocalFallbackRegistrationCount;
+    final hasPendingRegistrationTrustBlocker = pendingRegistrationCount > 0;
     final assignmentGapCount =
         state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
     final criticalSyncBlocker = state.criticalSyncTrustBlockerReason;
     final hasPriorityWarning = registrationBlocked != null ||
         criticalSyncBlocker != null ||
+        hasPendingRegistrationTrustBlocker ||
         assignmentGapCount > 0;
 
     Future<void> refreshTabletSync() async {
@@ -2644,9 +2649,13 @@ class _HomeTrustBanner extends StatelessWidget {
     final compactWarning = criticalSyncBlocker ??
         (registrationBlocked != null
             ? '$registrationBlocked Fix backend reachability first.'
-            : assignmentGapCount == 1
-                ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
-                : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
+            : hasPendingRegistrationTrustBlocker
+                ? pendingRegistrationCount == 1
+                    ? '1 learner registration is still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                    : '$pendingRegistrationCount learner registrations are still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                : assignmentGapCount == 1
+                    ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+                    : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
     final compactStatusTone = criticalSyncBlocker != null
         ? (
             background: const Color(0xFFFFF7ED),
@@ -2714,9 +2723,11 @@ class _HomeTrustBanner extends StatelessWidget {
                     Text(
                       criticalSyncBlocker != null
                           ? 'Deployment trust is blocked until the backend sync mismatch is reconciled. Do not hand this tablet off as if progress is safely landing upstream.'
-                          : hasPriorityWarning
-                              ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
-                              : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+                          : hasPendingRegistrationTrustBlocker
+                              ? 'This tablet has learner registrations saved locally that the backend has not accepted yet. Do not sign this deployment off as roster-safe until that sync lands.'
+                              : hasPriorityWarning
+                                  ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
+                                  : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         height: 1.45,
@@ -2930,9 +2941,13 @@ class _HomeTrustBanner extends StatelessWidget {
                       criticalSyncBlocker ??
                           (registrationBlocked != null
                               ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
-                              : assignmentGapCount == 1
-                                  ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                                  : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
+                              : hasPendingRegistrationTrustBlocker
+                                  ? pendingRegistrationCount == 1
+                                      ? '1 learner registration is still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                      : '$pendingRegistrationCount learner registrations are still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                  : assignmentGapCount == 1
+                                      ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                                      : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
