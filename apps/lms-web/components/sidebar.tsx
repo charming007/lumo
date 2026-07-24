@@ -53,12 +53,12 @@ export function Sidebar({
   const navigationItems = getNavigationItems(pilotControlPlaneEnabled);
 
   useEffect(() => {
-    if (previousPathnameRef.current !== safePathname && mobileNavOpen) {
+    if (previousPathnameRef.current !== safePathname) {
       onCloseMobileNav?.();
     }
 
     previousPathnameRef.current = safePathname;
-  }, [safePathname, mobileNavOpen, onCloseMobileNav]);
+  }, [safePathname, onCloseMobileNav]);
 
   const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Admin workspace';
   const shellHeadline = pilotControlPlaneEnabled ? 'Pilot-ready routes' : 'Education operations';
