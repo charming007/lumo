@@ -35,8 +35,18 @@ void main(List<String> args) {
     return;
   }
 
+  final normalizedApiBaseUrl = LumoApiClient.normalizeBaseUrl(
+    parsed.dartDefines['LUMO_API_BASE_URL']!,
+  );
+  final configuredDeviceIdentifier =
+      parsed.dartDefines['LUMO_DEVICE_IDENTIFIER']?.trim();
+  final deviceSummary =
+      configuredDeviceIdentifier != null && configuredDeviceIdentifier.isNotEmpty
+          ? 'with device $configuredDeviceIdentifier'
+          : 'with seed demo content enabled and no provisioned tablet identity';
+
   stdout.writeln(
-    'Learner-tablet $releaseTarget release config looks shippable for ${LumoApiClient.normalizeBaseUrl(parsed.dartDefines['LUMO_API_BASE_URL']!)} with device ${parsed.dartDefines['LUMO_DEVICE_IDENTIFIER']!.trim()}.',
+    'Learner-tablet $releaseTarget release config looks shippable for $normalizedApiBaseUrl $deviceSummary.',
   );
 }
 

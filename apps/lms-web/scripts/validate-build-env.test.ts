@@ -62,3 +62,16 @@ test('validate-build-env blocks hosted or production build command when NEXT_PUB
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /NEXT_PUBLIC_API_BASE_URL must be the API origin only/i);
 });
+
+
+test('validate-build-env blocks hosted or production build command when the pilot control plane is explicitly disabled', () => {
+  const result = runValidateBuildEnv({
+    NODE_ENV: 'production',
+    NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: 'false',
+    LUMO_ADMIN_API_KEY: 'real-admin-key',
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE is explicitly disabled/i);
+  assert.match(result.stderr, /widened pilot deployment scope/i);
+});
