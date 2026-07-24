@@ -54,12 +54,12 @@ export function Sidebar({
   const navigationItems = getNavigationItems(pilotControlPlaneEnabled);
 
   useEffect(() => {
-    if (previousPathnameRef.current !== safePathname && mobileNavOpen) {
+    if (previousPathnameRef.current !== safePathname) {
       onCloseMobileNav?.();
     }
 
     previousPathnameRef.current = safePathname;
-  }, [safePathname, mobileNavOpen, onCloseMobileNav]);
+  }, [safePathname, onCloseMobileNav]);
 
   const blockedPilotSurfaceCount = PILOT_BLOCKED_ROUTE_LABELS.length;
   const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Admin workspace';
