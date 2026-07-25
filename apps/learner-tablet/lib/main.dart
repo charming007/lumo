@@ -321,7 +321,7 @@ String learnerReleaseBuildCommandForPlatform({
   required TargetPlatform platform,
 }) {
   if (isWeb) {
-    return 'flutter build web --release';
+    return 'flutter build web --release --no-wasm-dry-run';
   }
 
   return switch (platform) {
@@ -330,7 +330,7 @@ String learnerReleaseBuildCommandForPlatform({
     TargetPlatform.macOS => 'flutter build macos --release',
     TargetPlatform.windows => 'flutter build windows --release',
     TargetPlatform.linux => 'flutter build linux --release',
-    TargetPlatform.fuchsia => 'flutter build web --release',
+    TargetPlatform.fuchsia => 'flutter build web --release --no-wasm-dry-run',
   };
 }
 
@@ -366,14 +366,12 @@ String buildReleaseRebuildCommand({
     platform: platform,
   );
   return [
-    'cd apps/learner-tablet',
-    'dart run tool/verify_release_config.dart',
+    'cd apps/learner-tablet &&',
+    'dart run tool/build_release.dart',
     '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
     '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
-    '&& ${learnerReleaseBuildCommandForPlatform(isWeb: isWeb, platform: platform)}',
-    '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
-    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+    if (releaseTarget == 'web') '  --no-wasm-dry-run',
   ].join(' \\\n');
 }
 

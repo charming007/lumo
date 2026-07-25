@@ -553,23 +553,18 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
-    /cd apps\/learner-tablet && \\\\/,
-    'learner provisioning bundle should chain into the Flutter build command instead of emitting a broken multiline shell snippet',
+    /dart run tool\/build_release\.dart/,
+    'learner provisioning bundle should run through the guarded release wrapper before exposing copyable release commands',
   );
   assert.match(
+    deviceDeploymentHandoffSource,
+    /--release-target=\$\{shellEscape\(buildTarget\)\}/,
+    'learner provisioning bundle should pass the requested release target into the guarded wrapper',
+  );
+  assert.doesNotMatch(
     deviceDeploymentHandoffSource,
     /flutter build web --release/,
-    'learner web provisioning bundle should use the real Flutter release build command',
-  );
-  assert.match(
-    deviceDeploymentHandoffSource,
-    /flutter build apk --release/,
-    'learner APK provisioning bundle should use the real Flutter release build command',
-  );
-  assert.match(
-    deviceDeploymentHandoffSource,
-    /flutter build appbundle --release/,
-    'learner Android App Bundle provisioning bundle should use the real Flutter release build command',
+    'copyable learner provisioning commands should stop in the guarded wrapper instead of duplicating raw flutter build steps in the LMS source',
   );
   assert.match(
     deviceDeploymentHandoffSource,

@@ -157,7 +157,7 @@ void main() {
         isWeb: true,
         platform: TargetPlatform.android,
       ),
-      'flutter build web --release',
+      'flutter build web --release --no-wasm-dry-run'
     );
     expect(
       learnerReleaseBuildCommandForPlatform(
@@ -250,10 +250,10 @@ void main() {
 
     expect(
       command,
-      contains('dart run tool/verify_release_config.dart'),
+      contains('dart run tool/build_release.dart'),
     );
     expect(command, contains("--release-target='ipa'"));
-    expect(command, contains('flutter build ipa --release'));
+    expect(command, isNot(contains('flutter build ipa --release')));
     expect(
       command,
       contains("--dart-define=LUMO_API_BASE_URL='https://lumo.example.com'"),
@@ -262,6 +262,17 @@ void main() {
       command,
       contains("--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007'"),
     );
+    expect(command, isNot(contains('--no-wasm-dry-run')));
+
+    final webCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: true,
+      platformOverride: TargetPlatform.android,
+    );
+
+    expect(webCommand, contains("--release-target='web'"));
+    expect(webCommand, contains('--no-wasm-dry-run'));
   });
 
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
