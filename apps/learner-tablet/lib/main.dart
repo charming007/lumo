@@ -357,14 +357,16 @@ String buildReleaseRebuildCommand({
   required String deviceIdentifier,
   bool? isWebOverride,
   TargetPlatform? platformOverride,
+  String? releaseTargetOverride,
 }) {
   final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
   final isWeb = isWebOverride ?? kIsWeb;
   final platform = platformOverride ?? defaultTargetPlatform;
-  final releaseTarget = learnerReleaseTargetForPlatform(
-    isWeb: isWeb,
-    platform: platform,
-  );
+  final releaseTarget = releaseTargetOverride ??
+      learnerReleaseTargetForPlatform(
+        isWeb: isWeb,
+        platform: platform,
+      );
   return [
     'cd apps/learner-tablet &&',
     'dart run tool/build_release.dart',
@@ -422,10 +424,22 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : '<copy-device-identifier-from-lms>';
+    final currentReleaseTarget = learnerReleaseTargetForPlatform(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
     final releaseRebuildCommand = buildReleaseRebuildCommand(
       backendBaseUrl: configuredBackend,
       deviceIdentifier: rebuildDeviceIdentifier,
+      releaseTargetOverride: currentReleaseTarget,
     );
+    final releaseAppBundleCommand = currentReleaseTarget == 'apk'
+        ? buildReleaseRebuildCommand(
+            backendBaseUrl: configuredBackend,
+            deviceIdentifier: rebuildDeviceIdentifier,
+            releaseTargetOverride: 'appbundle',
+          )
+        : null;
     final normalizedBlockerReason = blockerReason.toLowerCase();
     final blockerNeedsDeviceIdentity =
         normalizedBlockerReason.contains('device identifier') ||
@@ -756,6 +770,73 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 icon: const Icon(Icons.copy_all_rounded),
                                 label: const Text('Copy rebuild command'),
                               ),
+                              if (releaseAppBundleCommand != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF7ED),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0xFFFED7AA),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Android App Bundle handoff',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF9A3412),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SelectableText(
+                                        releaseAppBundleCommand,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7C2D12),
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'If ops is shipping the learner app through a signed Android release lane, copy the App Bundle command instead of pretending the APK path is the only production handoff.',
+                                        style: TextStyle(
+                                          color: Color(0xFF9A3412),
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () async {
+                                          await ClipboardBridge.copy(
+                                            releaseAppBundleCommand,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied Android App Bundle rebuild command.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon:
+                                            const Icon(Icons.copy_all_rounded),
+                                        label: const Text(
+                                          'Copy Android App Bundle command',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

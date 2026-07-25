@@ -273,6 +273,17 @@ void main() {
 
     expect(webCommand, contains("--release-target='web'"));
     expect(webCommand, contains('--no-wasm-dry-run'));
+
+    final appBundleCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: false,
+      platformOverride: TargetPlatform.android,
+      releaseTargetOverride: 'appbundle',
+    );
+
+    expect(appBundleCommand, contains("--release-target='appbundle'"));
+    expect(appBundleCommand, isNot(contains('--no-wasm-dry-run')));
   });
 
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
@@ -553,7 +564,8 @@ void main() {
       final state = LumoAppState(includeSeedDemoContent: true)
         ..usingFallbackData = false
         ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
-        ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
         ..lastSyncError = 'Unknown learner for sync event';
       addTearDown(state.dispose);
 
@@ -1167,6 +1179,8 @@ void main() {
       expect(find.text('Live backend target'), findsOneWidget);
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Android App Bundle handoff'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
@@ -1251,6 +1265,7 @@ void main() {
       );
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(
         find.textContaining('<copy-device-identifier-from-lms>'),
         findsWidgets,
@@ -1303,11 +1318,12 @@ void main() {
       expect(find.text('tablet-pod-a-007'), findsWidgets);
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(
         find.textContaining(
           '--dart-define=LUMO_DEVICE_IDENTIFIER=\'tablet-pod-a-007\'',
         ),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(
         find.textContaining(
@@ -1349,6 +1365,7 @@ void main() {
 
       expect(find.text('Copy backend target'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap command'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
