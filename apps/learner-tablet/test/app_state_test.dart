@@ -4373,6 +4373,110 @@ void main() {
     );
 
     test(
+      'uses assignment title aliases when picking the next lesson after completion',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+          backendRecommendedModuleId: 'math',
+        );
+        const completedLesson = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'English warmup',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Completed lesson.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model it first.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const resolvedAssignmentLesson = LessonCardModel(
+          id: 'math-real-2',
+          moduleId: 'math',
+          title: 'Count to 10',
+          subject: 'Math',
+          durationMinutes: 10,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Counting practice',
+          scenario: 'Real assignment lesson body exists on the tablet.',
+          steps: [
+            LessonStep(
+              id: 'math-step-1',
+              type: LessonStepType.practice,
+              title: 'Count together',
+              instruction: 'Count to 10.',
+              expectedResponse: '1 2 3 4 5 6 7 8 9 10',
+              coachPrompt: 'Let us count to 10 together.',
+              facilitatorTip: 'Point to each number.',
+              realWorldCheck: 'Learner counts clearly.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([completedLesson, resolvedAssignmentLesson]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-next',
+            lessonId: 'stale-backend-id',
+            moduleId: 'math-routing',
+            curriculumModuleId: 'math',
+            lessonTitle: resolvedAssignmentLesson.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+
+        final nextLesson = state.nextLessonAfterCompletion(
+          learner,
+          completedLessonId: completedLesson.id,
+        );
+
+        expect(nextLesson, isNotNull);
+        expect(nextLesson!.id, resolvedAssignmentLesson.id);
+        expect(
+          state.nextLessonRouteSummaryForLearner(
+            learner,
+            completedLessonId: completedLesson.id,
+          ),
+          contains(resolvedAssignmentLesson.title),
+        );
+        state.dispose();
+      },
+    );
+
+    test(
       'skips sync-placeholder assignments when picking the next lesson after completion',
       () {
         final state = LumoAppState(includeSeedDemoContent: false)

@@ -2838,17 +2838,13 @@ class LumoAppState {
     }
 
     final assignmentPack = nextAssignmentPackForLearner(learner);
-    if (assignmentPack != null &&
-        assignmentPack.lessonId != completedLessonId) {
-      final assignmentLesson =
-          assignedLessons.cast<LessonCardModel?>().firstWhere(
-                (lesson) =>
-                    lesson?.id == assignmentPack.lessonId &&
-                    lesson != null &&
-                    !_lessonRequiresSyncBeforeStarting(lesson),
-                orElse: () => null,
-              );
-      if (assignmentLesson != null) return assignmentLesson;
+    if (assignmentPack != null) {
+      final assignmentLesson = _findLessonForAssignmentPack(assignmentPack);
+      if (assignmentLesson != null &&
+          assignmentLesson.id != completedLessonId &&
+          !_lessonRequiresSyncBeforeStarting(assignmentLesson)) {
+        return assignmentLesson;
+      }
     }
 
     final recommendedModuleId = recommendedModuleForLearner(learner).id;
