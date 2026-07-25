@@ -262,6 +262,7 @@ void main() {
       command,
       contains("--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007'"),
     );
+<<<<<<< HEAD
     expect(
       command,
       contains('dart run tool/build_release.dart \\\n'),
