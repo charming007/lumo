@@ -1641,6 +1641,18 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
+  final learnerLaunchTrustBlocker = state.learnerLaunchTrustBlockerReason;
+  if (learnerLaunchTrustBlocker != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Tablet trust is blocked. $learnerLaunchTrustBlocker',
+        ),
+      ),
+    );
+    return;
+  }
+
   if (lesson.isAssignmentPlaceholder) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

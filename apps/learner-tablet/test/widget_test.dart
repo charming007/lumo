@@ -544,6 +544,54 @@ void main() {
   );
 
   testWidgets(
+    'home screen blocks lesson launch from trust-blocked tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+
+      final lesson = state.assignedLessons.firstWhere(
+        (candidate) => candidate.steps.isNotEmpty,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () {
+                    launchLessonFlow(
+                      context: context,
+                      state: state,
+                      onChanged: _noop,
+                      lesson: lesson,
+                    );
+                  },
+                  child: const Text('Launch lesson'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Launch lesson'));
+      await tester.pump();
+
+      expect(find.textContaining('Tablet trust is blocked.'), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    },
+  );
+
+  testWidgets(
     'home screen keeps recovered-session recovery actions visible on ultra-short tablets',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 540);

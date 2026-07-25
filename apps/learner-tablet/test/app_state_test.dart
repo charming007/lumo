@@ -4849,6 +4849,35 @@ void main() {
       state.dispose();
     });
 
+    test('startLesson rejects lesson launch while tablet trust is blocked', () {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (candidate) => candidate.steps.isNotEmpty,
+      );
+      state.selectLearner(learner);
+
+      expect(
+        () => state.startLesson(lesson),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('while tablet trust is blocked'),
+              contains('backend rejected at least one learner event as unknown'),
+            ),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
     test(
       'startLesson rejects lessons that are not launchable for the selected learner',
       () {

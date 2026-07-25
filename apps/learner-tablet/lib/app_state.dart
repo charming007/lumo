@@ -3177,6 +3177,13 @@ class LumoAppState {
       );
     }
 
+    final learnerLaunchTrustBlocker = learnerLaunchTrustBlockerReason;
+    if (learnerLaunchTrustBlocker != null) {
+      throw StateError(
+        'Cannot open lesson ${lesson.id} for ${learner.name} while tablet trust is blocked. $learnerLaunchTrustBlocker',
+      );
+    }
+
     final lessonIsTrackedForLaunchGuard = assignedLessons.any(
       (item) => item.id == lesson.id,
     );
@@ -5377,6 +5384,8 @@ class LumoAppState {
 
     return null;
   }
+
+  String? get learnerLaunchTrustBlockerReason => criticalSyncTrustBlockerReason;
 
   List<String> get criticalSyncTrustBlockerEvidence {
     final evidence = <String>[];
