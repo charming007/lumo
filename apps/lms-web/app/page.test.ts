@@ -307,6 +307,29 @@ test('dashboard reuses the normalized blocker-board href helper instead of hand-
   );
 });
 
+test('dashboard reuses the shared blocking decision for trust badge state so empty release boards cannot look healthy', () => {
+  assert.match(
+    dashboardPageSource,
+    /const dashboardPageBlocked = shouldBlockDashboardPage\(\{[\s\S]*hasEmptyReleaseBoard,[\s\S]*hasReleaseGraphMismatch,[\s\S]*\}\);/,
+    'dashboard should compute one shared blocked-state decision so release-board blockers and shell badges cannot drift apart',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const dashboardTrustBadge = dashboardPageBlocked[\s\S]*\? 'Blocked'/,
+    'dashboard trust badge should reuse the shared blocked-state decision instead of maintaining its own narrower blocker list',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const dashboardTrustTone = dashboardPageBlocked[\s\S]*'#991B1B'/,
+    'dashboard trust tone should stay wired to the same shared blocked-state decision',
+  );
+  assert.match(
+    dashboardPageSource,
+    /if \(dashboardPageBlocked\) \{/,
+    'dashboard blocker card should also reuse the same shared blocked-state decision',
+  );
+});
+
 test('dashboard blocked modules snapshot summarizes all blocker types instead of draft-only copy', () => {
   assert.match(
     dashboardPageSource,
@@ -389,7 +412,7 @@ test('dashboard hard-blocks when release feeds resolve but the curriculum graph 
   );
   assert.match(
     dashboardPageSource,
-    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
+    /const dashboardPageBlocked = shouldBlockDashboardPage\(\{[\s\S]*hasCriticalAssetOpsGap,[\s\S]*hasEmptyReleaseBoard,[\s\S]*hasDeviceDeploymentGap,[\s\S]*hasReleaseGraphMismatch,[\s\S]*\}\);/,
     'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
   );
   assert.match(
