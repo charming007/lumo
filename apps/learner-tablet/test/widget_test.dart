@@ -264,7 +264,7 @@ void main() {
     );
     expect(
       command,
-      contains('cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
+      contains('cd apps/learner-tablet && \\\n  dart run tool/build_release.dart \\\n'),
     );
     expect(command, isNot(contains('--no-wasm-dry-run')));
 
@@ -280,7 +280,7 @@ void main() {
     expect(
       webCommand,
       contains(
-        "--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007' \\\n  --no-wasm-dry-run",
+        "--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007' \\\n    --no-wasm-dry-run",
       ),
     );
 
