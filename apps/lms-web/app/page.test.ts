@@ -666,6 +666,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     /--dart-define=LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
     'learner release build command should pass the device identifier through Flutter dart-define',
   );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /'cd apps\/learner-tablet && \\\\',\s*'  dart run tool\/build_release\.dart \\\\'/,
+    'learner release handoff should keep the wrapper command as one valid chained shell snippet instead of breaking after &&',
+  );
   assert.doesNotMatch(
     deviceDeploymentHandoffSource,
     /npm run build:learner:(web|apk)/,

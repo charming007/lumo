@@ -85,8 +85,8 @@ function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTar
   const normalizedApiBase = normalizeBaseUrl(apiBase);
 
   return [
-    'cd apps/learner-tablet &&',
-    'dart run tool/build_release.dart \\',
+    'cd apps/learner-tablet && \\',
+    '  dart run tool/build_release.dart \\',
     `  --release-target=${shellEscape(buildTarget)} \\`,
     `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
     `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
