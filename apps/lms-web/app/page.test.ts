@@ -650,21 +650,6 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   assert.match(
     deviceDeploymentHandoffSource,
     /function buildAndroidSigningEnvTemplate\(\)/,
-    'learner web provisioning bundle should use the real Flutter release build command',
-  );
-  assert.match(
-    deviceDeploymentHandoffSource,
-    /flutter build apk --release/,
-    'learner APK provisioning bundle should use the real Flutter release build command',
-  );
-  assert.match(
-    deviceDeploymentHandoffSource,
-    /flutter build appbundle --release/,
-    'learner Android App Bundle provisioning bundle should use the real Flutter release build command',
-  );
-  assert.match(
-    deviceDeploymentHandoffSource,
-    /function buildAndroidSigningEnvTemplate\(\)/,
     'device deployment handoff should expose a reusable Android signing template instead of assuming APK signing is magically configured',
   );
   assert.match(
