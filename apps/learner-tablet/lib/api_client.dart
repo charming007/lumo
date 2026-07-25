@@ -21,9 +21,11 @@ List<String> learnerReleaseBuildConfigIssues({
   bool includeSeedDemoContent = false,
 }) {
   final issues = <String>[];
-  if (!includeSeedDemoContent && rawDeviceIdentifier.trim().isEmpty) {
+  if (rawDeviceIdentifier.trim().isEmpty) {
     issues.add(
-      'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
+      includeSeedDemoContent
+          ? 'Learner-tablet release build still has LUMO_ENABLE_SEED_DEMO_CONTENT enabled but no LUMO_DEVICE_IDENTIFIER. Demo seed content is not a valid substitute for provisioning a real tablet identity before shipping learner devices.'
+          : 'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
     );
   }
 

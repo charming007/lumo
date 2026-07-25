@@ -326,10 +326,12 @@ class LumoAppState {
 
   String? productionDeviceIdentifierIssue(
       {bool isReleaseBuild = kReleaseBuild}) {
-    if (!isReleaseBuild || _includeSeedDemoContent) return null;
+    if (!isReleaseBuild) return null;
     final configured = _configuredDeviceIdentifier?.trim();
     if (configured != null && configured.isNotEmpty) return null;
-    return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+    return _includeSeedDemoContent
+        ? 'Release build still has LUMO_ENABLE_SEED_DEMO_CONTENT enabled but no LUMO_DEVICE_IDENTIFIER. Demo seed content cannot stand in for a real provisioned learner tablet identity, so deployment is blocked until the build is rebuilt correctly.'
+        : 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
   }
 
   bool _isHardDeploymentIdentityBlocker(String? reason) {
