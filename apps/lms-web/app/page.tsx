@@ -10,7 +10,7 @@ import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumM
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
-import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
+import { getPilotControlPlaneFlagMode, isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { findSubjectByContext } from '../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
@@ -234,8 +234,9 @@ function describeApiTarget() {
 export default async function HomePage() {
   const buildSignature = getBuildSignature();
   const apiTarget = describeApiTarget();
+  const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
-  const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || process.env.NODE_ENV === 'production';
+  const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || (process.env.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled');
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
