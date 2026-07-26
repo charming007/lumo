@@ -6959,7 +6959,9 @@ class RegistrationSuccessPage extends StatelessWidget {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 20),
-                            _CompactBackendStatusBanner(state: state),
+                            state.hasCriticalSyncTrustBlocker
+                                ? _BackendStatusBanner(state: state)
+                                : _CompactBackendStatusBanner(state: state),
                             const SizedBox(height: 20),
                             LabelValueWrap(
                               items: [
