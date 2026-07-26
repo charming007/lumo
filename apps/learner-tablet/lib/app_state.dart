@@ -5514,9 +5514,7 @@ class LumoAppState {
       return 'No learner events are waiting locally on this tablet.';
     }
 
-    final parts = <String>[
-      '$pendingCount learner event(s) still live only on this tablet',
-    ];
+    final parts = <String>['$pendingCount learner event(s) still live only on this tablet'];
     if (fallbackRegistrationCount > 0) {
       parts.add(
         '$fallbackRegistrationCount local registration${fallbackRegistrationCount == 1 ? '' : 's'} still need backend reconciliation',
@@ -5546,7 +5544,7 @@ class LumoAppState {
       return 'Backend truth gap: offline fallback';
     }
     if (pendingSyncEvents.isNotEmpty) {
-      return 'Backend truth gap: ${pendingSyncEvents.length} local update(s) pending';
+      return 'Backend truth gap: $pendingSyncEvents.length local update(s) pending';
     }
     if (lastSyncWarnings.isNotEmpty) {
       return 'Backend truth gap: receipts need review';
