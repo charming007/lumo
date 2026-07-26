@@ -264,7 +264,8 @@ void main() {
     );
     expect(
       command,
-      contains('cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
+      contains(
+          'cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
     );
     expect(command, isNot(contains('--no-wasm-dry-run')));
 
@@ -2779,6 +2780,45 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Back home'), findsOneWidget);
       expect(find.text('Start assigned lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'registration success page exposes the full backend trust blocker state before live handoff',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+      final learner = state.learners.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Pilot trust blocker'), findsOneWidget);
+      expect(
+          find.text('Backend connected • sync trust blocked'), findsOneWidget);
+      expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+      expect(find.text('Runtime sync feedback'), findsOneWidget);
+      expect(
+        find.textContaining(state.criticalSyncTrustBlockerReason!),
+        findsOneWidget,
+      );
     },
   );
 
