@@ -2888,7 +2888,10 @@ class _HomeTrustBanner extends StatelessWidget {
               ),
             ],
           ] else ...[
-            _BackendStatusBanner(state: state),
+            _BackendStatusBanner(
+              state: state,
+              showHandoffDetails: false,
+            ),
             const SizedBox(height: 12),
             _RosterFreshnessBanner(state: state),
             if (hasPriorityWarning) ...[
@@ -6788,7 +6791,10 @@ class RegistrationSuccessPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-                    _BackendStatusBanner(state: state),
+                    _BackendStatusBanner(
+                      state: state,
+                      showHandoffDetails: false,
+                    ),
                     const SizedBox(height: 20),
                     LabelValueWrap(
                       items: [
@@ -13967,8 +13973,12 @@ class _RosterFreshnessBanner extends StatelessWidget {
 
 class _BackendStatusBanner extends StatelessWidget {
   final LumoAppState state;
+  final bool showHandoffDetails;
 
-  const _BackendStatusBanner({required this.state});
+  const _BackendStatusBanner({
+    required this.state,
+    this.showHandoffDetails = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14041,44 +14051,46 @@ class _BackendStatusBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+          if (showHandoffDetails) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Authoritative vs local handoff',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.authoritativeBackendSummary,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    state.pendingLocalStateSummary,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Authoritative vs local handoff',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.authoritativeBackendSummary,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  state.pendingLocalStateSummary,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
           if (blockerReason != null) ...[
             const SizedBox(height: 12),
             Container(
