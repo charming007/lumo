@@ -5425,6 +5425,84 @@ class LumoAppState {
     return 'Runtime sync is waiting for the first learner event.';
   }
 
+  String get authoritativeBackendSummary {
+    if (lastSyncedAt == null) {
+      return usingFallbackData
+          ? 'Backend authority is paused. This tablet is still leaning on local fallback lessons and roster state.'
+          : 'Backend authority is not established yet because the first live bootstrap has not completed.';
+    }
+    if (hasCriticalSyncTrustBlocker) {
+      return 'Backend authority is blocked. The last live roster fetch landed, but sync receipts no longer prove that backend progress matches this tablet.';
+    }
+    if (usingFallbackData) {
+      return 'Backend authority is aging. The last trusted roster snapshot exists, but this session is currently running from offline fallback state.';
+    }
+    if (lastSyncAttemptAt == null) {
+      return 'Backend authority is partially established. Roster and lessons are live, but no runtime sync receipt exists yet for learner activity.';
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      return 'Backend authority is stale. New learner evidence has not been confirmed upstream since the last sync failed.';
+    }
+    if (lastSyncWarnings.isNotEmpty) {
+      return 'Backend authority needs review. The backend accepted contact from this tablet, but at least one sync receipt still needs human attention.';
+    }
+    return 'Backend authority is current. Live roster, lesson payloads, and the latest runtime sync receipts all line up cleanly.';
+  }
+
+  String get pendingLocalStateSummary {
+    final pendingCount = pendingSyncEvents.length;
+    final fallbackRegistrationCount = pendingSyncEvents
+        .where((event) => event.type == 'learner_registered_local_fallback')
+        .length;
+    final rewardCount = pendingSyncEvents
+        .where((event) => event.type == 'learner_reward_redeemed')
+        .length;
+
+    if (pendingCount == 0) {
+      return 'No learner events are waiting locally on this tablet.';
+    }
+
+    final parts = <String>['$pendingCount learner event(s) still live only on this tablet'];
+    if (fallbackRegistrationCount > 0) {
+      parts.add(
+        '$fallbackRegistrationCount local registration${fallbackRegistrationCount == 1 ? '' : 's'} still need backend reconciliation',
+      );
+    }
+    if (rewardCount > 0) {
+      parts.add(
+        '$rewardCount reward sync event${rewardCount == 1 ? '' : 's'} are still pending review',
+      );
+    }
+    if (lastSyncError != null && lastSyncError!.trim().isNotEmpty) {
+      parts.add('the latest sync retry failed');
+    } else if (isSyncingEvents) {
+      parts.add('Lumo is replaying them upstream now');
+    } else {
+      parts.add('they will replay on the next backend sync');
+    }
+
+    return '${parts.join('. ')}.';
+  }
+
+  String get backendLocalTruthGapLabel {
+    if (hasCriticalSyncTrustBlocker) {
+      return 'Backend truth gap: blocked';
+    }
+    if (usingFallbackData) {
+      return 'Backend truth gap: offline fallback';
+    }
+    if (pendingSyncEvents.isNotEmpty) {
+      return 'Backend truth gap: $pendingSyncEvents.length local update(s) pending';
+    }
+    if (lastSyncWarnings.isNotEmpty) {
+      return 'Backend truth gap: receipts need review';
+    }
+    if (lastSyncedAt == null) {
+      return 'Backend truth gap: first sync pending';
+    }
+    return 'Backend truth gap: clear';
+  }
+
   List<String> runtimeSyncActionItems() {
     final actions = <String>[];
     if (usingFallbackData) {

@@ -14024,12 +14024,60 @@ class _BackendStatusBanner extends StatelessWidget {
               StatusPill(text: state.lastSyncSummaryLabel, color: color),
               StatusPill(text: state.syncReceiptLabel, color: color),
               StatusPill(
+                text: state.backendLocalTruthGapLabel,
+                color: hasCriticalSyncBlocker
+                    ? const Color(0xFFB91C1C)
+                    : (state.pendingSyncEvents.isNotEmpty ||
+                            state.lastSyncWarnings.isNotEmpty ||
+                            state.usingFallbackData
+                        ? LumoTheme.accentOrange
+                        : color),
+              ),
+              StatusPill(
                 text: state.syncWarningsLabel,
                 color: state.lastSyncWarnings.isEmpty
                     ? color
                     : LumoTheme.accentOrange,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Authoritative vs local handoff',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.authoritativeBackendSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  state.pendingLocalStateSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (blockerReason != null) ...[
             const SizedBox(height: 12),
