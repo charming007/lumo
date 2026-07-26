@@ -2260,121 +2260,133 @@ class HomePage extends StatelessWidget {
                                             ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
                                             : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
 
-                                return Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 760,
-                                    ),
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: EdgeInsets.all(
-                                        compact ? 18 : 24,
+                                return SingleChildScrollView(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: compact ? 8 : 12,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 760,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(28),
-                                        border: Border.all(
-                                          color: const Color(0xFFE2E8F0),
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.all(
+                                          compact ? 18 : 24,
                                         ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(0x140F172A),
-                                            blurRadius: 24,
-                                            offset: Offset(0, 14),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(28),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
                                           ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFFFFF7ED,
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Color(0x140F172A),
+                                              blurRadius: 24,
+                                              offset: Offset(0, 14),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    12,
                                                   ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.menu_book_rounded,
-                                                  color: LumoTheme.accentOrange,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 14),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      headline,
-                                                      style: const TextStyle(
-                                                        fontSize: 24,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                        color: Color(
-                                                          0xFF0F172A,
-                                                        ),
-                                                        height: 1.15,
-                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFFFF7ED,
                                                     ),
-                                                    const SizedBox(height: 10),
-                                                    Text(
-                                                      detail,
-                                                      style: const TextStyle(
-                                                        color: Color(
-                                                          0xFF475569,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            18),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.menu_book_rounded,
+                                                    color:
+                                                        LumoTheme.accentOrange,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        headline,
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.w900,
+                                                          color: Color(
+                                                            0xFF0F172A,
+                                                          ),
+                                                          height: 1.15,
                                                         ),
-                                                        height: 1.5,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      const SizedBox(
+                                                          height: 10),
+                                                      Text(
+                                                        detail,
+                                                        style: const TextStyle(
+                                                          color: Color(
+                                                            0xFF475569,
+                                                          ),
+                                                          height: 1.5,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 18),
-                                          Wrap(
-                                            spacing: 12,
-                                            runSpacing: 12,
-                                            children: [
-                                              FilledButton.icon(
-                                                onPressed: state.isBootstrapping
-                                                    ? null
-                                                    : () async {
-                                                        await state.bootstrap();
-                                                        onChanged();
-                                                      },
-                                                icon: const Icon(
-                                                  Icons.sync_rounded,
+                                              ],
+                                            ),
+                                            const SizedBox(height: 18),
+                                            Wrap(
+                                              spacing: 12,
+                                              runSpacing: 12,
+                                              children: [
+                                                FilledButton.icon(
+                                                  onPressed:
+                                                      state.isBootstrapping
+                                                          ? null
+                                                          : () async {
+                                                              await state
+                                                                  .bootstrap();
+                                                              onChanged();
+                                                            },
+                                                  icon: const Icon(
+                                                    Icons.sync_rounded,
+                                                  ),
+                                                  label: Text(
+                                                    state.isBootstrapping
+                                                        ? 'Refreshing live sync…'
+                                                        : 'Refresh live sync',
+                                                  ),
                                                 ),
-                                                label: Text(
-                                                  state.isBootstrapping
-                                                      ? 'Refreshing live sync…'
-                                                      : 'Refresh live sync',
+                                                OutlinedButton.icon(
+                                                  onPressed: openLearners,
+                                                  icon: const Icon(
+                                                    Icons.groups_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Open student list',
+                                                  ),
                                                 ),
-                                              ),
-                                              OutlinedButton.icon(
-                                                onPressed: openLearners,
-                                                icon: const Icon(
-                                                  Icons.groups_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Open student list',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -6899,7 +6911,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-                    _BackendStatusBanner(state: state),
+                    _CompactBackendStatusBanner(state: state),
                     const SizedBox(height: 20),
                     LabelValueWrap(
                       items: [
@@ -14076,6 +14088,60 @@ class _RosterFreshnessBanner extends StatelessWidget {
   }
 }
 
+class _CompactBackendStatusBanner extends StatelessWidget {
+  final LumoAppState state;
+
+  const _CompactBackendStatusBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLive = !state.usingFallbackData && state.lastSyncedAt != null;
+    final hasCriticalSyncBlocker = state.hasCriticalSyncTrustBlocker;
+    final color = hasCriticalSyncBlocker
+        ? const Color(0xFFB91C1C)
+        : isLive
+            ? LumoTheme.accentGreen
+            : (state.isBootstrapping
+                ? LumoTheme.primary
+                : LumoTheme.accentOrange);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLive ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                color: color,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  state.backendStatusLabel,
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            state.backendStatusDetail,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BackendStatusBanner extends StatelessWidget {
   final LumoAppState state;
 
@@ -14135,12 +14201,60 @@ class _BackendStatusBanner extends StatelessWidget {
               StatusPill(text: state.lastSyncSummaryLabel, color: color),
               StatusPill(text: state.syncReceiptLabel, color: color),
               StatusPill(
+                text: state.backendLocalTruthGapLabel,
+                color: hasCriticalSyncBlocker
+                    ? const Color(0xFFB91C1C)
+                    : (state.pendingSyncEvents.isNotEmpty ||
+                            state.lastSyncWarnings.isNotEmpty ||
+                            state.usingFallbackData
+                        ? LumoTheme.accentOrange
+                        : color),
+              ),
+              StatusPill(
                 text: state.syncWarningsLabel,
                 color: state.lastSyncWarnings.isEmpty
                     ? color
                     : LumoTheme.accentOrange,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Authoritative vs local handoff',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.authoritativeBackendSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  state.pendingLocalStateSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (blockerReason != null) ...[
             const SizedBox(height: 12),
