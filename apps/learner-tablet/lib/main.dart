@@ -372,7 +372,7 @@ String buildReleaseRebuildCommand({
     'dart run tool/build_release.dart',
     '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
-    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}${releaseTarget == 'web' ? ' \\' : ''}',
+    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
     if (releaseTarget == 'web') '  --no-wasm-dry-run',
   ].join(' \\\n');
 }
