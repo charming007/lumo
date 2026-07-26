@@ -277,6 +277,12 @@ void main() {
 
     expect(webCommand, contains("--release-target='web'"));
     expect(webCommand, contains('--no-wasm-dry-run'));
+    expect(
+      webCommand,
+      contains(
+        "--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007' \\\n  --no-wasm-dry-run",
+      ),
+    );
 
     final appBundleCommand = buildReleaseRebuildCommand(
       backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
