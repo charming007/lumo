@@ -23,6 +23,26 @@ test('app shell clamps shared chrome back to the pilot shell when production she
   );
   assert.match(
     source,
+    /const routeScopeDeploymentBlocked = Boolean\([\s\S]*shellScopeDeploymentBlocked[\s\S]*pathname !== '\/'[\s\S]*pilotRoute\.status !== 'visible'[\s\S]*\);/,
+    'app shell should derive a direct-route blocker for non-pilot pages while production shell scope is narrowed',
+  );
+  assert.match(
+    source,
+    /routeScopeDeploymentBlocked && pilotRoute \? \(/,
+    'app shell should replace non-pilot route content with a deployment blocker instead of only hiding the nav link',
+  );
+  assert.match(
+    source,
+    /Deployment blocker: \$\{pilotRoute\.routeLabel\} sits outside the pilot control plane\./,
+    'app shell blocker copy should call out the direct-route widening risk explicitly',
+  );
+  assert.match(
+    source,
+    /direct URL would still widen the deployment target even if the sidebar hides the link/,
+    'app shell blocker should explain why chrome-only hiding is not enough for deployment review',
+  );
+  assert.match(
+    source,
     /pilotControlPlaneEnabled=\{effectivePilotControlPlaneEnabled\}/,
     'app shell should pass the clamped pilot shell state into shared chrome instead of leaving sidebar and topbar in full-shell mode',
   );
