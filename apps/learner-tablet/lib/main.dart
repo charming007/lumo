@@ -2294,12 +2294,15 @@ class HomePage extends StatelessWidget {
                                         : state.usingFallbackData
                                             ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
                                             : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
+                                final compactEmptyState = compact ||
+                                    subjectConstraints.maxHeight < 280;
 
-                                return SingleChildScrollView(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: compact ? 8 : 12,
-                                  ),
-                                  child: Center(
+                                return Center(
+                                  child: SingleChildScrollView(
+                                    primary: false,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: compactEmptyState ? 4 : 12,
+                                    ),
                                     child: ConstrainedBox(
                                       constraints: const BoxConstraints(
                                         maxWidth: 760,
@@ -2307,12 +2310,13 @@ class HomePage extends StatelessWidget {
                                       child: Container(
                                         width: double.infinity,
                                         padding: EdgeInsets.all(
-                                          compact ? 18 : 24,
+                                          compactEmptyState ? 18 : 24,
                                         ),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(28),
+                                          borderRadius: BorderRadius.circular(
+                                            28,
+                                          ),
                                           border: Border.all(
                                             color: const Color(0xFFE2E8F0),
                                           ),
@@ -2334,8 +2338,8 @@ class HomePage extends StatelessWidget {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Container(
-                                                  padding: const EdgeInsets.all(
-                                                    12,
+                                                  padding: EdgeInsets.all(
+                                                    compactEmptyState ? 10 : 12,
                                                   ),
                                                   decoration: BoxDecoration(
                                                     color: const Color(
@@ -2343,7 +2347,8 @@ class HomePage extends StatelessWidget {
                                                     ),
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                            18),
+                                                      18,
+                                                    ),
                                                   ),
                                                   child: const Icon(
                                                     Icons.menu_book_rounded,
@@ -2351,7 +2356,11 @@ class HomePage extends StatelessWidget {
                                                         LumoTheme.accentOrange,
                                                   ),
                                                 ),
-                                                const SizedBox(width: 14),
+                                                SizedBox(
+                                                  width: compactEmptyState
+                                                      ? 12
+                                                      : 14,
+                                                ),
                                                 Expanded(
                                                   child: Column(
                                                     crossAxisAlignment:
@@ -2360,18 +2369,25 @@ class HomePage extends StatelessWidget {
                                                     children: [
                                                       Text(
                                                         headline,
-                                                        style: const TextStyle(
-                                                          fontSize: 24,
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              compactEmptyState
+                                                                  ? 22
+                                                                  : 24,
                                                           fontWeight:
                                                               FontWeight.w900,
-                                                          color: Color(
+                                                          color: const Color(
                                                             0xFF0F172A,
                                                           ),
                                                           height: 1.15,
                                                         ),
                                                       ),
-                                                      const SizedBox(
-                                                          height: 10),
+                                                      SizedBox(
+                                                        height:
+                                                            compactEmptyState
+                                                                ? 8
+                                                                : 10,
+                                                      ),
                                                       Text(
                                                         detail,
                                                         style: const TextStyle(
@@ -2386,7 +2402,10 @@ class HomePage extends StatelessWidget {
                                                 ),
                                               ],
                                             ),
-                                            const SizedBox(height: 18),
+                                            SizedBox(
+                                              height:
+                                                  compactEmptyState ? 14 : 18,
+                                            ),
                                             Wrap(
                                               spacing: 12,
                                               runSpacing: 12,
@@ -6954,7 +6973,8 @@ class RegistrationSuccessPage extends StatelessWidget {
         ),
       ),
       secondary: OutlinedButton(
-        onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+        onPressed: () =>
+            Navigator.of(context).popUntil((route) => route.isFirst),
         child: const Text('Back home'),
       ),
     );

@@ -1874,6 +1874,37 @@ void main() {
   });
 
   testWidgets(
+    'home screen keeps the empty learner-safe subject recovery card usable on ultra-short tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 540);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false)
+        ..isBootstrapping = false
+        ..usingFallbackData = false;
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('No live subjects are ready on this tablet yet.'),
+        findsOneWidget,
+      );
+      expect(find.text('Refresh live sync'), findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
+    },
+  );
+
+  testWidgets(
     'home screen keeps sync-pending placeholders out of the learner subject grid',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
@@ -2818,6 +2849,35 @@ void main() {
         find.textContaining(state.criticalSyncTrustBlockerReason!),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'registration success page keeps both handoff actions reachable on short tablet heights',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 540);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Back home'), findsOneWidget);
+      expect(find.text('Start assigned lesson'), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsWidgets);
     },
   );
 
