@@ -2783,6 +2783,44 @@ void main() {
   );
 
   testWidgets(
+    'registration success page exposes the full backend trust blocker state before live handoff',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+      final learner = state.learners.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Pilot trust blocker'), findsOneWidget);
+      expect(find.text('Backend connected • sync trust blocked'), findsOneWidget);
+      expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+      expect(find.text('Runtime sync feedback'), findsOneWidget);
+      expect(
+        find.textContaining(state.criticalSyncTrustBlockerReason!),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'registration success page falls back to the subject board when the assigned lesson shell is still incomplete',
     (tester) async {
       SharedPreferences.setMockInitialValues({});

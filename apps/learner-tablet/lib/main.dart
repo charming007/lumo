@@ -63,7 +63,12 @@ class _LumoAppState extends State<LumoApp> {
   void initState() {
     super.initState();
     state.attachVoiceReplay(
-      voiceReplayService.replay,
+      (text, mode, {supportLanguage}) => voiceReplayService.replay(
+        text,
+        mode,
+        supportLanguage: supportLanguage,
+        baseUrl: state.backendBaseUrl,
+      ),
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
@@ -6959,7 +6964,9 @@ class RegistrationSuccessPage extends StatelessWidget {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 20),
-                            _CompactBackendStatusBanner(state: state),
+                            state.hasCriticalSyncTrustBlocker
+                                ? _BackendStatusBanner(state: state)
+                                : _CompactBackendStatusBanner(state: state),
                             const SizedBox(height: 20),
                             LabelValueWrap(
                               items: [
