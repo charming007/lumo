@@ -63,7 +63,12 @@ class _LumoAppState extends State<LumoApp> {
   void initState() {
     super.initState();
     state.attachVoiceReplay(
-      voiceReplayService.replay,
+      (text, mode, {supportLanguage}) => voiceReplayService.replay(
+        text,
+        mode,
+        supportLanguage: supportLanguage,
+        baseUrl: state.backendBaseUrl,
+      ),
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
