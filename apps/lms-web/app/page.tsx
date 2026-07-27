@@ -1075,6 +1075,7 @@ export default async function HomePage() {
                     {topReleaseBlockerPrimaryLabel}
                   </Link>
                   {!topReleaseBlocker.hasAssessmentGate
+
                     ? (canInlineTopReleaseBlockerAssessmentCreate ? (
                       <ModalLauncher
                         buttonLabel="Add assessment gate"
