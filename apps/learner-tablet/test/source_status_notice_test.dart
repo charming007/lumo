@@ -193,17 +193,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tablet trust check'), findsOneWidget);
-    expect(find.text('Sync freshness'), findsNothing);
+    expect(find.text('Sync freshness'), findsOneWidget);
     expect(find.text('Registration sync blocked'), findsOneWidget);
     expect(
-      find.textContaining('learner registrations saved locally'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-          'Refresh sync before treating this roster as deployment-ready'),
-      findsOneWidget,
+      find.textContaining('deployment-ready'),
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
   });
@@ -929,6 +923,15 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 200));
 
+    expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+    expect(
+      find.textContaining('Backend authority is blocked.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('2 learner event(s) still live only on this tablet.'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('learner_registered_local_fallback'),
       findsOneWidget,
@@ -939,6 +942,42 @@ void main() {
     );
     expect(
       find.textContaining('Latest blocked learner reference: AMI-001'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'backend banner shows a clear handoff comparison when backend and tablet are aligned',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncAcceptedCount = 3
+      ..lastSyncResultCount = 3;
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+    expect(
+      find.textContaining('Backend authority is current.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('No learner events are waiting locally on this tablet.'),
       findsOneWidget,
     );
   });
