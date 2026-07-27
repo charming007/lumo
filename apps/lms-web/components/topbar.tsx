@@ -1,5 +1,6 @@
 import type { BuildSignature } from '../lib/build-signature';
 import type { describePilotShellRoute } from '../lib/pilot-shell';
+import { PILOT_BLOCKED_ROUTE_LABELS } from '../lib/pilot-nav';
 import { describeDashboardStatus } from '../lib/trust-copy';
 
 type TopbarProps = {
@@ -11,20 +12,7 @@ type TopbarProps = {
   pilotRoute?: ReturnType<typeof describePilotShellRoute>;
 };
 
-const desktopSidebarToggleStyle: React.CSSProperties = {
-  border: '1px solid #d7deea',
-  background: '#ffffff',
-  color: '#0f172a',
-  borderRadius: 14,
-  padding: '10px 14px',
-  fontWeight: 800,
-  cursor: 'pointer',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
-};
-
 export function Topbar({
-  sidebarCollapsed = false,
-  onToggleSidebarCollapse,
   seedCount = 0,
   buildSignature,
   pilotControlPlaneEnabled = false,
@@ -45,11 +33,22 @@ export function Topbar({
       : pilotRoute?.status === 'blocked'
         ? { label: 'Blocked pilot surface', background: '#EEF2FF', color: '#3730A3' }
         : { label: 'Unclassified route', background: '#E2E8F0', color: '#334155' };
+  const fullShellChip = PILOT_BLOCKED_ROUTE_LABELS.length
+    ? {
+        label: `${PILOT_BLOCKED_ROUTE_LABELS.length} pilot surfaces blocked`,
+        background: '#EEF2FF',
+        color: '#3730A3',
+      }
+    : {
+        label: 'Full LMS shell live',
+        background: '#eefaf1',
+        color: '#2f7a52',
+      };
 
   return (
     <>
       {pilotControlPlaneEnabled && pilotRoute ? (
-        <div style={{ marginBottom: 14, padding: '14px 16px', borderRadius: 18, background: routeCalloutTone.background, border: routeCalloutTone.border, display: 'grid', gap: 6 }}>
+        <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 14, background: routeCalloutTone.background, border: routeCalloutTone.border, display: 'grid', gap: 5 }}>
           <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: routeCalloutTone.eyebrow, fontWeight: 800 }}>
             {pilotRoute.eyebrow}
           </div>
@@ -57,41 +56,43 @@ export function Topbar({
           <div style={{ color: routeCalloutTone.detail, lineHeight: 1.6 }}>{pilotRoute.detail}</div>
         </div>
       ) : null}
-      <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)', borderRadius: 28, padding: 'clamp(16px, 4vw, 22px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 20, border: '1px solid #e8edf5', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0, flex: '1 1 280px' }}>
-          <button type="button" className="topbar__sidebar-toggle" style={desktopSidebarToggleStyle} onClick={onToggleSidebarCollapse} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="lumo-sidebar">
-            {sidebarCollapsed ? '⇥ Expand nav' : '⇤ Collapse nav'}
-          </button>
+      <div className="topbar" style={{ background: 'rgba(255, 255, 255, 0.76)', backdropFilter: 'blur(18px)', borderRadius: 24, padding: '16px 18px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', alignItems: 'center', gap: 14, marginBottom: 18, border: '1px solid rgba(226, 230, 240, 0.92)', boxShadow: '0 18px 52px rgba(76, 83, 112, 0.08)' }}>
+        <div className="topbar__brand" style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          <div aria-hidden="true" style={{ width: 44, height: 44, borderRadius: 16, background: 'linear-gradient(135deg, #6D5DF7, #9D8CFF)', color: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 950, boxShadow: '0 14px 30px rgba(109, 93, 247, 0.24)', flex: '0 0 auto' }}>
+            Lu
+          </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Welcome back</div>
-            <div style={{ fontSize: 'clamp(22px, 3vw, 28px)', fontWeight: 900, color: '#0f172a', overflowWrap: 'anywhere' }}>
+            <div style={{ fontSize: 12, color: '#8b93a8', textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 850 }}>Operations workspace</div>
+            <div style={{ fontSize: 'clamp(20px, 2.4vw, 28px)', fontWeight: 900, color: '#151827', overflowWrap: 'normal', wordBreak: 'normal', lineHeight: 1.05 }}>
               {pilotControlPlaneEnabled ? 'Lumo command center' : 'Lumo LMS admin'}
             </div>
           </div>
         </div>
-        <div className="topbar__meta" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0, flex: '1 1 280px' }}>
+        <div className="topbar__meta" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', minWidth: 0 }}>
           {pilotControlPlaneEnabled && pilotRoute ? (
-            <div className="topbar__meta-chip" data-route-scope-chip={pilotRoute.status} style={{ background: navStatusChip.background, padding: '10px 14px', borderRadius: 14, fontWeight: 700, color: navStatusChip.color }}>
+            <div className="topbar__meta-chip" data-route-scope-chip={pilotRoute.status} style={{ background: navStatusChip.background, padding: '8px 11px', borderRadius: 999, fontWeight: 850, color: navStatusChip.color, border: '1px solid rgba(15, 23, 42, 0.06)' }}>
               {navStatusChip.label}
             </div>
           ) : (
-            <div className="topbar__meta-chip" style={{ background: '#ECFDF5', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 700 }}>
-              Full LMS shell live
+            <div className="topbar__meta-chip" style={{ background: fullShellChip.background, color: fullShellChip.color, padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: `1px solid ${fullShellChip.color === '#2f7a52' ? '#d9f0df' : '#C7D2FE'}` }}>
+              {fullShellChip.label}
             </div>
           )}
-          <div className="topbar__meta-chip" style={{ background: '#eef2ff', color: '#3730a3', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }} title={buildSignature.summary}>
+          <div className="topbar__meta-chip" style={{ background: '#f5f4ff', color: '#5b56c8', padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: '1px solid #dedcff' }} title={buildSignature.summary}>
             Live shell: v{buildSignature.version} · {buildSignature.commitShort} · {buildSignature.deploymentLabel}
           </div>
-          <div className="topbar__meta-chip" style={{ background: '#dcfce7', color: '#166534', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>{dashboardStatus}</div>
-          <div className="topbar__meta-chip" style={{ background: '#6C63FF', color: 'white', padding: '10px 14px', borderRadius: 14, fontWeight: 800 }}>Admin</div>
+          <div className="topbar__meta-chip" style={{ background: '#fff5e8', color: '#8b5a19', padding: '8px 11px', borderRadius: 999, fontWeight: 850, border: '1px solid #f1dfc6' }}>{dashboardStatus}</div>
+          <div className="topbar__meta-chip" style={{ background: '#6f63ff', color: 'white', padding: '8px 11px', borderRadius: 999, fontWeight: 850, boxShadow: '0 10px 22px rgba(111, 99, 255, 0.20)' }}>Admin</div>
         </div>
 
         <style>{`
-          .topbar__sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
           .topbar__meta-chip { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
-          @media (max-width: 960px) { .topbar__sidebar-toggle { display: none; } }
+          @media (min-width: 980px) {
+            .topbar__meta-chip { flex: 0 1 auto; }
+          }
           @media (max-width: 720px) {
-            .topbar__meta { width: 100%; justify-content: stretch; }
+            .topbar__brand { align-items: flex-start !important; }
+            .topbar__meta { width: 100%; justify-content: stretch !important; }
             .topbar__meta-chip { flex: 1 1 100%; }
           }
         `}</style>

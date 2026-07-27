@@ -69,6 +69,7 @@ loadProjectEnvFiles();
 
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
 const configuredAdminApiKey = process.env.LUMO_ADMIN_API_KEY?.trim();
+const configuredPilotControlPlaneFlag = process.env.NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE?.trim().toLowerCase();
 const isHostedDeployment =
   process.env.VERCEL === '1' ||
   Boolean(process.env.VERCEL_ENV) ||
@@ -79,8 +80,13 @@ const isProductionDeployment =
   process.env.VERCEL_ENV === 'production' ||
   process.env.CONTEXT === 'production';
 const isBuildCommand = lifecycleEvent === 'build';
-const shouldBlockBuild = isHostedDeployment || isProductionDeployment || isBuildCommand;
-const shouldBlockForAdminApiKey = isHostedDeployment || isProductionDeployment;
+const isStrictDeploymentBuild = isBuildCommand && (isHostedDeployment || isProductionDeployment);
+const shouldBlockBuild = isStrictDeploymentBuild;
+const shouldBlockForAdminApiKey = isStrictDeploymentBuild;
+
+function hasOnlyOriginPath(parsed) {
+  return parsed.pathname === '' || parsed.pathname === '/';
+}
 
 function invalidProductionApiReason(value) {
   try {
@@ -100,6 +106,10 @@ function invalidProductionApiReason(value) {
 
     if (looksLocal) {
       return `NEXT_PUBLIC_API_BASE_URL points at ${hostname}, which is only reachable from the local machine. Production LMS users would hit a dead backend.`;
+    }
+
+    if (!hasOnlyOriginPath(parsed) || parsed.search || parsed.hash) {
+      return `NEXT_PUBLIC_API_BASE_URL must be the API origin only (for example https://lumo-api-production-303a.up.railway.app), not a nested path or URL with query/hash. Current value: ${value}`;
     }
 
     return null;
@@ -133,13 +143,25 @@ function invalidAdminApiKeyReason(value) {
   return null;
 }
 
+function invalidPilotControlPlaneReason(value) {
+  if (value !== 'false') {
+    return null;
+  }
+
+  return 'NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE is explicitly disabled. Production builds must keep the pilot control plane enabled so the dashboard does not widen the deployment target at runtime.';
+}
+
 const invalidAdminKeyReason = shouldBlockForAdminApiKey
   ? invalidAdminApiKeyReason(configuredAdminApiKey)
   : null;
-const invalidReason = invalidApiBaseReason ?? invalidAdminKeyReason;
+const invalidPilotControlPlaneFlagReason = shouldBlockBuild
+  ? invalidPilotControlPlaneReason(configuredPilotControlPlaneFlag)
+  : null;
+const invalidReason = invalidApiBaseReason ?? invalidAdminKeyReason ?? invalidPilotControlPlaneFlagReason;
 
 if (invalidReason) {
   const adminKeyIssue = invalidReason.includes('LUMO_ADMIN_API_KEY');
+  const pilotControlPlaneIssue = invalidReason.includes('NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE');
   const lines = [
     '',
     shouldBlockBuild ? 'Lumo LMS deployment build blocker.' : 'Lumo LMS build warning.',
@@ -148,9 +170,13 @@ if (invalidReason) {
       ? (shouldBlockBuild
         ? 'Hosted builds must stop here instead of shipping a dashboard/settings shell that hard-blocks at runtime because protected admin audit feeds cannot authenticate.'
         : 'Set the same admin key the API expects before shipping to production, otherwise dashboard/settings/asset-library will block at runtime.')
-      : (shouldBlockBuild
-        ? 'Hosted builds must stop here instead of deploying a dashboard that points at a guessed or unsafe backend.'
-        : 'Set it in Vercel or your build environment before shipping to production.'),
+      : pilotControlPlaneIssue
+        ? (shouldBlockBuild
+          ? 'Hosted builds must stop here instead of shipping a production dashboard that immediately hard-blocks because the full LMS shell widened pilot deployment scope.'
+          : 'Re-enable the pilot control plane before shipping, otherwise the production dashboard will block deployment review at runtime.')
+        : (shouldBlockBuild
+          ? 'Hosted builds must stop here instead of deploying a dashboard that points at a guessed or unsafe backend.'
+          : 'Set it in Vercel or your build environment before shipping to production.'),
     '',
   ];
 

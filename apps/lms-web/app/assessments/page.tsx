@@ -259,7 +259,7 @@ export default async function AssessmentsPage({
         </Card>
       </section>
 
-      <section style={responsiveGrid(320)}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20 }}>
         <Card title="Assessment registry" eyebrow="Standalone admin route">
           <SimpleTable
             columns={['Assessment', 'Subject', 'Module', 'Trigger', 'Pass mark', 'Status', 'Actions']}

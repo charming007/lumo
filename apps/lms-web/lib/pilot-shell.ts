@@ -1,4 +1,4 @@
-import { navigationItems } from './navigation.ts';
+import { pilotNavigationItems } from './navigation.ts';
 import { PILOT_BLOCKED_ROUTES, PILOT_OFF_SHELL_ROUTE_IDS, PILOT_OFF_SHELL_ROUTE_LABELS } from './pilot-nav.ts';
 
 function normalizePathname(pathname: string) {
@@ -16,7 +16,7 @@ function routeIdFromPathname(pathname: string) {
 
 export function describePilotShellRoute(pathname: string) {
   const routeId = routeIdFromPathname(pathname);
-  const visibleItem = navigationItems.find((item) => item.id === routeId) ?? null;
+  const visibleItem = pilotNavigationItems.find((item) => item.id === routeId) ?? null;
   if (visibleItem) {
     return {
       routeId,

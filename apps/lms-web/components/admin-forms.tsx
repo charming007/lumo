@@ -37,27 +37,39 @@ import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '.
 import { MallamGeographySelectors, PodGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
 
 const cardStyle = {
-  background: 'white',
-  borderRadius: 20,
-  padding: 24,
+  background: 'linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)',
+  borderRadius: 24,
+  padding: 'clamp(22px, 3vw, 30px)',
   display: 'grid',
-  gap: 12,
-  border: '1px solid #eef2f7',
-  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)',
+  gap: 20,
+  border: '1px solid #e6ebf3',
+  boxShadow: '0 18px 48px rgba(76, 83, 112, 0.08)',
+  minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+  overflow: 'hidden',
 } as const;
 
 const embeddedCardStyle = {
   display: 'grid',
-  gap: 12,
+  gap: 20,
+  minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
 } as const;
 
 const inputStyle = {
-  border: '1px solid #d1d5db',
-  borderRadius: 12,
-  padding: '12px 14px',
-  fontSize: 14,
+  border: '1px solid #d8deea',
+  borderRadius: 14,
+  padding: '13px 42px 13px 15px',
+  fontSize: 15,
   width: '100%',
-  background: 'white',
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+  background: '#ffffff',
+  color: '#111827',
+  boxShadow: '0 1px 0 rgba(15, 23, 42, 0.02), inset 0 0 0 1px rgba(255,255,255,0.7)',
+  outlineColor: '#6D5DF7',
 } as const;
 
 const buttonStyle = {
@@ -73,14 +85,17 @@ const buttonStyle = {
 const responsiveGrid = (minWidth: number) => ({
   display: 'grid',
   gridTemplateColumns: `repeat(auto-fit, minmax(min(${minWidth}px, 100%), 1fr))`,
-  gap: 12,
+  gap: '18px 20px',
+  minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
 }) as const;
 
 const twoColumnGrid = responsiveGrid(220);
 const threeColumnGrid = responsiveGrid(180);
 
 function FieldLabel({ children }: { children: ReactNode }) {
-  return <label style={{ display: 'grid', gap: 6, color: '#475569', fontSize: 14 }}>{children}</label>;
+  return <label style={{ display: 'grid', gap: 10, color: '#334155', fontSize: 14, fontWeight: 750, lineHeight: 1.25, minWidth: 0, maxWidth: '100%', width: '100%', boxSizing: 'border-box' }}>{children}</label>;
 }
 
 function SectionHint({ children }: { children: ReactNode }) {
@@ -189,7 +204,7 @@ export function CreateStudentForm({ cohorts, pods, mallams, centers, states, loc
 export function UpdateStudentForm({ student, cohorts, pods, mallams, centers, states, localGovernments, title = 'Reassign learner', embedded = false }: { student: Student; cohorts: Cohort[]; pods: Pod[]; mallams: Mallam[]; centers: Center[]; states: State[]; localGovernments: LocalGovernment[]; title?: string; embedded?: boolean }) {
   return (
     <div style={embedded ? embeddedCardStyle : cardStyle}>
-      <form action={updateStudentAction} style={{ display: 'grid', gap: 12 }}>
+      <form action={updateStudentAction} style={{ display: 'grid', gap: 20, minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
         <input type="hidden" name="studentId" value={student.id} />
         <h2 style={{ margin: 0 }}>{title}</h2>
         <FieldLabel>Name<input name="name" defaultValue={student.name} style={inputStyle} /></FieldLabel>

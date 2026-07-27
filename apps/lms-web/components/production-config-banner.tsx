@@ -3,15 +3,15 @@ import type { CSSProperties } from 'react';
 import { API_BASE_DIAGNOSTIC } from '../lib/config';
 
 const shellStyle: CSSProperties = {
-  margin: '16px clamp(16px, 4vw, 32px) 0',
+  margin: '18px clamp(18px, 3vw, 32px) 0',
   padding: '18px clamp(16px, 2.8vw, 24px)',
-  borderRadius: 20,
-  background: 'linear-gradient(135deg, #7c2d12 0%, #9a3412 100%)',
-  border: '1px solid #ea580c',
-  color: '#ffedd5',
+  borderRadius: 26,
+  background: 'linear-gradient(135deg, #fff7ed 0%, #fffaf5 100%)',
+  border: '1px solid #fed7aa',
+  color: '#9a3412',
   display: 'grid',
   gap: 12,
-  boxShadow: '0 18px 42px rgba(124, 45, 18, 0.28)',
+  boxShadow: '0 20px 55px rgba(154, 52, 18, 0.10)',
 };
 
 const actionStyle: CSSProperties = {
@@ -32,7 +32,7 @@ export function ProductionConfigBanner() {
   return (
     <section style={shellStyle} aria-label="Production configuration warning">
       <div style={{ display: 'grid', gap: 6 }}>
-        <strong style={{ color: 'white', fontSize: 18 }}>
+        <strong style={{ color: '#7c2d12', fontSize: 18 }}>
           {API_BASE_DIAGNOSTIC.configuredApiBase
             ? 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is configured, but it is not safe to ship.'
             : 'Deployment blocker: NEXT_PUBLIC_API_BASE_URL is missing in production.'}
@@ -41,33 +41,33 @@ export function ProductionConfigBanner() {
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>
-        <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-          <strong style={{ color: 'white' }}>Set this env var:</strong>{' '}
-          <code style={{ color: 'white', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>
+        <div style={{ color: '#9a5a1f', lineHeight: 1.7 }}>
+          <strong style={{ color: '#7c2d12' }}>Set this env var:</strong>{' '}
+          <code style={{ color: '#7c2d12', fontWeight: 900 }}>NEXT_PUBLIC_API_BASE_URL</code>
         </div>
-        <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-          <strong style={{ color: 'white' }}>Expected format:</strong>{' '}
-          <code style={{ color: 'white', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.expectedFormat}</code>
+        <div style={{ color: '#9a5a1f', lineHeight: 1.7 }}>
+          <strong style={{ color: '#7c2d12' }}>Expected format:</strong>{' '}
+          <code style={{ color: '#7c2d12', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.expectedFormat}</code>
         </div>
         {API_BASE_DIAGNOSTIC.configuredApiBase ? (
-          <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
-            <strong style={{ color: 'white' }}>Current value:</strong>{' '}
-            <code style={{ color: 'white', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.configuredApiBase}</code>
+          <div style={{ color: '#9a5a1f', lineHeight: 1.7 }}>
+            <strong style={{ color: '#7c2d12' }}>Current value:</strong>{' '}
+            <code style={{ color: '#7c2d12', fontWeight: 900 }}>{API_BASE_DIAGNOSTIC.configuredApiBase}</code>
           </div>
         ) : null}
-        <div style={{ color: '#fed7aa', lineHeight: 1.7 }}>
+        <div style={{ color: '#9a5a1f', lineHeight: 1.7 }}>
           Fix the production env, redeploy, then verify the live admin routes that actually matter for deployment readiness.
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <Link href="/" style={{ ...actionStyle, background: '#fff7ed', color: '#9a3412' }}>
+        <Link href="/" style={{ ...actionStyle, background: '#9a3412', color: '#ffffff' }}>
           Verify dashboard
         </Link>
-        <Link href="/content" style={{ ...actionStyle, background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' }}>
+        <Link href="/content" style={{ ...actionStyle, background: '#ffffff', color: '#9a3412', border: '1px solid #fdba74' }}>
           Verify content
         </Link>
-        <Link href="/settings" style={{ ...actionStyle, background: 'rgba(255,255,255,0.12)', color: 'white', border: '1px solid rgba(255,255,255,0.24)' }}>
+        <Link href="/settings" style={{ ...actionStyle, background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
           Verify settings
         </Link>
       </div>

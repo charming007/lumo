@@ -35,7 +35,8 @@ import type {
   LessonAsset,
 } from './types';
 
-import { API_BASE } from './config';
+import { API_BASE, API_BASE_SOURCE } from './config';
+import { getMockJson } from './mock-data';
 import { isProtectedEndpointAuthFailureValue } from './protected-endpoint-auth';
 import type { RewardCatalog } from './rewards';
 import type { CurriculumCanvasApiTree } from './curriculum-canvas';
@@ -169,6 +170,13 @@ export function isProtectedEndpointAuthFailure(error: unknown) {
 const API_REQUEST_TIMEOUT_MS = 8000;
 
 async function getJson<T>(path: string): Promise<T> {
+  if (API_BASE_SOURCE === 'local-fallback') {
+    const mockValue = getMockJson(path);
+    if (mockValue !== undefined) {
+      return mockValue as T;
+    }
+  }
+
   const requestUrl = `${API_BASE}${path}`;
 
   try {
@@ -202,6 +210,11 @@ async function getJson<T>(path: string): Promise<T> {
 
     return JSON.parse(rawBody) as T;
   } catch (error) {
+    const mockValue = getMockJson(path);
+    if (mockValue !== undefined) {
+      return mockValue as T;
+    }
+
     if (error instanceof ApiRequestError) {
       throw error;
     }

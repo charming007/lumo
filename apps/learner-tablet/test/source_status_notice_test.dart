@@ -96,6 +96,41 @@ void main() {
   });
 
   testWidgets(
+      'home freshness banner stops presenting stale queued sync as healthy',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(hours: 8))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(hours: 2))
+      ..pendingSyncEvents.add(
+        const SyncEvent(id: 'sync-1', type: 'lesson_completed', payload: {}),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sync needs attention'), findsOneWidget);
+    expect(find.text('Sync freshness'), findsNothing);
+    expect(
+      find.textContaining('1 learner event(s) are still queued locally'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
       'home trust banner stays visible on landscape tablets when sync warnings exist',
       (tester) async {
     tester.view.physicalSize = const Size(1024, 768);
@@ -125,6 +160,51 @@ void main() {
     expect(find.text('Refresh sync'), findsOneWidget);
     expect(find.text('Offline pack curriculum'), findsOneWidget);
     expect(find.text('Sync stale'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'pending local registration sync shows the trust banner instead of a healthy freshness banner',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Sync freshness'), findsNothing);
+    expect(find.text('Registration sync blocked'), findsOneWidget);
+    expect(
+      find.textContaining('learner registrations saved locally'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+          'Refresh sync before treating this roster as deployment-ready'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -267,7 +347,110 @@ void main() {
     expect(availability.canLaunch, isFalse);
   });
 
-  test('operator curriculum chip flags published lesson shells as incomplete', () {
+  testWidgets(
+      'learner profile blocks runtime resume CTA when the lesson payload is still sync-incomplete',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..registrationContext = const RegistrationContext(
+        tabletRegistration: TabletRegistration(
+          id: 'tablet-1',
+          podId: 'pod-1',
+          podLabel: 'Pod 1',
+        ),
+      );
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      cohortId: 'cohort-1',
+      podId: 'pod-1',
+      podLabel: 'Pod 1',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const shellLesson = LessonCardModel(
+      id: 'lesson-shell-1',
+      moduleId: 'english',
+      title: 'Greeting lesson',
+      subject: 'English',
+      durationMinutes: 10,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Lesson shell synced before activity steps land.',
+      steps: [],
+    );
+
+    state.learners.add(learner);
+    state.currentLearner = learner;
+    state.assignedLessons.add(shellLesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-1',
+        lessonId: shellLesson.id,
+        moduleId: shellLesson.moduleId,
+        lessonTitle: shellLesson.title,
+        eligibleLearnerIds: [learner.id],
+      ),
+    );
+    state.recentRuntimeSessionsByLearnerId[learner.id] = [
+      BackendLessonSession(
+        id: 'runtime-shell',
+        sessionId: 'session-shell',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: shellLesson.id,
+        lessonTitle: shellLesson.title,
+        moduleId: shellLesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Mallam is waiting for the next response.',
+        currentStepIndex: 1,
+        stepsTotal: 0,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 1,
+        facilitatorObservations: 0,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LearnerProfilePage(state: state, learner: learner),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Refresh sync before resuming'), findsOneWidget);
+    expect(find.text('Resume from backend session'), findsNothing);
+    expect(
+      find.textContaining('missing its activity steps'),
+      findsOneWidget,
+    );
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Refresh sync before resuming'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  test('operator curriculum chip flags published lesson shells as incomplete',
+      () {
     final state = LumoAppState(includeSeedDemoContent: false)
       ..usingFallbackData = false
       ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
@@ -368,6 +551,93 @@ void main() {
     final subjectCards = buildLearnerSubjectCards(state: state);
 
     expect(subjectCards, isEmpty);
+  });
+
+  test(
+      'subject cards keep backend-sync-pending subjects visible on the home grid',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false;
+    addTearDown(state.dispose);
+
+    state.modules.add(
+      const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      ),
+    );
+    state.learners.add(
+      const LearnerProfile(
+        id: 'learner-1',
+        name: 'Amina',
+        age: 7,
+        cohort: 'Pod 1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+        streakDays: 1,
+        guardianName: 'Hauwa',
+        preferredLanguage: 'Hausa',
+        readinessLabel: 'Voice-first beginner',
+        village: 'Kawo',
+        guardianPhone: '0800000000',
+        sex: 'Girl',
+        baselineLevel: 'No prior exposure',
+        consentCaptured: true,
+        learnerCode: 'AMI-001',
+        enrollmentStatus: 'Pending backend sync',
+      ),
+    );
+    state.registrationContext = const RegistrationContext(
+      tabletRegistration: TabletRegistration(
+        id: 'tablet-1',
+        podId: 'pod-1',
+        podLabel: 'Pod 1',
+      ),
+    );
+    state.assignedLessons.add(
+      const LessonCardModel(
+        id: 'english-live',
+        moduleId: 'english',
+        title: 'Greetings with Mallam',
+        subject: 'English',
+        durationMinutes: 8,
+        status: 'published',
+        mascotName: 'Mallam',
+        readinessFocus: 'Greeting flow',
+        scenario: 'Synced lesson, but learner still exists only locally.',
+        steps: [
+          LessonStep(
+            id: 'step-1',
+            type: LessonStepType.practice,
+            title: 'Say hello',
+            instruction: 'Say hello.',
+            expectedResponse: 'Hello',
+            coachPrompt: 'Say hello.',
+            facilitatorTip: 'Keep it warm.',
+            realWorldCheck: 'Learner greets.',
+            speakerMode: SpeakerMode.guiding,
+          ),
+        ],
+      ),
+    );
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-live',
+        lessonId: 'english-live',
+        moduleId: 'english',
+        lessonTitle: 'Greetings with Mallam',
+        eligibleLearnerIds: const ['learner-1'],
+      ),
+    );
+
+    final subjectCards = buildLearnerSubjectCards(state: state);
+
+    expect(subjectCards, hasLength(1));
+    expect(subjectCards.single.statusLabel, 'Backend sync pending');
   });
 
   test(
@@ -570,6 +840,10 @@ void main() {
     expect(signal.id, 'runtime-pending-registration-1');
     expect(signal.label, '1 learner still needs backend registration');
     expect(signal.detail, contains('live roster is not trustworthy'));
+    expect(
+        signal.detail,
+        contains(
+            'Do not treat local-only registration as pilot-ready progress yet'));
   });
 
   testWidgets(
@@ -602,18 +876,212 @@ void main() {
           'backend rejected at least one learner event as unknown'),
       findsOneWidget,
     );
+    expect(
+      find.textContaining('local-only registration as incomplete'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+          'An unknown learner sync failure usually means local-only registration never reconciled.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Latest blocked learner reference:'),
+      findsNothing,
+    );
   });
 
-  test('home trust surfaces count sync-incomplete lessons, not only placeholders', () {
+  testWidgets(
+      'backend banner surfaces concrete sync trust evidence for drifting learner contracts',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event'
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      )
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-reward-1',
+          type: 'learner_reward_redeemed',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegisterPage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.textContaining('learner_registered_local_fallback'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('learner_reward_redeemed'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Latest blocked learner reference: AMI-001'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'compact home trust banner does not claim safe handoff during critical sync blocker',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: true)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event';
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Pilot trust blocker'), findsOneWidget);
+    expect(
+      find.textContaining(
+          'Deployment trust is blocked until the backend sync mismatch is reconciled.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+          'backend rejected at least one learner event as unknown'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Backend connected • sync trust blocked'),
+      findsOneWidget,
+    );
+    expect(find.text('Sync trust blocked'), findsOneWidget);
+    expect(
+      find.text(
+          'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.'),
+      findsNothing,
+    );
+  });
+
+  test(
+      'operator labels stop pretending healthy backend trust during sync blockers',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..lastSyncError = 'Unknown learner for sync event';
+    addTearDown(state.dispose);
+
+    expect(state.backendStatusLabel, 'Backend connected • sync trust blocked');
+    expect(state.operatorHealthLabel, 'Sync trust blocked');
+  });
+
+  test(
+      'operator labels escalate pending local registration sync over healthy backend copy',
+      () {
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..pendingSyncEvents.add(
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {'learnerCode': 'AMI-001'},
+        ),
+      );
+    addTearDown(state.dispose);
+
+    expect(
+      state.backendStatusLabel,
+      'Backend connected • registration sync blocked',
+    );
+    expect(state.operatorHealthLabel, 'Registration sync blocked');
+    expect(
+      state.trustedSyncHeadline,
+      contains('learner registration sync still blocks trust'),
+    );
+    expect(
+      state.rosterFreshnessDetail,
+      contains('the roster is not trustworthy until that sync lands'),
+    );
+  });
+
+  test(
+      'compact home trust banner prioritizes sync trust blockers over registration blockers',
+      () {
     final source = File('lib/main.dart').readAsStringSync();
 
     expect(
       source,
-      contains('state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length'),
+      contains('final compactWarning = criticalSyncBlocker ??'),
     );
     expect(
       source,
-      contains('1 assigned lesson is still sync-incomplete. Refresh sync before launch.'),
+      contains(
+          "(registrationBlocked != null\n            ? '\$registrationBlocked Fix backend reachability first.'"),
+    );
+  });
+
+  test(
+      'full home trust banner prioritizes sync trust blockers over registration blockers',
+      () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains('Text(\n                      criticalSyncBlocker ??'),
+    );
+    expect(
+      source,
+      contains(
+          "(registrationBlocked != null\n                              ? '\$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'"),
+    );
+  });
+
+  test(
+      'home trust surfaces count sync-incomplete lessons, not only placeholders',
+      () {
+    final source = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      source,
+      contains(
+          'state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length'),
+    );
+    expect(
+      source,
+      contains(
+          '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'),
     );
     expect(
       source,
@@ -621,7 +1089,9 @@ void main() {
     );
   });
 
-  test('subject journey keeps sync blockers learner-honest for placeholders and live shells', () {
+  test(
+      'subject journey keeps sync blockers learner-honest for placeholders and live shells',
+      () {
     const placeholderLesson = LessonCardModel(
       id: 'assignment-placeholder:english-1',
       moduleId: 'english',
@@ -663,5 +1133,94 @@ void main() {
       lessonSyncBlockerCtaLabel(syncIncompleteLesson),
       'Sync required before starting',
     );
+  });
+
+  testWidgets(
+      'registration success keeps the action row visible on short tablets',
+      (tester) async {
+    tester.view.physicalSize = const Size(768, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const lesson = LessonCardModel(
+      id: 'english-live',
+      moduleId: 'english',
+      title: 'Greetings with Mallam',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Ready to launch after registration.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    state.modules.add(
+      const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      ),
+    );
+    state.learners.add(learner);
+    state.assignedLessons.add(lesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-live',
+        lessonId: lesson.id,
+        moduleId: lesson.moduleId,
+        lessonTitle: lesson.title,
+        eligibleLearnerIds: const ['learner-1'],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegistrationSuccessPage(
+          state: state,
+          learner: learner,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, 'Start assigned lesson'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Back home'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

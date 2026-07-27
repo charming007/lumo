@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import type { BuildSignature } from '../lib/build-signature';
 import { getNavigationItems } from '../lib/navigation';
+import { PILOT_BLOCKED_ROUTE_LABELS } from '../lib/pilot-nav';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
@@ -12,13 +13,23 @@ function isActivePath(pathname: string, href: string) {
 }
 
 function itemMonogram(label: string) {
-  return label
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
+  return label.trim()[0]?.toUpperCase() ?? '';
 }
+
+const navigationGroups = [
+  {
+    label: 'Operations',
+    ids: new Set(['dashboard', 'students', 'mallams', 'pods', 'devices', 'attendance']),
+  },
+  {
+    label: 'Curriculum',
+    ids: new Set(['content', 'english', 'canvas', 'assessments', 'assignments', 'progress']),
+  },
+  {
+    label: 'Support',
+    ids: new Set(['rewards', 'reports', 'guide', 'settings']),
+  },
+] as const;
 
 type SidebarProps = {
   mobileNavOpen?: boolean;
@@ -43,25 +54,38 @@ export function Sidebar({
   const navigationItems = getNavigationItems(pilotControlPlaneEnabled);
 
   useEffect(() => {
-    if (previousPathnameRef.current !== safePathname && mobileNavOpen) {
+    if (previousPathnameRef.current !== safePathname) {
       onCloseMobileNav?.();
     }
 
     previousPathnameRef.current = safePathname;
-  }, [safePathname, mobileNavOpen, onCloseMobileNav]);
+  }, [safePathname, onCloseMobileNav]);
 
-  const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'LMS admin workspace';
-  const shellHeadline = pilotControlPlaneEnabled ? 'Keep the visible nav brutally honest' : 'Run the full LMS without shell detours';
+  const blockedPilotSurfaceCount = PILOT_BLOCKED_ROUTE_LABELS.length;
+  const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Admin workspace';
+  const shellHeadline = pilotControlPlaneEnabled ? 'Pilot-ready routes' : 'Education operations';
   const shellDetail = pilotControlPlaneEnabled
-    ? 'This sidebar only shows the routes operators should trust for pilot go-live: dashboard, content, assignments, progress, and settings.'
-    : 'This sidebar restores the full admin surfaces operators actually use: learner ops, staffing, pods, devices, attendance, content, assessments, assignments, progress, and settings.';
+    ? 'Dashboard, content, assignments, progress, and settings are visible for pilot go-live.'
+    : blockedPilotSurfaceCount
+      ? `Core admin routes are visible, but ${blockedPilotSurfaceCount} pilot-deferred surfaces still hard-block on their own routes.`
+      : 'Learners, facilitators, pods, devices, curriculum, assessment, assignments, and reporting in one focused shell.';
   const brandDetail = pilotControlPlaneEnabled
-    ? 'Pilot control plane for dashboard triage, curriculum release cleanup, assignments, learner progress, and trust checks.'
-    : 'Full LMS admin shell for learner operations, facilitator coverage, device rollout, content, assessments, assignments, progress, and settings.';
+    ? 'Pilot control plane for curriculum readiness and learner progress.'
+    : blockedPilotSurfaceCount
+      ? 'Field learning operations and curriculum delivery, with deferred pilot surfaces called out instead of pretending every nav item ships today.'
+      : 'Field learning operations and curriculum delivery.';
   const footerTitle = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Full LMS shell';
   const footerDetail = pilotControlPlaneEnabled
-    ? 'Use this shell to verify deployment trust, clean up curriculum blockers, assign live delivery, and monitor learner risk without pretending every specialist route is pilot-ready.'
-    : 'Use this shell to move across the real admin routes without forcing operators through the pilot-only control-plane chrome.';
+    ? 'Visible routes stay limited to the pilot control plane.'
+    : blockedPilotSurfaceCount
+      ? `Shared chrome is live, but ${blockedPilotSurfaceCount} pilot-deferred routes still open explicit blocker pages.`
+      : 'All admin routes stay available; this redesign only changes presentation.';
+  const groupedNavigationItems = navigationGroups
+    .map((group) => ({
+      ...group,
+      items: navigationItems.filter((item) => group.ids.has(item.id)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <>
@@ -87,85 +111,103 @@ export function Sidebar({
         aria-label="Primary navigation"
         style={{
           minWidth: 0,
-          background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)',
-          color: 'white',
-          padding: 'clamp(18px, 3vw, 24px)',
+          background: 'linear-gradient(180deg, #ffffff 0%, #fbfcff 100%)',
+          color: '#202436',
+          padding: 'clamp(18px, 3vw, 22px)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 22,
+          gap: 20,
+          borderRight: '1px solid rgba(222, 226, 235, 0.9)',
+          boxShadow: '18px 0 45px rgba(76, 83, 112, 0.05)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
           <div className="sidebar__brand-copy">
-            <div className="sidebar__brand-mark" aria-hidden="true" style={{ fontSize: 30, fontWeight: 900, color: '#a78bfa' }}>Lumo</div>
-            <div className="sidebar__brand-detail" style={{ color: '#cbd5e1', marginTop: 8, lineHeight: 1.5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="sidebar__brand-mark" aria-hidden="true" style={{ width: 42, height: 42, borderRadius: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #7468ff 0%, #9b7cff 100%)', color: '#ffffff', fontSize: 16, fontWeight: 900, boxShadow: '0 16px 34px rgba(116, 104, 255, 0.25)' }}>Lu</div>
+              <div className="sidebar__brand-text">
+                <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0, color: '#151827' }}>Lumo</div>
+                <div style={{ color: '#8b93a8', fontSize: 12, fontWeight: 750 }}>LMS admin</div>
+              </div>
+            </div>
+            <div className="sidebar__brand-detail" style={{ color: '#7b8498', marginTop: 12, lineHeight: 1.5, fontSize: 13 }}>
               {brandDetail}
             </div>
           </div>
           <div className="sidebar__actions">
-            <button type="button" className="sidebar__collapse-toggle" onClick={onToggleSidebarCollapse} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="lumo-sidebar" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.08)', color: 'white', width: 40, height: 40, borderRadius: 999, cursor: 'pointer', fontSize: 16, fontWeight: 800 }}>
-              {sidebarCollapsed ? '→' : '←'}
+            <button type="button" className="sidebar__collapse-toggle" onClick={onToggleSidebarCollapse} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!sidebarCollapsed} aria-controls="lumo-sidebar" style={{ border: '1px solid #e2e6ef', background: '#ffffff', color: '#5d6679', width: 38, height: 38, borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900, boxShadow: '0 12px 24px rgba(76, 83, 112, 0.08)' }}>
+              {sidebarCollapsed ? '>' : '<'}
             </button>
-            <button type="button" className="sidebar__close" onClick={onCloseMobileNav} aria-label="Close navigation menu" style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.08)', color: 'white', width: 40, height: 40, borderRadius: 999, cursor: 'pointer', fontSize: 20, fontWeight: 700 }}>
+            <button type="button" className="sidebar__close" onClick={onCloseMobileNav} aria-label="Close navigation menu" style={{ border: '1px solid #e2e6ef', background: '#ffffff', color: '#5d6679', width: 38, height: 38, borderRadius: 14, cursor: 'pointer', fontSize: 18, fontWeight: 700 }}>
               ×
             </button>
           </div>
         </div>
 
-        <div className="sidebar__callout" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 16 }}>
-          <div style={{ color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2 }}>{shellLabel}</div>
-          <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900 }}>{shellHeadline}</div>
-          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#cbd5e1' }}>{shellDetail}</div>
+        <div className="sidebar__callout" style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #eef7ff 100%)', border: '1px solid #e4e0ff', borderRadius: 22, padding: 16, boxShadow: '0 16px 38px rgba(116, 104, 255, 0.10)' }}>
+          <div style={{ color: '#7d75d9', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 900 }}>{shellLabel}</div>
+          <div style={{ marginTop: 6, fontSize: 19, fontWeight: 900, color: '#22233d' }}>{shellHeadline}</div>
+          <div className="sidebar__callout-detail" style={{ marginTop: 6, color: '#6b7285', fontSize: 13, lineHeight: 1.55 }}>{shellDetail}</div>
         </div>
 
-        <nav style={{ display: 'grid', gap: 10 }}>
-          {navigationItems.map((item) => {
-            const active = isActivePath(safePathname, item.href);
-            const monogram = itemMonogram(item.label);
-            return (
-              <Link key={item.id} href={item.href} prefetch={false} data-nav-id={item.id} data-nav-href={item.href} aria-label={sidebarCollapsed ? item.label : undefined} title={sidebarCollapsed ? item.label : undefined} className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`} style={{ textDecoration: 'none', color: '#e5e7eb', padding: '13px 14px', borderRadius: 16, background: active ? 'linear-gradient(135deg, #6C63FF 0%, #8B7FFF 100%)' : 'rgba(255,255,255,0.04)', fontWeight: 700, border: active ? 'none' : '1px solid rgba(255,255,255,0.05)', boxShadow: active ? '0 14px 28px rgba(108, 99, 255, 0.28)' : 'none' }}>
-                <span className="sidebar__nav-icon" aria-hidden="true"><span className="sidebar__nav-icon-text">{monogram}</span></span>
-                <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span>{item.label}</span></span>
-              </Link>
-            );
-          })}
+        <nav style={{ display: 'grid', gap: 18 }}>
+          {groupedNavigationItems.map((group) => (
+            <div key={group.label} className="sidebar__nav-group" style={{ display: 'grid', gap: 7 }}>
+              <div className="sidebar__nav-group-label" style={{ color: '#9aa2b5', fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.3, fontWeight: 900, padding: '0 8px' }}>{group.label}</div>
+              {group.items.map((item) => {
+                const active = isActivePath(safePathname, item.href);
+                const monogram = itemMonogram(item.label);
+                return (
+                  <Link key={item.id} href={item.href} prefetch={false} data-nav-id={item.id} data-nav-href={item.href} aria-label={sidebarCollapsed ? item.label : undefined} title={sidebarCollapsed ? item.label : undefined} className={`sidebar__nav-link ${sidebarCollapsed ? 'sidebar__nav-link--collapsed' : ''}`} style={{ textDecoration: 'none', color: active ? '#ffffff' : '#5f687a', padding: '11px 12px', borderRadius: 16, background: active ? 'linear-gradient(135deg, #7166ff 0%, #8c7bff 100%)' : 'transparent', fontWeight: active ? 900 : 760, border: active ? '1px solid rgba(113, 102, 255, 0.15)' : '1px solid transparent', boxShadow: active ? '0 16px 34px rgba(113, 102, 255, 0.22)' : 'none' }}>
+                    <span className="sidebar__nav-icon" aria-hidden="true"><span className="sidebar__nav-icon-text">{monogram}</span></span>
+                    <span className="sidebar__nav-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span>{item.label}</span></span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#111827', borderRadius: 20, padding: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>{footerTitle}</div>
-          <div className="sidebar__footer-detail" style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{footerDetail}</div>
-          <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4 }}>
-            <div style={{ color: '#c4b5fd', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{pilotControlPlaneEnabled ? 'Pilot build signal' : 'Live build signal'}</div>
-            <div style={{ color: 'white', fontSize: 13, fontWeight: 800 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>{buildSignature.deploymentLabel} · built {buildSignature.builtAtLabel}</div>
+        <div className="sidebar__footer" style={{ marginTop: 'auto', background: '#ffffff', borderRadius: 22, padding: 15, border: '1px solid #e7ebf3', boxShadow: '0 16px 36px rgba(76, 83, 112, 0.07)' }}>
+          <div style={{ fontWeight: 900, marginBottom: 6, color: '#202436' }}>{footerTitle}</div>
+          <div className="sidebar__footer-detail" style={{ color: '#7b8498', fontSize: 13, lineHeight: 1.5 }}>{footerDetail}</div>
+          <div className="sidebar__footer-build" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #eef1f6', display: 'grid', gap: 4 }}>
+            <div style={{ color: '#7166ff', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 900 }}>{pilotControlPlaneEnabled ? 'Pilot build signal' : 'Live build signal'}</div>
+            <div style={{ color: '#202436', fontSize: 13, fontWeight: 850 }}>v{buildSignature.version} · {buildSignature.commitShort}</div>
+            <div style={{ color: '#8b93a8', fontSize: 12, lineHeight: 1.5 }}>{buildSignature.deploymentLabel} · built {buildSignature.builtAtLabel}</div>
           </div>
         </div>
       </aside>
       <style>{`
-        .sidebar { position: sticky; top: 0; min-height: 100vh; transition: padding 180ms ease, width 180ms ease; overflow: hidden; }
+        .sidebar { box-sizing: border-box; position: sticky; top: 0; min-height: 100vh; transition: padding 180ms ease, width 180ms ease; overflow: hidden; }
         .sidebar__actions { display: flex; gap: 8px; flex: 0 0 auto; }
         .sidebar__collapse-toggle, .sidebar__close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
         .sidebar__close { display: none; }
-        .sidebar__nav-link { display: flex; align-items: center; gap: 12px; min-height: 52px; transition: background 180ms ease, transform 180ms ease, padding 180ms ease; }
-        .sidebar__nav-link:hover { transform: translateX(2px); }
-        .sidebar__nav-icon { position: relative; width: 24px; height: 24px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; letter-spacing: 0.08em; background: rgba(255, 255, 255, 0.12); color: #f8fafc; flex: 0 0 auto; }
+        .sidebar__nav-link { box-sizing: border-box; display: flex; align-items: center; gap: 11px; min-height: 44px; transition: background 180ms ease, transform 180ms ease, padding 180ms ease, color 180ms ease, box-shadow 180ms ease; }
+        .sidebar__nav-link:hover { transform: translateX(2px); background: #f5f6ff !important; color: #4941c9 !important; }
+        .sidebar__nav-icon { position: relative; width: 24px; height: 24px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; letter-spacing: 0.04em; background: #f0f2f8; color: #6b7285; flex: 0 0 auto; }
+        .sidebar__nav-link:hover .sidebar__nav-icon { background: #e6e4ff; color: #4941c9; }
+        .sidebar__nav-link[style*="linear-gradient"] .sidebar__nav-icon { background: rgba(255,255,255,0.18); color: #ffffff; }
         .sidebar__nav-icon-text { line-height: 1; }
-        .sidebar--collapsed { width: 92px; padding: 14px 12px !important; gap: 18px !important; align-items: center; }
-        .sidebar--collapsed .sidebar__brand-detail, .sidebar--collapsed .sidebar__callout, .sidebar--collapsed .sidebar__footer, .sidebar--collapsed .sidebar__nav-label { display: none; }
-        .sidebar--collapsed .sidebar__brand-copy { display: flex; align-items: center; justify-content: center; width: 100%; }
-        .sidebar--collapsed .sidebar__brand-mark { width: 44px; height: 44px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(167, 139, 250, 0.14); border: 1px solid rgba(167, 139, 250, 0.2); font-size: 14px !important; letter-spacing: 0.08em; text-transform: uppercase; }
-        .sidebar--collapsed .sidebar__nav-link { justify-content: center; width: 100%; min-width: 0; min-height: 56px; padding: 10px !important; border-radius: 18px; }
+        .sidebar--collapsed { width: 96px !important; min-width: 96px !important; max-width: 96px !important; padding: 14px 12px !important; gap: 18px !important; align-items: center; overflow: hidden; }
+        .sidebar--collapsed .sidebar__brand-text, .sidebar--collapsed .sidebar__brand-detail, .sidebar--collapsed .sidebar__callout, .sidebar--collapsed .sidebar__footer, .sidebar--collapsed .sidebar__nav-label, .sidebar--collapsed .sidebar__nav-group-label { display: none !important; }
+        .sidebar--collapsed .sidebar__brand-copy { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+        .sidebar--collapsed .sidebar__brand-copy > div { justify-content: center; width: 100%; }
+        .sidebar--collapsed nav { width: 100%; overflow: hidden; }
+        .sidebar--collapsed .sidebar__nav-link { justify-content: center; width: 100%; min-width: 0; min-height: 44px; padding: 8px !important; border-radius: 16px; box-shadow: none !important; overflow: hidden; }
         .sidebar--collapsed .sidebar__nav-link:hover { transform: translateY(-1px); }
-        .sidebar--collapsed .sidebar__nav-icon { width: 34px; height: 34px; font-size: 12px; background: rgba(255, 255, 255, 0.14); }
-        .sidebar--collapsed .sidebar__actions { flex-direction: column; }
+        .sidebar--collapsed .sidebar__nav-icon { width: 34px; height: 34px; font-size: 10px; background: #f0f2f8; }
+        .sidebar--collapsed .sidebar__actions { flex-direction: column; width: 100%; align-items: center; }
+        .sidebar--collapsed .sidebar__collapse-toggle { width: 38px; height: 38px; }
+        .sidebar--collapsed .sidebar__nav-group { gap: 8px !important; width: 100%; }
         @media (max-width: 960px) {
           .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: min(320px, calc(100vw - 24px)); max-width: 100%; min-height: 100vh; overflow-y: auto; z-index: 40; transform: translateX(-105%); transition: transform 180ms ease; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25); padding-left: clamp(18px, 3vw, 24px) !important; padding-right: clamp(18px, 3vw, 24px) !important; }
           .sidebar--collapsed { width: min(320px, calc(100vw - 24px)); padding: clamp(18px, 3vw, 24px) !important; gap: 22px !important; align-items: stretch; }
-          .sidebar--collapsed .sidebar__brand-detail, .sidebar--collapsed .sidebar__callout, .sidebar--collapsed .sidebar__footer, .sidebar--collapsed .sidebar__nav-label { display: revert; }
+          .sidebar--collapsed .sidebar__brand-text, .sidebar--collapsed .sidebar__brand-detail, .sidebar--collapsed .sidebar__callout, .sidebar--collapsed .sidebar__footer, .sidebar--collapsed .sidebar__nav-label, .sidebar--collapsed .sidebar__nav-group-label { display: revert !important; }
           .sidebar--collapsed .sidebar__brand-copy { display: block; width: auto; }
-          .sidebar--collapsed .sidebar__brand-mark { width: auto; height: auto; border-radius: 0; display: block; background: none; border: 0; font-size: 30px !important; letter-spacing: normal; text-transform: none; }
-          .sidebar--collapsed .sidebar__nav-link { justify-content: flex-start; padding: 13px 14px !important; }
-          .sidebar--collapsed .sidebar__nav-icon { width: 24px; height: 24px; font-size: 11px; background: rgba(255, 255, 255, 0.12); }
+          .sidebar--collapsed .sidebar__brand-mark { width: 42px; height: 42px; border-radius: 14px; display: inline-flex; background: linear-gradient(135deg, #7468ff 0%, #9b7cff 100%); font-size: 16px !important; letter-spacing: normal; text-transform: none; }
+          .sidebar--collapsed .sidebar__nav-link { justify-content: flex-start; padding: 10px 11px !important; }
+          .sidebar--collapsed .sidebar__nav-icon { width: 22px; height: 22px; font-size: 9px; background: rgba(255, 255, 255, 0.08); }
           .sidebar--collapsed .sidebar__actions { flex-direction: row; }
           .sidebar--open { transform: translateX(0); }
           .sidebar__collapse-toggle { display: none; }

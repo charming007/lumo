@@ -84,6 +84,88 @@ class _BootstrapShellOnlyLessonsApiClient extends LumoApiClient {
   }
 }
 
+class _UnregisteredTabletBootstrapApiClientLiveLessons extends LumoApiClient {
+  @override
+  Future<LumoBootstrap> fetchBootstrap({
+    String? overrideDeviceIdentifier,
+  }) async {
+    return const LumoBootstrap(
+      learners: [
+        LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina Bello',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+        ),
+      ],
+      modules: [
+        LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Foundational English',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        ),
+      ],
+      lessons: [
+        LessonCardModel(
+          id: 'english-live-1',
+          moduleId: 'english',
+          title: 'English hello',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Live lesson from backend bootstrap.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model the greeting once.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        ),
+      ],
+      assignmentPacks: [
+        LearnerAssignmentPack(
+          assignmentId: 'assignment-1',
+          lessonId: 'english-live-1',
+          moduleId: 'english',
+          curriculumModuleId: 'english',
+          lessonTitle: 'English hello',
+          cohortName: 'Pod A',
+          mallamName: 'Mallam Idris',
+          eligibleLearnerIds: ['learner-1'],
+        ),
+      ],
+      registrationContext: RegistrationContext(),
+      generatedAt: '2026-05-23T17:00:00.000Z',
+      contractVersion: '2026-05-23',
+      assignmentCount: 1,
+    );
+  }
+}
+
 class _BootstrapWithBundledFundamentalsApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -383,6 +465,22 @@ void main() {
 
         expect(restored.stableDeviceIdentifier, firstIdentifier);
         restored.dispose();
+      },
+    );
+
+    test(
+      'release builds require a provisioned tablet device identifier instead of generating one',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final state = LumoAppState(includeSeedDemoContent: false);
+
+        expect(
+          state.productionDeviceIdentifierIssue(isReleaseBuild: true),
+          contains('LUMO_DEVICE_IDENTIFIER'),
+        );
+        expect(state.productionDeviceIdentifierIssue(), isNull);
+
+        state.dispose();
       },
     );
 
@@ -867,7 +965,8 @@ void main() {
       },
     );
 
-    test('drops backend lessons that have no activity steps', () async {
+    test('keeps backend lessons with no activity steps visible but blocked',
+        () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
@@ -1004,10 +1103,22 @@ void main() {
 
       expect(
         state.assignedLessons.map((lesson) => lesson.id),
-        equals(['english-live']),
+        equals(['english-empty', 'english-live']),
+      );
+      expect(state.hasAssignmentPayloadGaps, isTrue);
+      expect(
+        state.learnerCanOpenLesson(
+          state.learners.first,
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-empty'),
+        ),
+        isFalse,
       );
       expect(
-        () => state.startLesson(state.assignedLessons.first),
+        () => state.startLesson(
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-live'),
+        ),
         returnsNormally,
       );
       state.dispose();
@@ -1528,6 +1639,165 @@ void main() {
     );
 
     test(
+      'pending recovered sessions rebind the learner by learner code after live id churn',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'lumo_learner_tablet_state_v1': jsonEncode({
+            'schemaVersion': '2026-04-13-runtime-persist',
+            'currentLearnerId': 'learner-stale-id',
+            'currentLearnerCode': 'LM-100',
+            'activeSession': {
+              'sessionId': 'session-recover-code-match',
+              'lessonId': 'lesson-recover-code-match',
+              'lessonTitle': 'Recovered by learner code',
+              'currentLearnerId': 'learner-stale-id',
+              'currentLearnerCode': 'LM-100',
+              'moduleId': 'english',
+              'moduleTitle': 'Foundational English',
+              'subjectName': 'Foundational English',
+              'stepIndex': 0,
+              'completionState': 'inProgress',
+            },
+          }),
+        });
+
+        final liveLearner = LearnerProfile(
+          id: 'learner-live-id',
+          learnerCode: 'LM-100',
+          name: 'Amina Bello',
+          age: 9,
+          cohort: 'Cohort A',
+          streakDays: 0,
+          guardianName: 'Hauwa Bello',
+          village: 'Kawo',
+          guardianPhone: '',
+          sex: 'Girl',
+          preferredLanguage: 'Hausa',
+          baselineLevel: 'No prior exposure',
+          readinessLabel: 'Voice-first beginner',
+          consentCaptured: true,
+          supportPlan: 'Short prompts and praise after every answer.',
+          lastLessonSummary: 'No lesson captured yet.',
+          lastAttendance: 'Checked in today',
+        );
+
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': liveLearner.id,
+                        'name': liveLearner.name,
+                        'age': liveLearner.age,
+                        'cohortName': liveLearner.cohort,
+                        'guardianName': liveLearner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                        'learnerCode': liveLearner.learnerCode,
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'subjectId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Foundational English',
+                        'level': 'foundation-a',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'lesson-recover-code-match',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Recovered by learner code',
+                        'durationMinutes': 9,
+                        'status': 'assigned',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Resume guidance',
+                        'scenario': 'Recovered after learner id churn',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'title': 'Resume guidance',
+                            'instruction': 'Say hello again',
+                            'coachPrompt': 'Say hello again.',
+                            'expectedResponse': 'Hello',
+                            'speakerMode': 'guiding',
+                            'type': 'prompt',
+                          },
+                        ],
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              if (request.url.path == '/api/v1/learner-app/modules/english') {
+                return http.Response(
+                  jsonEncode({
+                    'subjectId': 'english',
+                    'subjectName': 'Foundational English',
+                    'title': 'Foundational English',
+                    'level': 'foundation-a',
+                    'lessons': [
+                      {
+                        'id': 'lesson-recover-code-match',
+                        'moduleId': 'english',
+                        'subjectName': 'Foundational English',
+                        'title': 'Recovered by learner code',
+                        'durationMinutes': 9,
+                        'status': 'assigned',
+                        'mascotName': 'Mallam',
+                        'readinessFocus': 'Resume guidance',
+                        'scenario': 'Recovered after learner id churn',
+                        'steps': [
+                          {
+                            'id': 'step-1',
+                            'title': 'Resume guidance',
+                            'instruction': 'Say hello again',
+                            'coachPrompt': 'Say hello again.',
+                            'expectedResponse': 'Hello',
+                            'speakerMode': 'guiding',
+                            'type': 'prompt',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignmentPacks': const [],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+
+        await state.restorePersistedState();
+        expect(state.activeSession, isNull);
+        expect(state.hasPendingRecoveredSession, isTrue);
+        expect(state.currentLearner, isNull);
+
+        await state.bootstrap();
+
+        expect(state.hasPendingRecoveredSession, isFalse);
+        expect(state.activeSession?.sessionId, 'session-recover-code-match');
+        expect(state.activeSession?.lesson.id, 'lesson-recover-code-match');
+        expect(state.currentLearner?.id, liveLearner.id);
+        state.dispose();
+      },
+    );
+
+    test(
       'logs learner reward redemption history and reduces spendable points',
       () async {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -1588,6 +1858,40 @@ void main() {
       expect(history.first.note, 'Sticker earned after strong speaking turn');
       restored.dispose();
     });
+
+    test(
+      'persists hard deployment identity blockers across tablet restarts',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+
+        final state = LumoAppState(includeSeedDemoContent: true)
+          ..usingFallbackData = true
+          ..snapshotTrustedFromLiveBootstrap = true
+          ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 5))
+          ..snapshotSavedAt = DateTime.now().subtract(
+            const Duration(minutes: 6),
+          )
+          ..backendError =
+              'Production bootstrap did not return a tablet registration for this device.'
+          ..deploymentBlockerReason =
+              'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+
+        expect(state.hasUsableOfflineSnapshot, isTrue);
+        expect(state.hasHardDeploymentIdentityBlocker, isTrue);
+
+        await state.flushPersistence();
+        state.dispose();
+
+        final restored = LumoAppState(includeSeedDemoContent: true);
+        await restored.restorePersistedState();
+
+        expect(restored.hasUsableOfflineSnapshot, isTrue);
+        expect(restored.deploymentBlockerReason, state.deploymentBlockerReason);
+        expect(restored.hasHardDeploymentIdentityBlocker, isTrue);
+        restored.dispose();
+      },
+    );
 
     test(
       'restored offline roster keeps learner pod scope and drops cross-pod learners',
@@ -2543,7 +2847,9 @@ void main() {
       expect(summary, contains('assigned lesson'));
     });
 
-    test('assigned lesson summary does not advertise placeholder lessons as ready to start', () {
+    test(
+        'assigned lesson summary does not advertise placeholder lessons as ready to start',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false;
       const learner = LearnerProfile(
@@ -2672,6 +2978,107 @@ void main() {
         expect(
           lessons.every((lesson) => lesson.scenario.contains('has not synced')),
           isTrue,
+        );
+      },
+    );
+
+    test(
+      'resolves assignment title aliases to the uniquely scoped learner lesson before falling back to a placeholder',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+
+        state.modules.addAll([
+          const LearningModule(
+            id: 'english-reading',
+            title: 'English Reading',
+            description: 'Reading lane',
+            voicePrompt: 'Open English Reading.',
+            readinessGoal: 'Reading flow',
+            badge: '2 lessons',
+          ),
+          const LearningModule(
+            id: 'math-reading',
+            title: 'Math Reading',
+            description: 'Math lane',
+            voicePrompt: 'Open Math Reading.',
+            readinessGoal: 'Number reading flow',
+            badge: '2 lessons',
+          ),
+        ]);
+
+        state.assignedLessons.addAll([
+          LessonCardModel(
+            id: 'english-reading-authored',
+            moduleId: 'english-reading',
+            title: 'Read with me',
+            subject: 'English',
+            durationMinutes: 8,
+            status: 'assigned',
+            mascotName: 'Mallam',
+            readinessFocus: 'English reading practice',
+            scenario: 'Learner reads the English lane content.',
+            steps: const [
+              LessonStep(
+                id: 'english-reading-step',
+                type: LessonStepType.practice,
+                title: 'Read with me',
+                instruction: 'Read the English prompt.',
+                expectedResponse: 'Learner reads the English prompt.',
+                coachPrompt: 'Read the English prompt aloud.',
+                facilitatorTip: 'Keep the learner on the English lane.',
+                realWorldCheck: 'The learner follows the English reading cue.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+          LessonCardModel(
+            id: 'math-reading-authored',
+            moduleId: 'math-reading',
+            title: 'Read with me',
+            subject: 'Math',
+            durationMinutes: 8,
+            status: 'assigned',
+            mascotName: 'Mallam',
+            readinessFocus: 'Math reading practice',
+            scenario: 'Learner reads the Math lane content.',
+            steps: const [
+              LessonStep(
+                id: 'math-reading-step',
+                type: LessonStepType.practice,
+                title: 'Read with me',
+                instruction: 'Read the Math prompt.',
+                expectedResponse: 'Learner reads the Math prompt.',
+                coachPrompt: 'Read the Math prompt aloud.',
+                facilitatorTip: 'Keep the learner on the Math lane.',
+                realWorldCheck: 'The learner follows the Math reading cue.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        ]);
+
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-alias-reading',
+            lessonId: 'english-reading-runtime-alias',
+            moduleId: 'english-reading',
+            curriculumModuleId: 'english-reading',
+            lessonTitle: 'Read with me',
+            cohortName: beginner.cohort,
+            mallamName: 'Mallam Idris',
+            dueDate: '2026-04-20T10:00:00.000Z',
+            eligibleLearnerIds: [beginner.id],
+          ),
+        );
+
+        final lessons = state.backendAssignedLessonsForLearner(beginner);
+
+        expect(lessons, isNotEmpty);
+        expect(lessons.first.id, 'english-reading-authored');
+        expect(
+          lessons.where(
+              (lesson) => lesson.id.startsWith('assignment-placeholder:')),
+          isEmpty,
         );
       },
     );
@@ -3194,12 +3601,117 @@ void main() {
 
       expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
       expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+      expect(
+        state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
+        'session-1',
+      );
       expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
       expect(
         state.runtimeSessionSummaryForLearner(beginner),
         contains('Resume ready'),
       );
     });
+
+    test(
+      'keeps alias-matched resumable backend sessions attached to the learner lesson',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-alias-progress',
+            sessionId: 'session-alias-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: 'tap-to-act-runtime-alias',
+            lessonTitle: lesson.title,
+            moduleId: 'math-runtime-alias',
+            moduleTitle: lesson.subject,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Resume the learner on the same live step.',
+            currentStepIndex: 2,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
+        expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
+          'session-alias-progress',
+        );
+        expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          contains('Resume ready'),
+        );
+      },
+    );
+
+    test(
+      'does not advertise resumable runtime when the synced lesson payload is empty',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'math',
+        );
+        final payloadEmptyLesson = LessonCardModel(
+          id: lesson.id,
+          moduleId: lesson.moduleId,
+          title: lesson.title,
+          subject: lesson.subject,
+          durationMinutes: lesson.durationMinutes,
+          status: lesson.status,
+          mascotName: lesson.mascotName,
+          readinessFocus: lesson.readinessFocus,
+          scenario: lesson.scenario,
+          steps: const [],
+          supportLanguage: lesson.supportLanguage,
+          targetLanguage: lesson.targetLanguage,
+          localization: lesson.localization,
+        );
+        final lessonIndex = state.assignedLessons.indexOf(lesson);
+        state.assignedLessons[lessonIndex] = payloadEmptyLesson;
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-shell',
+            sessionId: 'session-shell',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: payloadEmptyLesson.id,
+            lessonTitle: payloadEmptyLesson.title,
+            moduleId: payloadEmptyLesson.moduleId,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Mallam is waiting for the next response.',
+            currentStepIndex: 1,
+            stepsTotal: 0,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 1,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(state.resumableRuntimeSessionForLearner(beginner), isNull);
+        expect(state.resumableLessonForLearner(beginner), isNull);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          isNot(contains('Resume ready')),
+        );
+      },
+    );
 
     test(
       'ignores stale in-progress runtime session when a newer completion exists for the same lesson',
@@ -3861,6 +4373,110 @@ void main() {
     );
 
     test(
+      'uses assignment title aliases when picking the next lesson after completion',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: false)
+          ..usingFallbackData = false;
+        const learner = LearnerProfile(
+          id: 'learner-1',
+          name: 'Amina',
+          age: 7,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 1,
+          guardianName: 'Hauwa',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000000',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'AMI-001',
+          backendRecommendedModuleId: 'math',
+        );
+        const completedLesson = LessonCardModel(
+          id: 'english-1',
+          moduleId: 'english',
+          title: 'English warmup',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Completed lesson.',
+          steps: [
+            LessonStep(
+              id: 'english-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model it first.',
+              realWorldCheck: 'Learner greets.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+        const resolvedAssignmentLesson = LessonCardModel(
+          id: 'math-real-2',
+          moduleId: 'math',
+          title: 'Count to 10',
+          subject: 'Math',
+          durationMinutes: 10,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Counting practice',
+          scenario: 'Real assignment lesson body exists on the tablet.',
+          steps: [
+            LessonStep(
+              id: 'math-step-1',
+              type: LessonStepType.practice,
+              title: 'Count together',
+              instruction: 'Count to 10.',
+              expectedResponse: '1 2 3 4 5 6 7 8 9 10',
+              coachPrompt: 'Let us count to 10 together.',
+              facilitatorTip: 'Point to each number.',
+              realWorldCheck: 'Learner counts clearly.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners.add(learner);
+        state.assignedLessons.addAll([completedLesson, resolvedAssignmentLesson]);
+        state.assignmentPacks.add(
+          LearnerAssignmentPack(
+            assignmentId: 'assignment-next',
+            lessonId: 'stale-backend-id',
+            moduleId: 'math-routing',
+            curriculumModuleId: 'math',
+            lessonTitle: resolvedAssignmentLesson.title,
+            eligibleLearnerIds: [learner.id],
+          ),
+        );
+
+        final nextLesson = state.nextLessonAfterCompletion(
+          learner,
+          completedLessonId: completedLesson.id,
+        );
+
+        expect(nextLesson, isNotNull);
+        expect(nextLesson!.id, resolvedAssignmentLesson.id);
+        expect(
+          state.nextLessonRouteSummaryForLearner(
+            learner,
+            completedLessonId: completedLesson.id,
+          ),
+          contains(resolvedAssignmentLesson.title),
+        );
+        state.dispose();
+      },
+    );
+
+    test(
       'skips sync-placeholder assignments when picking the next lesson after completion',
       () {
         final state = LumoAppState(includeSeedDemoContent: false)
@@ -4337,6 +4953,163 @@ void main() {
       state.dispose();
     });
 
+    test('startLesson rejects lesson launch while tablet trust is blocked', () {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (candidate) => candidate.steps.isNotEmpty,
+      );
+      state.selectLearner(learner);
+
+      expect(
+        () => state.startLesson(lesson),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('while tablet trust is blocked'),
+              contains('backend rejected at least one learner event as unknown'),
+            ),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
+    test(
+      'startLesson rejects lessons that are not launchable for the selected learner',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final learner = state.learners.first;
+        state.selectLearner(learner);
+
+        const module = LearningModule(
+          id: 'progression-module-guard',
+          title: 'Progression Guard',
+          description: 'Test module',
+          voicePrompt: 'Open progression guard.',
+          readinessGoal: 'Protect lesson order.',
+          badge: '2 lessons',
+        );
+        const moduleLessons = [
+          LessonCardModel(
+            id: 'progression-guard-1',
+            moduleId: 'progression-module-guard',
+            title: 'Lesson One',
+            subject: 'Progression Guard',
+            durationMinutes: 8,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'First step',
+            scenario: 'Start here.',
+            steps: [
+              LessonStep(
+                id: 'progression-guard-step-1',
+                type: LessonStepType.intro,
+                title: 'Intro',
+                instruction: 'Start.',
+                expectedResponse: 'Start',
+                coachPrompt: 'Start.',
+                facilitatorTip: 'Guide the learner.',
+                realWorldCheck: 'Learner starts.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+          LessonCardModel(
+            id: 'progression-guard-2',
+            moduleId: 'progression-module-guard',
+            title: 'Lesson Two',
+            subject: 'Progression Guard',
+            durationMinutes: 9,
+            status: 'published',
+            mascotName: 'Mallam',
+            readinessFocus: 'Second step',
+            scenario: 'Should stay locked until lesson one finishes.',
+            steps: [
+              LessonStep(
+                id: 'progression-guard-step-2',
+                type: LessonStepType.intro,
+                title: 'Continue',
+                instruction: 'Continue.',
+                expectedResponse: 'Continue',
+                coachPrompt: 'Continue.',
+                facilitatorTip: 'Guide the learner.',
+                realWorldCheck: 'Learner continues.',
+                speakerMode: SpeakerMode.guiding,
+              ),
+            ],
+          ),
+        ];
+
+        state.modules.add(module);
+        state.assignedLessons.addAll(moduleLessons);
+
+        expect(state.learnerCanOpenLesson(learner, moduleLessons[1]), isFalse);
+        expect(
+          () => state.startLesson(moduleLessons[1]),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('not currently learner-safe to launch'),
+            ),
+          ),
+        );
+        expect(state.activeSession, isNull);
+        state.dispose();
+      },
+    );
+
+    test('startLesson rejects mismatched resume sessions', () {
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      state.currentLearner = learner;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      final differentLesson = state.assignedLessons.firstWhere(
+        (item) => item.id != lesson.id,
+      );
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-mismatch',
+        sessionId: 'session-mismatch',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: differentLesson.id,
+        lessonTitle: differentLesson.title,
+        moduleId: differentLesson.moduleId,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the saved learner session.',
+        currentStepIndex: 1,
+        stepsTotal: differentLesson.steps.length,
+        responsesCaptured: 1,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      expect(
+        () => state.startLesson(lesson, resumeFrom: runtimeSession),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('belongs to a different lesson payload'),
+          ),
+        ),
+      );
+      expect(state.activeSession, isNull);
+      state.dispose();
+    });
+
     test('step-less lessons are never launchable for learners', () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false
@@ -4587,11 +5360,13 @@ void main() {
 
         expect(state.learnerCanOpenLesson(learner, firstLesson), isFalse);
         expect(
-          state.terminalRuntimeSessionForLearnerAndLesson(learner, firstLesson)
+          state
+              .terminalRuntimeSessionForLearnerAndLesson(learner, firstLesson)
               ?.completionState,
           'absent',
         );
-        expect(state.nextAssignedLessonForLearner(learner)?.id, fallbackLesson.id);
+        expect(
+            state.nextAssignedLessonForLearner(learner)?.id, fallbackLesson.id);
 
         state.dispose();
       },
@@ -4754,7 +5529,8 @@ void main() {
       state.dispose();
     });
 
-    test('restore drops stale in-progress sessions for completed lessons', () async {
+    test('restore drops stale in-progress sessions for completed lessons',
+        () async {
       SharedPreferences.setMockInitialValues({
         'lumo_learner_tablet_state_v1': jsonEncode({
           'schemaVersion': '2026-04-13-runtime-persist',
@@ -5020,8 +5796,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'assigned',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Placeholder should wait for real lesson sync.',
-                'scenario': 'Real lesson payload has not synced to the tablet yet.',
+                'readinessFocus':
+                    'Placeholder should wait for real lesson sync.',
+                'scenario':
+                    'Real lesson payload has not synced to the tablet yet.',
                 'steps': [
                   {
                     'id': 'placeholder-step',
@@ -5061,7 +5839,8 @@ void main() {
         expect(state.currentLearner?.id, beginner.id);
         expect(state.activeSession, isNull);
         expect(state.hasPendingRecoveredSession, isTrue);
-        expect(state.pendingRecoveredSessionLabel, contains('waiting for lesson sync'));
+        expect(state.pendingRecoveredSessionLabel,
+            contains('waiting for lesson sync'));
 
         await state.bootstrap();
 
@@ -5069,7 +5848,8 @@ void main() {
         expect(state.activeSession, isNotNull);
         expect(state.activeSession?.lesson.id, 'lesson-live-sync');
         expect(state.activeSession?.lesson.isAssignmentPlaceholder, isFalse);
-        expect(state.activeSession?.sessionId, 'session-placeholder-in-progress');
+        expect(
+            state.activeSession?.sessionId, 'session-placeholder-in-progress');
 
         state.dispose();
       },
@@ -5116,8 +5896,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'assigned',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Placeholder should never certify a finished lesson.',
-                'scenario': 'Real lesson payload has not synced to the tablet yet.',
+                'readinessFocus':
+                    'Placeholder should never certify a finished lesson.',
+                'scenario':
+                    'Real lesson payload has not synced to the tablet yet.',
                 'steps': [
                   {
                     'id': 'placeholder-step',
@@ -5200,8 +5982,10 @@ void main() {
                 'durationMinutes': 12,
                 'status': 'published',
                 'mascotName': 'Mallam',
-                'readinessFocus': 'Published shell should never certify a finished lesson.',
-                'scenario': 'Lesson shell is visible before the tablet receives the real activity payload.',
+                'readinessFocus':
+                    'Published shell should never certify a finished lesson.',
+                'scenario':
+                    'Lesson shell is visible before the tablet receives the real activity payload.',
                 'activitySteps': const [],
               },
             ],
@@ -5230,6 +6014,43 @@ void main() {
         expect(state.hasPendingRecoveredSession, isFalse);
 
         state.dispose();
+      },
+    );
+
+    test(
+      'resume flow rebinds the active learner by learner code after live id churn',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+        final originalLearner = state.learners.first;
+        final reboundLearner = originalLearner.copyWith(id: 'learner-live-id');
+        state.learners[0] = reboundLearner;
+        final runtimeSession = BackendLessonSession(
+          id: 'runtime-2b',
+          sessionId: 'session-77b',
+          studentId: 'learner-stale-id',
+          learnerCode: reboundLearner.learnerCode,
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          moduleId: lesson.moduleId,
+          status: 'in_progress',
+          completionState: 'inProgress',
+          automationStatus: 'Resume the learner session.',
+          currentStepIndex: 1,
+          stepsTotal: lesson.steps.length,
+          responsesCaptured: 1,
+          supportActionsUsed: 0,
+          audioCaptures: 0,
+          facilitatorObservations: 0,
+        );
+
+        state.startLesson(lesson, resumeFrom: runtimeSession);
+
+        expect(state.currentLearner?.id, reboundLearner.id);
+        expect(state.currentLearner?.learnerCode, reboundLearner.learnerCode);
+        expect(state.activeSession?.sessionId, 'session-77b');
       },
     );
 
@@ -6983,7 +7804,8 @@ void main() {
       expect(state.degradedModeSummary, contains('queued locally'));
     });
 
-    test('pending sync summary escalates local fallback registration backlog', () {
+    test('pending sync summary escalates local fallback registration backlog',
+        () {
       final state = LumoAppState(includeSeedDemoContent: true)
         ..pendingSyncEvents.add(
           const SyncEvent(
@@ -7012,6 +7834,36 @@ void main() {
       expect(
         state.pendingSyncSummary,
         '2 learner registrations still need backend sync before the roster is trustworthy.',
+      );
+    });
+
+    test(
+        'critical sync trust blocker evidence names drifting contracts and learner code',
+        () {
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingSyncEvents.add(
+          const SyncEvent(
+            id: 'sync-register-1',
+            type: 'learner_registered_local_fallback',
+            payload: {'learnerCode': 'AMI-001'},
+          ),
+        )
+        ..pendingSyncEvents.add(
+          const SyncEvent(
+            id: 'sync-reward-1',
+            type: 'learner_reward_redeemed',
+            payload: {'learnerCode': 'AMI-001'},
+          ),
+        )
+        ..lastSyncError = 'Unknown learner for sync event';
+
+      expect(
+        state.criticalSyncTrustBlockerEvidence,
+        [
+          contains('learner_registered_local_fallback'),
+          contains('learner_reward_redeemed'),
+          contains('AMI-001'),
+        ],
       );
     });
 
@@ -7986,6 +8838,194 @@ void main() {
     );
 
     test(
+      'production-like bootstrap stays live when assignment routing uses a launchable lesson alias',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': beginner.id,
+                        'name': beginner.name,
+                        'age': beginner.age,
+                        'cohortName': beginner.cohort,
+                        'guardianName': beginner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-warm-up-runtime-v2',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'English warm up live',
+                        'status': 'published',
+                        'activitySteps': [
+                          {
+                            'id': 'lesson-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Warm up live',
+                            'prompt': 'Say hello.',
+                            'detail': 'Warm up the learner.',
+                            'evidence': 'The learner responds.',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'english-warm-up-runtime',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English warm up live',
+                        'cohortName': beginner.cohort,
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [beginner.id],
+                      },
+                    ],
+                    'registrationContext': {'cohorts': [], 'mallams': []},
+                    'meta': {
+                      'generatedAt': '2026-05-27T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isFalse);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(state.backendError, isNull);
+        expect(state.assignmentPacks, hasLength(1));
+        expect(
+          state.nextAssignedLessonForLearner(state.learners.first)?.id,
+          'english-warm-up-runtime-v2',
+        );
+      },
+    );
+
+    test(
+      'production-like bootstrap stays live when assignment lesson ids drift but punctuation-normalized title and module still resolve a launchable lesson',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          apiClient: LumoApiClient(
+            client: MockClient((request) async {
+              if (request.url.path == '/api/v1/learner-app/bootstrap') {
+                return http.Response(
+                  jsonEncode({
+                    'learners': [
+                      {
+                        'id': beginner.id,
+                        'name': beginner.name,
+                        'age': beginner.age,
+                        'cohortName': beginner.cohort,
+                        'guardianName': beginner.guardianName,
+                        'attendanceRate': 0.9,
+                        'level': 'beginner',
+                      },
+                    ],
+                    'modules': [
+                      {
+                        'id': 'english',
+                        'subjectId': 'english',
+                        'subjectName': 'English',
+                        'title': 'English',
+                        'level': 'beginner',
+                        'status': 'published',
+                      },
+                    ],
+                    'lessons': [
+                      {
+                        'id': 'english-live-1',
+                        'moduleId': 'english',
+                        'moduleName': 'English',
+                        'subject': 'English',
+                        'title': 'English hello!',
+                        'status': 'published',
+                        'activitySteps': [
+                          {
+                            'id': 'english-live-step-1',
+                            'type': 'listen_repeat',
+                            'title': 'Say hello',
+                            'prompt': 'Say hello.',
+                            'detail': 'Greeting step',
+                            'evidence': 'Learner greets',
+                          },
+                        ],
+                      },
+                    ],
+                    'assignments': [
+                      {
+                        'id': 'assignment-1',
+                        'lessonId': 'english-runtime-alias',
+                        'moduleId': 'english',
+                        'curriculumModuleId': 'english',
+                        'lessonTitle': 'English hello',
+                        'cohortName': beginner.cohort,
+                        'mallamName': 'Mallam Idris',
+                        'eligibleLearnerIds': [beginner.id],
+                      },
+                    ],
+                    'registrationContext': {'cohorts': [], 'mallams': []},
+                    'meta': {
+                      'generatedAt': '2026-05-27T06:30:09.634Z',
+                      'contractVersion': 'learner-app-v2.3',
+                      'assignmentCount': 1,
+                    },
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              throw Exception('Unexpected request: ${request.url}');
+            }),
+            baseUrl: 'https://example.com',
+          ),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isFalse);
+        expect(state.deploymentBlockerReason, isNull);
+        expect(state.backendError, isNull);
+        expect(state.assignmentPacks, hasLength(1));
+        expect(
+          state.nextAssignedLessonForLearner(state.learners.first)?.id,
+          'english-live-1',
+        );
+      },
+    );
+
+    test(
       'production-like bootstrap stays live when module bundle hydration supplies the launchable lesson payload',
       () async {
         final state = LumoAppState(
@@ -8572,6 +9612,135 @@ void main() {
         expect(state.currentLearner?.id, 'trusted-learner');
         expect(state.selectedModule?.id, 'english');
         state.dispose();
+      },
+    );
+
+    test(
+      'bootstrap keeps release deployment blocked when live bootstrap loses tablet registration even with a trusted snapshot',
+      () async {
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          configuredDeviceIdentifier: 'tablet-pod-a-007',
+          apiClient: _UnregisteredTabletBootstrapApiClientLiveLessons(),
+        );
+        addTearDown(state.dispose);
+
+        final trustedLearner = const LearnerProfile(
+          id: 'trusted-learner',
+          name: 'Safiya Musa',
+          age: 8,
+          cohort: 'Pod A',
+          podId: 'pod-a',
+          podLabel: 'Pod A',
+          streakDays: 2,
+          guardianName: 'Kande',
+          preferredLanguage: 'Hausa',
+          readinessLabel: 'Voice-first beginner',
+          village: 'Kawo',
+          guardianPhone: '0800000002',
+          sex: 'Girl',
+          baselineLevel: 'No prior exposure',
+          consentCaptured: true,
+          learnerCode: 'SAF-001',
+        );
+        final trustedModule = const LearningModule(
+          id: 'english',
+          title: 'English',
+          description: 'Trusted cached module',
+          voicePrompt: 'Open English.',
+          readinessGoal: 'Greeting flow',
+          badge: '1 lesson',
+        );
+        final trustedLesson = const LessonCardModel(
+          id: 'trusted-english-1',
+          moduleId: 'english',
+          title: 'Trusted greeting lesson',
+          subject: 'English',
+          durationMinutes: 8,
+          status: 'published',
+          mascotName: 'Mallam',
+          readinessFocus: 'Greeting flow',
+          scenario: 'Trusted cached lesson.',
+          steps: [
+            LessonStep(
+              id: 'trusted-step-1',
+              type: LessonStepType.practice,
+              title: 'Say hello',
+              instruction: 'Say hello.',
+              expectedResponse: 'Hello',
+              coachPrompt: 'Say hello.',
+              facilitatorTip: 'Model the greeting once.',
+              realWorldCheck: 'Learner says hello.',
+              speakerMode: SpeakerMode.guiding,
+            ),
+          ],
+        );
+
+        state.learners
+          ..clear()
+          ..add(trustedLearner);
+        state.modules
+          ..clear()
+          ..add(trustedModule);
+        state.assignedLessons
+          ..clear()
+          ..add(trustedLesson);
+        state.currentLearner = trustedLearner;
+        state.selectedModule = trustedModule;
+        state.snapshotTrustedFromLiveBootstrap = true;
+        state.snapshotSourceBaseUrl = state.backendBaseUrl;
+        state.snapshotSavedAt = DateTime.now();
+        state.lastSyncedAt = DateTime.now();
+        state.snapshotContractVersion = '2026-05-23';
+        state.backendContractVersion = '2026-05-23';
+
+        await state.bootstrap();
+
+        expect(state.usingFallbackData, isTrue);
+        expect(
+          state.deploymentBlockerReason,
+          contains('did not return a tablet registration'),
+        );
+        expect(state.hasUsableOfflineSnapshot, isTrue);
+        expect(state.hasHardDeploymentIdentityBlocker, isTrue);
+        expect(
+          state.learners.map((learner) => learner.id).toList(),
+          equals(['learner-1']),
+        );
+        expect(
+          state.assignedLessons.map((lesson) => lesson.id).toList(),
+          equals(['english-live-1']),
+        );
+        expect(state.selectedModule?.id, 'english');
+      },
+    );
+
+    test(
+      'unregistered live bootstrap does not certify a first-run offline snapshot as trusted',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+
+        final state = LumoAppState(
+          includeSeedDemoContent: false,
+          configuredDeviceIdentifier: 'tablet-pod-a-007',
+          apiClient: _UnregisteredTabletBootstrapApiClientLiveLessons(),
+        );
+        addTearDown(state.dispose);
+
+        await state.bootstrap();
+        await state.flushPersistence();
+
+        expect(
+          state.deploymentBlockerReason,
+          contains('did not return a tablet registration'),
+        );
+        expect(state.usingFallbackData, isTrue);
+        expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
+        expect(state.hasUsableOfflineSnapshot, isFalse);
+        expect(
+          state.offlineSnapshotTrustProblem,
+          contains('never confirmed by a successful live bootstrap'),
+        );
       },
     );
 
@@ -9174,7 +10343,8 @@ void main() {
       },
     );
 
-    test('sync-pending assignment placeholders are never learner-launchable', () {
+    test('sync-pending assignment placeholders are never learner-launchable',
+        () {
       final state = LumoAppState(includeSeedDemoContent: false)
         ..usingFallbackData = false;
       const learner = LearnerProfile(
@@ -9241,7 +10411,8 @@ void main() {
       state.dispose();
     });
 
-    test('startLesson refuses stale direct launches for blocked learners', () async {
+    test('startLesson refuses stale direct launches for blocked learners',
+        () async {
       final state = LumoAppState(includeSeedDemoContent: true);
       final learner = state.learners.first;
       final lesson = state.assignedLessons.firstWhere(

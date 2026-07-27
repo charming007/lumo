@@ -136,6 +136,7 @@ export type Assignment = {
   teacherName: string;
   dueDate: string;
   status: string;
+  assignedAt?: string | null;
   podLabel?: string | null;
   assessmentTitle?: string | null;
 };

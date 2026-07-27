@@ -2,11 +2,12 @@ import { CreatePodForm, DeletePodForm, UpdatePodForm } from '../../components/ad
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
 import { ModalLauncher } from '../../components/modal-launcher';
+import { AdminDirectory } from '../../components/admin-directory';
 import { fetchCenters, fetchDeviceRegistrations, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { podGeographyLabel } from '../../lib/geography';
 import { getPodAdminReferenceHealth } from '../../lib/admin-reference-health';
-import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
+import { Card, MetricList, PageShell, Pill } from '../../lib/ui';
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—';
@@ -17,6 +18,22 @@ function formatDateTime(value?: string | null) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value));
+}
+
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'P';
+}
+
+function capacityPercent(active?: number | null, capacity?: number | null) {
+  if (!capacity || capacity <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round(((active || 0) / capacity) * 100)));
+}
+
+function statusTone(status?: string | null) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'active') return ['#DCFCE7', '#166534'] as const;
+  if (normalized === 'paused') return ['#FEF3C7', '#92400E'] as const;
+  return ['#F1F5F9', '#475569'] as const;
 }
 
 function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
@@ -196,71 +213,101 @@ export default async function PodsPage({ searchParams }: { searchParams?: Promis
         : `Pods is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Pod edits stay live when possible, but verify geography and linked tablets before treating this screen as authoritative.`) : null}
       {!pods.length ? routeAlert('No pods are loading right now. That could mean a genuinely empty registry or a still-broken upstream seed. Do not treat this as proof the deployment footprint is clean.', failedSources.length ? 'error' : 'warning') : null}
 
-      <section style={{ ...responsiveGrid(260), marginBottom: 20 }}>
-        {pods.slice(0, 3).map((pod) => {
-          const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
-          return (
-            <Card key={pod.id} title={pod.label} eyebrow={pod.status || 'Pod'}>
-              <div style={{ display: 'grid', gap: 10 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Pill label={`${pod.learnersActive || 0} learners`} tone="#EEF2FF" text="#3730A3" />
-                  <Pill label={pod.mallamNames?.[0] || 'No primary mallam'} tone="#ECFDF5" text="#166534" />
-                  <Pill label={`${podDevices.length} tablet${podDevices.length === 1 ? '' : 's'}`} tone="#F5F3FF" text="#6D28D9" />
+      <AdminDirectory title="All pods" count={pods.length} searchPlaceholder="Search pods...">
+        {hasCorePodGap ? (
+          <div style={{ color: '#b91c1c', lineHeight: 1.6 }}>Pod registry unavailable. Recover the pods feed before using pod admin actions.</div>
+        ) : (
+          <>
+            <div data-directory-view="grid">
+              {pods.map((pod) => {
+                const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
+                const fill = capacityPercent(pod.learnersActive, pod.capacity);
+                const [tone, text] = statusTone(pod.status);
+                const geography = podGeographyLabel(pod, centers, states, localGovernments);
+                const search = [pod.label, pod.status, pod.type, geography, pod.centerName, pod.connectivity, ...(pod.mallamNames || [])].filter(Boolean).join(' ');
+                return (
+                  <article key={pod.id} data-directory-item data-search={search} style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, border: '1px solid #e4e8ef', background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)', padding: 22, display: 'grid', gap: 18, boxShadow: '0 18px 45px rgba(76, 83, 112, 0.06)' }}>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: '0 0 auto 0', height: 5, background: 'linear-gradient(90deg, #6D5DF7, #FF79C8, #9EE7F2)' }} />
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                      <div style={{ width: 58, height: 58, borderRadius: 999, background: '#E5E7EB', color: '#202436', display: 'grid', placeItems: 'center', fontWeight: 850, fontSize: 20, flex: '0 0 auto' }}>{initials(pod.label || pod.id)}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: 20, color: '#151827' }}>{pod.label || pod.id}</h3>
+                        <div style={{ color: '#7b8496', marginTop: 4 }}>{pod.type || 'Pod'} · {geography}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      {[['Learners', `${pod.learnersActive || 0}${pod.capacity ? ` / ${pod.capacity}` : ''}`], ['Primary mallam', pod.mallamNames?.[0] || '—'], ['Tablets', String(podDevices.length)], ['Connectivity', pod.connectivity || '—']].map(([label, value]) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: '#7b8496' }}><span>{label}:</span><strong style={{ color: '#202436' }}>{value}</strong></div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7b8496' }}><span>Capacity</span><strong style={{ color: '#202436' }}>{fill}%</strong></div>
+                      <div style={{ height: 9, borderRadius: 999, background: '#dbe7f5', overflow: 'hidden' }}><div style={{ width: `${fill}%`, height: '100%', borderRadius: 999, background: '#0B73D9' }} /></div>
+                    </div>
+                    <div style={{ height: 1, background: '#edf0f6' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                      <Pill label={pod.status || 'Unknown'} tone={tone} text={text} />
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        <ModalLauncher buttonLabel="Edit" title={`Edit ${pod.label}`} description="Update pod geography, mallam ownership, and live operating details." eyebrow="Pod admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                          <UpdatePodForm pod={pod} centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
+                        </ModalLauncher>
+                        <ModalLauncher buttonLabel="Remove" title={`Delete ${pod.label}`} description="Delete is guarded. If the pod still has tablets, learners, mallams, or cohorts linked, the API blocks it." eyebrow="Pod admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                          <DeletePodForm pod={pod} />
+                        </ModalLauncher>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div data-directory-view="list">
+              {pods.map((pod) => {
+                const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
+                const [tone, text] = statusTone(pod.status);
+                const geography = podGeographyLabel(pod, centers, states, localGovernments);
+                const search = [pod.label, pod.status, pod.type, geography, pod.centerName, ...(pod.mallamNames || [])].filter(Boolean).join(' ');
+                return (
+                  <div key={pod.id} data-directory-item data-search={search} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.1fr) 120px 120px minmax(150px, 0.9fr) 100px minmax(130px, 0.9fr) minmax(180px, 1fr)', gap: 16, alignItems: 'center', padding: '16px 18px', borderRadius: 18, border: '1px solid #edf0f6', background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ width: 44, height: 44, borderRadius: 999, background: '#E5E7EB', display: 'grid', placeItems: 'center', fontWeight: 800 }}>{initials(pod.label || pod.id)}</span><strong>{pod.label || pod.id}</strong></div>
+                    <Pill label={pod.status || 'Unknown'} tone={tone} text={text} />
+                    <div>{pod.learnersActive || 0} learners</div>
+                    <div>{pod.mallamNames?.[0] || 'No primary mallam'}</div>
+                    <div>{podDevices.length} tablets</div>
+                    <div>{geography}</div>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <ModalLauncher buttonLabel="Edit" title={`Edit ${pod.label}`} description="Update pod geography, mallam ownership, and live operating details." eyebrow="Pod admin" triggerStyle={{ background: '#EFF6FF', color: '#1d4ed8', border: '1px solid #bfdbfe', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                        <UpdatePodForm pod={pod} centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
+                      </ModalLauncher>
+                      <ModalLauncher buttonLabel="Remove" title={`Delete ${pod.label}`} description="Delete is guarded. If the pod still has tablets, learners, mallams, or cohorts linked, the API blocks it." eyebrow="Pod admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #fecaca', boxShadow: 'none', padding: '9px 12px', borderRadius: 12, fontSize: 13 }}>
+                        <DeletePodForm pod={pod} />
+                      </ModalLauncher>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </AdminDirectory>
+
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20, marginTop: 32 }}>
+        <Card title="Pod-linked tablets" eyebrow="Operational context">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {deviceRegistrations.filter((item) => item.podId).length ? deviceRegistrations.filter((item) => item.podId).map((registration) => (
+              <div key={registration.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 14, padding: 16, borderRadius: 18, background: '#ffffff', border: '1px solid #edf0f6' }}>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <strong style={{ color: '#151827' }}>{registration.deviceIdentifier}</strong>
+                  <span style={{ color: '#747b8f' }}>{registration.podLabel || 'Unassigned pod'}</span>
                 </div>
-                <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                  Type: <strong>{pod.type || 'Unknown'}</strong><br />
-                  Geography: <strong>{podGeographyLabel(pod, centers, states, localGovernments)}</strong><br />
-                  Connectivity: <strong>{pod.connectivity || '—'}</strong>
+                <div style={{ display: 'grid', gap: 4, textAlign: 'right' }}>
+                  <strong style={{ color: '#151827' }}>{registration.assignedMallamName || 'No mallam'}</strong>
+                  <span style={{ color: '#747b8f' }}>{registration.status || 'Unknown'} · {formatDateTime(registration.lastSeenAt)}</span>
                 </div>
               </div>
-            </Card>
-          );
-        })}
-      </section>
-
-      <div style={{ marginBottom: 20 }}>
-        <Card title="Pod registry" eyebrow="CRUD admin">
-          <SimpleTable
-            columns={['Pod', 'Status', 'Geography', 'Learners', 'Primary mallam', 'Tablets', 'Center', 'Actions']}
-            rows={hasCorePodGap ? [[
-              <span key="pods-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Pod registry unavailable. Recover the pods feed before using pod admin actions.</span>,
-              '', '', '', '', '', '', '',
-            ]] : pods.map((pod) => {
-              const podDevices = deviceRegistrations.filter((item) => item.podId === pod.id);
-              return [
-                pod.label || pod.id,
-                <Pill key={`${pod.id}-status`} label={pod.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-                podGeographyLabel(pod, centers, states, localGovernments),
-                String(pod.learnersActive || 0),
-                pod.mallamNames?.[0] || '—',
-                String(podDevices.length),
-                pod.centerName || 'Derived from geography',
-                <div key={`${pod.id}-actions`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <ModalLauncher buttonLabel="Edit" title={`Edit ${pod.label}`} description="Update pod geography, mallam ownership, and live operating details." eyebrow="Pod admin" triggerStyle={{ background: '#E2E8F0', color: '#0f172a', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
-                    <UpdatePodForm pod={pod} centers={centers} mallams={mallams} states={states} localGovernments={localGovernments} />
-                  </ModalLauncher>
-                  <ModalLauncher buttonLabel="Delete" title={`Delete ${pod.label}`} description="Delete is guarded. If the pod still has tablets, learners, mallams, or cohorts linked, the API blocks it." eyebrow="Pod admin" triggerStyle={{ background: '#FEE2E2', color: '#991B1B', boxShadow: 'none', padding: '10px 12px', borderRadius: 12 }}>
-                    <DeletePodForm pod={pod} />
-                  </ModalLauncher>
-                </div>,
-              ];
-            })}
-          />
-        </Card>
-      </div>
-
-      <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 16 }}>
-        <Card title="Pod-linked tablets" eyebrow="Operational context">
-          <SimpleTable
-            columns={['Pod', 'Tablet', 'Primary mallam', 'Status', 'Last seen']}
-            rows={deviceRegistrations.length ? deviceRegistrations.filter((item) => item.podId).map((registration) => [
-              registration.podLabel || 'Unassigned',
-              registration.deviceIdentifier,
-              registration.assignedMallamName || '—',
-              registration.status || 'Unknown',
-              formatDateTime(registration.lastSeenAt),
-            ]) : [[<span key="empty" style={{ color: '#64748b' }}>No pod-linked tablets yet.</span>, '', '', '', '']]}
-          />
+            )) : (
+              <div style={{ color: '#64748b', padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #eef2f7' }}>No pod-linked tablets yet.</div>
+            )}
+          </div>
         </Card>
 
         <Card title="Why this matters" eyebrow="Closeout note">

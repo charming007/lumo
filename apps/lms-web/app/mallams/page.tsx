@@ -3,10 +3,31 @@ import { CreateMallamForm, DeleteMallamForm, UpdateMallamForm } from '../../comp
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { GeographyFilterBar } from '../../components/geography-filter-bar';
 import { ModalLauncher } from '../../components/modal-launcher';
+import { AdminDirectory } from '../../components/admin-directory';
 import { fetchCenters, fetchLocalGovernments, fetchMallams, fetchPods, fetchStates, fetchStudents } from '../../lib/api';
 import { API_BASE_DIAGNOSTIC } from '../../lib/config';
 import { filterMallamsByGeography, mallamGeographyLabel } from '../../lib/geography';
-import { Card, MetricList, PageShell, Pill, SimpleTable } from '../../lib/ui';
+import { Card, MetricList, PageShell, Pill } from '../../lib/ui';
+
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'M';
+}
+
+function trainingPercent(certification?: string | null, status?: string | null) {
+  const cert = String(certification || '').toLowerCase();
+  const normalizedStatus = String(status || '').toLowerCase();
+  if (cert.includes('2') || cert.includes('certified') || normalizedStatus === 'active') return 100;
+  if (normalizedStatus === 'training') return 65;
+  if (normalizedStatus === 'leave') return 35;
+  return 45;
+}
+
+function statusTone(status?: string | null) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'active') return ['#DCFCE7', '#166534'] as const;
+  if (normalized === 'training') return ['#FEF3C7', '#92400E'] as const;
+  return ['#F1F5F9', '#475569'] as const;
+}
 
 export default async function MallamsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
@@ -194,66 +215,105 @@ export default async function MallamsPage({ searchParams }: { searchParams?: Pro
             ? `Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} with degraded geography context because one of the region feeds is down.`
             : `Showing ${filteredMallams.length} mallam profile${filteredMallams.length === 1 ? '' : 's'} in the selected geography slice.`}
       />
-      <SimpleTable
-        columns={['Mallam', 'Status', 'Geography', 'Learners', 'Primary pod', 'Pod coverage', 'Languages', 'Center', 'Actions']}
-        rows={hasCoreRosterGap ? [[
-          <span key="mallams-outage" style={{ color: '#b91c1c', lineHeight: 1.6 }}>Mallam roster unavailable. Recover the mallams feed before using facilitator admin actions.</span>,
-          '', '', '', '', '', '', '', '',
-        ]] : filteredMallams.map((mallam) => [
-          <div key={`${mallam.id}-name`}>
-            <strong>{mallam.displayName || mallam.name}</strong>
-            <div style={{ color: '#64748b', marginTop: 4 }}>{mallam.role || 'Mallam'} · {mallam.region || 'Unknown region'}</div>
-          </div>,
-          <Pill key={`${mallam.id}-status`} label={mallam.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-          mallamGeographyLabel(mallam, centers, states, localGovernments),
-          String(mallam.learnerCount || 0),
-          mallam.podLabels?.[0] || '—',
-          String(mallam.podLabels?.length || 0),
-          (mallam.languages || []).join(', ') || '—',
-          mallam.centerName || '—',
-          <div key={`${mallam.id}-actions`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Link href={`/mallams/${mallam.id}`} title="View mallam profile" aria-label="View mallam profile" style={{ textDecoration: 'none', borderRadius: 10, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730A3', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
-              👁
-            </Link>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">✏️</span>}
-              title={`Edit ${mallam.displayName || mallam.name}`}
-              description="Update mallam details without stretching the table row into a form graveyard."
-              eyebrow="Mallam admin"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
-            </ModalLauncher>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">🗑️</span>}
-              title={`Delete ${mallam.displayName || mallam.name}`}
-              description="Remove this mallam from the live roster carefully."
-              eyebrow="Danger zone"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <DeleteMallamForm mallam={mallam} />
-            </ModalLauncher>
-            <ModalLauncher
-              buttonLabel={<span aria-hidden="true">🧭</span>}
-              title={`Manage roster for ${mallam.displayName || mallam.name}`}
-              description="Assign, remove, or re-route learners without leaving the mallams table."
-              eyebrow="Roster control"
-              triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: 0, fontSize: 16 }}
-            >
-              <div style={{ display: 'grid', gap: 16 }}>
-                <Card title="Mallam roster manager" eyebrow="Roster control">
-                  <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                    Use the mallam profile for the full roster surface. This quick action stays lightweight here so pod-first routing still happens in one focused place.
+      <AdminDirectory
+        title="All mallams"
+        count={filteredMallams.length}
+        searchPlaceholder="Search mallams..."
+      >
+        {hasCoreRosterGap ? (
+          <div style={{ color: '#b91c1c', lineHeight: 1.6 }}>Mallam roster unavailable. Recover the mallams feed before using facilitator admin actions.</div>
+        ) : (
+          <>
+            <div data-directory-view="grid">
+              {filteredMallams.map((mallam) => {
+                const name = mallam.displayName || mallam.name;
+                const training = trainingPercent(mallam.certificationLevel, mallam.status);
+                const [tone, text] = statusTone(mallam.status);
+                const search = [name, mallam.status, mallam.role, mallam.region, mallam.centerName, mallamGeographyLabel(mallam, centers, states, localGovernments), ...(mallam.podLabels || []), ...(mallam.languages || [])].filter(Boolean).join(' ');
+                const actions = (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <Link href={`/mallams/${mallam.id}`} title="View mallam profile" aria-label="View mallam profile" style={{ textDecoration: 'none', color: '#202436', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900 }}>View</Link>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">Edit</span>} title={`Edit ${name}`} description="Update mallam details without stretching the roster layout." eyebrow="Mallam admin" triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', minWidth: 50, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                      <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">Roster</span>} title={`Manage roster for ${name}`} description="Open the full profile path for deeper roster controls." eyebrow="Roster control" triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', minWidth: 62, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                      <div style={{ display: 'grid', gap: 16 }}>
+                        <Card title="Mallam roster manager" eyebrow="Roster control">
+                          <div style={{ color: '#475569', lineHeight: 1.6 }}>Use the mallam profile for the full roster surface. This quick action stays lightweight here so pod-first routing still happens in one focused place.</div>
+                        </Card>
+                        <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Open full roster manager</Link>
+                      </div>
+                    </ModalLauncher>
+                    <ModalLauncher buttonLabel={<span aria-hidden="true">Remove</span>} title={`Delete ${name}`} description="Remove this mallam from the live roster carefully." eyebrow="Danger zone" triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', minWidth: 70, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                      <DeleteMallamForm mallam={mallam} />
+                    </ModalLauncher>
                   </div>
-                </Card>
-                <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>
-                  Open full roster manager
-                </Link>
-              </div>
-            </ModalLauncher>
-          </div>,
-        ])}
-      />
+                );
+
+                return (
+                  <article key={mallam.id} data-directory-item data-search={search} style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, border: '1px solid #e4e8ef', background: 'linear-gradient(135deg, #ffffff 0%, #f9fbff 100%)', padding: 22, display: 'grid', gap: 18, boxShadow: '0 18px 45px rgba(76, 83, 112, 0.06)' }}>
+                    <div aria-hidden="true" style={{ position: 'absolute', inset: '0 0 auto 0', height: 5, background: 'linear-gradient(90deg, #6D5DF7, #FF79C8, #9EE7F2)' }} />
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                      <div style={{ width: 58, height: 58, borderRadius: 999, background: '#E5E7EB', color: '#202436', display: 'grid', placeItems: 'center', fontWeight: 850, fontSize: 20, flex: '0 0 auto' }}>{initials(name)}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h3 style={{ margin: 0, fontSize: 20, color: '#151827' }}>{name}</h3>
+                        <div style={{ color: '#7b8496', marginTop: 4 }}>{mallam.role || 'Mallam'} · {mallam.region || 'Unknown region'}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      {[['Learners', String(mallam.learnerCount || 0)], ['Pods', String(mallam.podLabels?.length || 0)], ['Primary pod', mallam.podLabels?.[0] || '—']].map(([label, value]) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: '#7b8496' }}><span>{label}:</span><strong style={{ color: '#202436' }}>{value}</strong></div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7b8496' }}><span>Training</span><strong style={{ color: '#202436' }}>{training}%</strong></div>
+                      <div style={{ height: 9, borderRadius: 999, background: '#dbe7f5', overflow: 'hidden' }}><div style={{ width: `${training}%`, height: '100%', borderRadius: 999, background: '#0B73D9' }} /></div>
+                    </div>
+                    <div style={{ height: 1, background: '#edf0f6' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                      <Pill label={mallam.status || 'Unknown'} tone={tone} text={text} />
+                      {actions}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div data-directory-view="list">
+              {filteredMallams.map((mallam) => {
+                const name = mallam.displayName || mallam.name;
+                const [tone, text] = statusTone(mallam.status);
+                const search = [name, mallam.status, mallam.role, mallam.centerName, mallamGeographyLabel(mallam, centers, states, localGovernments), ...(mallam.podLabels || [])].filter(Boolean).join(' ');
+                return (
+                  <div key={mallam.id} data-directory-item data-search={search} style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.3fr) 120px 90px 90px minmax(150px, 0.9fr) minmax(260px, 1.1fr)', gap: 16, alignItems: 'center', padding: '16px 18px', borderRadius: 18, border: '1px solid #edf0f6', background: '#ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}><span style={{ width: 44, height: 44, borderRadius: 999, background: '#E5E7EB', display: 'grid', placeItems: 'center', fontWeight: 800 }}>{initials(name)}</span><strong>{name}</strong></div>
+                    <Pill label={mallam.status || 'Unknown'} tone={tone} text={text} />
+                    <div>{mallam.learnerCount || 0} learners</div>
+                    <div>{mallam.podLabels?.length || 0} pods</div>
+                    <div>{mallam.podLabels?.[0] || 'No primary pod'}</div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <Link href={`/mallams/${mallam.id}`} title="View mallam profile" aria-label="View mallam profile" style={{ textDecoration: 'none', color: '#202436', width: 34, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 900 }}>View</Link>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">Edit</span>} title={`Edit ${name}`} description="Update mallam details without stretching the roster layout." eyebrow="Mallam admin" triggerStyle={{ borderRadius: 10, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', minWidth: 50, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                        <UpdateMallamForm mallam={mallam} centers={centers} pods={pods} states={states} localGovernments={localGovernments} />
+                      </ModalLauncher>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">Roster</span>} title={`Manage roster for ${name}`} description="Open the full profile path for deeper roster controls." eyebrow="Roster control" triggerStyle={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#ecfdf5', color: '#166534', minWidth: 62, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                        <div style={{ display: 'grid', gap: 16 }}>
+                          <Card title="Mallam roster manager" eyebrow="Roster control">
+                            <div style={{ color: '#475569', lineHeight: 1.6 }}>Use the mallam profile for the full roster surface. This quick action stays lightweight here so pod-first routing still happens in one focused place.</div>
+                          </Card>
+                          <Link href={`/mallams/${mallam.id}`} style={{ color: '#3730A3', fontWeight: 800, textDecoration: 'none' }}>Open full roster manager</Link>
+                        </div>
+                      </ModalLauncher>
+                      <ModalLauncher buttonLabel={<span aria-hidden="true">Remove</span>} title={`Delete ${name}`} description="Remove this mallam from the live roster carefully." eyebrow="Danger zone" triggerStyle={{ borderRadius: 10, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', minWidth: 70, height: 34, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'none', padding: '0 10px', fontSize: 13 }}>
+                        <DeleteMallamForm mallam={mallam} />
+                      </ModalLauncher>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </AdminDirectory>
     </PageShell>
   );
 }

@@ -12,9 +12,14 @@ export const fullNavigationItems: readonly NavigationItem[] = [
   { id: 'devices', label: 'Devices', href: '/devices' },
   { id: 'attendance', label: 'Attendance', href: '/attendance' },
   { id: 'content', label: 'Content Library', href: '/content' },
+  { id: 'english', label: 'English Studio', href: '/english' },
+  { id: 'canvas', label: 'Curriculum Canvas', href: '/canvas' },
   { id: 'assessments', label: 'Assessments', href: '/assessments' },
   { id: 'assignments', label: 'Assignments', href: '/assignments' },
   { id: 'progress', label: 'Progress', href: '/progress' },
+  { id: 'rewards', label: 'Rewards', href: '/rewards' },
+  { id: 'reports', label: 'Reports', href: '/reports' },
+  { id: 'guide', label: 'Guide', href: '/guide' },
   { id: 'settings', label: 'Settings', href: '/settings' },
 ] as const;
 

@@ -4,67 +4,146 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
-const routeErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
+const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
+const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
+const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
-test('dashboard does not hard-block on subject metadata degradation alone', () => {
-  assert.doesNotMatch(
+test('dashboard hard-blocks when the subject feed is degraded', () => {
+  assert.match(
     dashboardPageSource,
     /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
-    'subject feed degradation alone should not be counted as a critical dashboard release blocker',
+    'subject feed degradation should count as a critical dashboard release blocker because blocker triage and authoring scope depend on live subject context',
   );
   assert.match(
     dashboardPageSource,
-    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled';/,
-    'dashboard release snapshot should stay available when only subject metadata is degraded',
+    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled' && subjectsResult\.status === 'fulfilled';/,
+    'dashboard release snapshot should only be treated as live when the subject feed is also available',
   );
   assert.match(
     dashboardPageSource,
-    /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
-    'dashboard should surface subject metadata degradation as a warning instead of a hard blocker',
+    /subject context can drift just enough to turn blocker CTAs into confident nonsense\./,
+    'dashboard blocker copy should explain why missing subjects is a release-trust failure, not a harmless metadata warning',
   );
 });
 
-test('dashboard defaults to the full LMS route map and keeps the pilot route map behind the override', () => {
+test('dashboard mirrors the shared shell clamp and keeps the pilot route map as the default production fallback only when pilot mode is not explicitly disabled', () => {
+  assert.match(
+    dashboardPageSource,
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| \(process\.env\.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled'\);/,
+    'dashboard should only keep the production pilot-safe route clamp while the pilot mode is still on its default production behavior',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /if \(shellScopeDeploymentBlocked\) \{/,
+    'dashboard should stop hard-blocking deployment review once the shared shell already clamps production back to the pilot-safe route set',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /Deployment blocker: full LMS shell is widening the production deployment target\./,
+    'dashboard should stop advertising a full-shell production blocker once the broader shell no longer renders in production by default',
+  );
+});
+
+test('dashboard keeps the pilot route map as the production-safe default and leaves the full LMS shell for explicit override', () => {
+  assert.match(
+    dashboardPageSource,
+    /const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode\(\);/,
+    'dashboard should read the raw pilot-control-plane flag mode before deciding whether production still needs the pilot-safe clamp',
+  );
   assert.match(
     dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
-    'dashboard should derive the pilot shell override from env instead of assuming pilot mode on main',
+    'dashboard should still derive shell mode from the shared pilot control-plane helper',
   );
   assert.match(
     dashboardPageSource,
-    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
-    'dashboard should restore the default route map to the full LMS shell',
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| \(process\.env\.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled'\);/,
+    'dashboard should clamp its route-map state the same way the shared shell clamps production back to the pilot-safe workspace unless the env explicitly disables pilot mode',
   );
   assert.match(
     dashboardPageSource,
-    /Visible LMS routes/,
-    'dashboard should label the default visible nav as LMS routes',
-  );
-  assert.match(
-    dashboardPageSource,
-    /The dashboard, sidebar, and topbar are back to the full LMS admin shell operators expect on main\./,
-    'dashboard should say plainly that main is back on the full LMS shell',
-  );
-  assert.match(
-    dashboardPageSource,
-    /NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE=true/,
-    'dashboard should document the explicit pilot override switch',
+    /\{effectivePilotControlPlaneEnabled \? \(/,
+    'dashboard should render its route-map branch from the clamped pilot-safe shell state instead of the raw override flag',
   );
   assert.match(
     dashboardPageSource,
     /<Card title="Pilot route map" eyebrow="Visible shell">/,
-    'dashboard should keep the pilot route map code path available for the override mode',
+    'dashboard should keep the pilot route map code path available for the production-safe shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Visible pilot routes/,
+    'dashboard should label the production-safe visible nav as pilot routes',
+  );
+  assert.match(
+    dashboardPageSource,
+    /This dashboard, the sidebar, and the visible shell now agree on the routes operators should actually trust for pilot go-live\./,
+    'dashboard should keep the pilot-safe route map copy available for the production-default shell',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Card title="Full LMS route map" eyebrow="Visible shell">/,
+    'dashboard should keep the full LMS route map code path available for the explicit override mode',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Pilot deployment warning/,
+    'default full-shell dashboard should still warn that the broader LMS chrome is not the same thing as a pilot-safe deployment target',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Full LMS chrome is visible, but only the pilot control plane should count as a deployment target\./,
+    'full-shell route map should call out the deployment-scope risk directly instead of treating every visible route as equally shippable',
+  );
+  assert.match(
+    dashboardPageSource,
+    /For pilot deployment review, trust Dashboard, Content, Assignments, Progress, and Settings first\./,
+    'full-shell route map should still anchor reviewers on the narrow pilot control plane when the broader admin shell is visible',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Even in the full LMS shell, these routes stay explicitly blocked for pilot deployment review until their own trust evidence catches up\./,
+    'full-shell route map should still spell out explicitly blocked pilot surfaces instead of making reviewers infer them from broader shell visibility',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Pilot deployment warning/,
+    'default full-shell dashboard should still warn that the broader LMS chrome is not the same thing as a pilot-safe deployment target',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Full LMS chrome is visible, but only the pilot control plane should count as a deployment target\./,
+    'full-shell route map should call out the deployment-scope risk directly instead of treating every visible route as equally shippable',
+  );
+  assert.match(
+    dashboardPageSource,
+    /For pilot deployment review, trust Dashboard, Content, Assignments, Progress, and Settings first\./,
+    'full-shell route map should still anchor reviewers on the narrow pilot control plane when the broader admin shell is visible',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Pilot deployment warning/,
+    'default full-shell dashboard should still warn that the broader LMS chrome is not the same thing as a pilot-safe deployment target',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Full LMS chrome is visible, but only the pilot control plane should count as a deployment target\./,
+    'full-shell route map should call out the deployment-scope risk directly instead of treating every visible route as equally shippable',
+  );
+  assert.match(
+    dashboardPageSource,
+    /For pilot deployment review, trust Dashboard, Content, Assignments, Progress, and Settings first\./,
+    'full-shell route map should still anchor reviewers on the narrow pilot control plane when the broader admin shell is visible',
   );
   assert.match(
     dashboardPageSource,
     /\{PILOT_OFF_SHELL_ROUTE_LABELS\.map\(\(label\) => \(/,
     'dashboard should keep rendering the specialist off-shell pills from the shared pilot-nav list',
   );
-  assert.match(
-    dashboardPageSource,
-    /\{PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/,
-    'dashboard should render blocked pilot surfaces from the dedicated blocked-route list',
+  assert.ok(
+    (dashboardPageSource.match(/\{PILOT_BLOCKED_ROUTE_LABELS\.map\(\(label\) => \(/g) ?? []).length >= 2,
+    'dashboard should render blocked pilot surfaces in both pilot-shell and full-shell route maps',
   );
   assert.doesNotMatch(
     dashboardPageSource,
@@ -73,16 +152,44 @@ test('dashboard defaults to the full LMS route map and keeps the pilot route map
   );
 });
 
-test('dashboard bulk blocker handoff copy tells the truth about the pilot-blocked canvas detour', () => {
+test('dashboard bulk blocker handoff copy keeps multi-lesson fixes on the scoped blocker flow', () => {
   assert.match(
     dashboardPageSource,
-    /dashboard now keeps operators on the scoped content blocker flow instead of punting them into the pilot-blocked canvas\./,
-    'dashboard should explain that multi-lesson blockers stay on the content blocker flow because canvas is not a valid pilot action surface',
+    /dashboard keeps operators on the scoped content blocker flow until the lane is structurally complete\./,
+    'dashboard should explain that multi-lesson blockers stay on the content blocker flow instead of pretending one deep link solves structural gaps',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /pilot-blocked canvas/,
+    'default dashboard shell copy should not leak pilot-only blocker language into the main LMS route',
   );
   assert.doesNotMatch(
     dashboardPageSource,
     /dashboard now opens the bulk lesson shell flow directly on the blocked module instead of pretending the blocker board click is enough\./,
-    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the pilot blocker fix lands',
+    'dashboard should stop claiming multi-lesson blockers deep-link into canvas once the scoped blocker fix lands',
+  );
+});
+
+test('dashboard ready-to-progress metric reuses the live workboard instead of a drift-prone summary count', () => {
+  assert.match(
+    dashboardPageSource,
+    /const readyToProgressCount = workboardAvailable \? readyLearners\.length : null;/,
+    'dashboard should derive the ready-to-progress KPI from the same live workboard rows that power the priority queue',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*value: metricDisplay\(String\(readyToProgressCount \?\? 0\), readyToProgressCount !== null\),/,
+    'dashboard should render the ready-to-progress KPI from the normalized workboard count instead of a separate summary payload',
+  );
+  assert.match(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*note: workboardAvailable[\s\S]*'Pulled from the live progression workboard'[\s\S]*'Unavailable until the live progression workboard feed recovers\.'/, 
+    'dashboard should tie the KPI copy to the workboard feed it actually depends on',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /label: 'Ready to progress',[\s\S]*String\(summary\.learnersReadyToProgress\)/,
+    'dashboard should stop mixing summary-feed counts into the workboard-backed ready-to-progress KPI',
   );
 });
 
@@ -114,7 +221,6 @@ test('dashboard normalizes progression status before building the priority queue
   );
 });
 
-
 test('dashboard top blocker only inlines assessment-gate creation when subject context is trustworthy', () => {
   assert.match(
     dashboardPageSource,
@@ -123,18 +229,13 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
+    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
+    'dashboard should recover scoped assessment subjects through the shared normalized subject matcher',
+  );
+  assert.match(
+    dashboardPageSource,
     /buttonLabel="Add assessment gate"/,
     'dashboard should expose an explicit add-assessment-gate action on the top blocker card',
-  );
-  assert.match(
-    dashboardPageSource,
-    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*topReleaseBlockerAssessmentSubjectId[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
-    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and a normalized matched subject scope',
-  );
-  assert.match(
-    dashboardPageSource,
-    /import \{ findSubjectByContext \} from '\.\.\/lib\/module-subject-match';/,
-    'dashboard should reuse the shared normalized subject matcher before offering inline assessment creation',
   );
   assert.match(
     dashboardPageSource,
@@ -153,13 +254,23 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjectId = topReleaseBlockerRecoveredSubjectId;/,
-    'dashboard should gate the inline assessment action on the shared recovered subject id instead of the raw blocker payload',
+    /const scopedAssessmentSubject = topReleaseBlocker[\s\S]*findSubjectByContext\(subjects, \{[\s\S]*subjectId: topReleaseBlockerRecoveredSubjectId \|\| topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlockerAssessmentSubject\?\.name \?\? topReleaseBlocker\.subjectName,[\s\S]*\}\) \?\? topReleaseBlockerAssessmentSubject[\s\S]*: null;/,
+    'dashboard should keep the inline gate scope pinned to the recovered blocker subject before falling back to the earlier normalized match',
   );
   assert.match(
     dashboardPageSource,
-    /const topReleaseBlockerAssessmentSubjects = topReleaseBlockerAssessmentSubject[\s\S]*\? \[topReleaseBlockerAssessmentSubject\][\s\S]*: \[\];/,
-    'dashboard should only pass the single normalized matched subject into inline assessment creation instead of the full subject list',
+    /const topReleaseBlockerAssessmentSubjectId = scopedAssessmentSubject\?\.id\.trim\(\) \?\? topReleaseBlockerRecoveredSubjectId;/,
+    'dashboard should gate the inline assessment action on the scoped recovered subject id instead of the raw blocker payload',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const topReleaseBlockerAssessmentSubjects = scopedAssessmentSubject \? \[scopedAssessmentSubject\] : \[];/,
+    'dashboard should keep the top-blocker assessment modal pinned to one normalized recovered subject instead of falling back to an unscoped subject list when ids drift',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const canInlineTopReleaseBlockerAssessmentCreate = Boolean\([\s\S]*topReleaseBlocker\.hasAuthoringContext[\s\S]*subjectsResult\.status === 'fulfilled'[\s\S]*scopedAssessmentSubject[\s\S]*topReleaseBlockerAssessmentSubjectId[\s\S]*topReleaseBlockerAssessmentSubjects\.length[\s\S]*\);/,
+    'dashboard should only inline assessment creation when the blocker still has trustworthy authoring context and a normalized matched subject scope',
   );
   assert.match(
     dashboardPageSource,
@@ -168,10 +279,9 @@ test('dashboard top blocker only inlines assessment-gate creation when subject c
   );
   assert.match(
     dashboardPageSource,
-    /<CreateAssessmentForm[\s\S]*returnPath="\/"/,
-    'dashboard should wire the direct top-blocker gate action back to the dashboard after create',
+    /<CreateAssessmentForm[\s\S]*subjectId: topReleaseBlockerWithRecoveredSubject\?\.subjectId \?\? topReleaseBlocker\.subjectId,[\s\S]*subjectName: topReleaseBlockerAssessmentSubject\?\.name \?\? topReleaseBlocker\.subjectName,[\s\S]*returnPath="\/"/,
+    'dashboard should pass the recovered subject scope into direct top-blocker gate creation so subject-id drift does not create the gate on the wrong subject',
   );
-
   assert.match(
     dashboardPageSource,
     /canInlineTopReleaseBlockerAssessmentCreate \? \([\s\S]*<ModalLauncher[\s\S]*\) : \([\s\S]*<Link href=\{topReleaseBlockerBoardHref\}/,
@@ -202,6 +312,29 @@ test('dashboard reuses the normalized blocker-board href helper instead of hand-
   );
 });
 
+test('dashboard reuses the shared blocking decision for trust badge state so empty release boards cannot look healthy', () => {
+  assert.match(
+    dashboardPageSource,
+    /const dashboardPageBlocked = shouldBlockDashboardPage\(\{[\s\S]*hasEmptyReleaseBoard,[\s\S]*hasReleaseGraphMismatch,[\s\S]*\}\);/,
+    'dashboard should compute one shared blocked-state decision so release-board blockers and shell badges cannot drift apart',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const dashboardTrustBadge = dashboardPageBlocked[\s\S]*\? 'Blocked'/,
+    'dashboard trust badge should reuse the shared blocked-state decision instead of maintaining its own narrower blocker list',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const dashboardTrustTone = dashboardPageBlocked[\s\S]*'#991B1B'/,
+    'dashboard trust tone should stay wired to the same shared blocked-state decision',
+  );
+  assert.match(
+    dashboardPageSource,
+    /if \(dashboardPageBlocked\) \{/,
+    'dashboard blocker card should also reuse the same shared blocked-state decision',
+  );
+});
+
 test('dashboard blocked modules snapshot summarizes all blocker types instead of draft-only copy', () => {
   assert.match(
     dashboardPageSource,
@@ -222,6 +355,80 @@ test('dashboard blocked modules snapshot summarizes all blocker types instead of
     dashboardPageSource,
     /releaseBlockers\.length\s*\?\s*`\$\{draftModuleBlockers\.length\} draft module/,
     'dashboard should not reduce every blocked-module summary to draft-module copy when non-draft blockers exist',
+  );
+});
+
+test('dashboard surfaces assessment-gate pressure instead of silently dropping missing-gate blockers', () => {
+  assert.match(
+    dashboardPageSource,
+    /\{releaseFeedsAvailable && missingGateBlockers\.length \? \(/,
+    'dashboard should render a dedicated assessment-gate warning when visible release lanes are still missing progression gates',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Assessment gate pressure/,
+    'dashboard should label the missing-gate callout plainly instead of burying it inside generic blocker counts',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Assignment should stay frozen until every visible release lane has a progression gate\./,
+    'dashboard should tell operators that assignment remains frozen while gates are missing',
+  );
+  assert.match(
+    dashboardPageSource,
+    /describeGateWarning\(missingGateBlockers\.length, liveMissingGateBlockers\.length\)/,
+    'dashboard should actually render the gate-pressure copy it already computes instead of leaving the helper unused',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Review gate blockers/,
+    'dashboard should give operators a direct blocker-board CTA for missing progression gates',
+  );
+});
+
+test('dashboard blocker-state content CTAs land on the blocker board instead of generic content home', () => {
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Content blocker board', href: '\/content\?view=blocked'/,
+    'dashboard API-base blocker should send operators straight to the blocker board',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Open content blockers', href: '\/content\?view=blocked'/,
+    'dashboard degraded-state docs should send operators to the blocker board instead of the generic content home',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Cross-check content blockers', href: '\/content\?view=blocked'/,
+    'asset-runtime recovery docs should cross-check the blocker board specifically',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{ label: 'Check content blockers', href: '\/content\?view=blocked'/,
+    'release-readiness blocker docs should point at the blocker board specifically',
+  );
+});
+
+test('dashboard hard-blocks when release feeds resolve but the curriculum graph is internally contradictory', () => {
+  assert.match(
+    dashboardPageSource,
+    /const hasReleaseGraphMismatch = releaseFeedsAvailable && \([\s\S]*modules\.length > 0 && lessons\.length === 0 && modules\.some\(\(module\) => module\.lessonCount > 0\)[\s\S]*modules\.length === 0 && \(lessons\.length > 0 \|\| assessments\.length > 0\)[\s\S]*\);/,
+    'dashboard should detect impossible curriculum release graphs instead of treating them as honest authoring blockers',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const dashboardPageBlocked = shouldBlockDashboardPage\(\{[\s\S]*hasCriticalAssetOpsGap,[\s\S]*hasEmptyReleaseBoard,[\s\S]*hasDeviceDeploymentGap,[\s\S]*hasReleaseGraphMismatch,[\s\S]*\}\);/,
+    'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: curriculum release graph is internally contradictory\./,
+    'dashboard should call out contradictory curriculum data as an explicit deployment blocker',
+  );
+  assert.match(
+    dashboardPageSource,
+    /live modules claim lesson coverage while the lessons feed came back empty/,
+    'dashboard should explain the stale-backend failure mode when modules resolve but lessons disappear',
   );
 });
 
@@ -301,8 +508,18 @@ test('dashboard live pull freshness uses the real feed count instead of a hard-c
   );
   assert.match(
     dashboardPageSource,
-    /with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
-    'dashboard live pull freshness copy should show the real dynamic feed denominator',
+    /Snapshot generated at \{formatDateTime\(dashboardRenderedAt\)\} with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
+    'dashboard live pull freshness copy should show the real dynamic feed denominator without pretending a stale tab is still “just now”',
+  );
+  assert.match(
+    dashboardPageSource,
+    /This is a server-rendered snapshot, not a self-updating freshness clock\./,
+    'dashboard should warn that the freshness stamp is a snapshot so operators refresh before sign-off',
+  );
+  assert.doesNotMatch(
+    dashboardPageSource,
+    /Rendered \{formatRelativeMinutes\(dashboardRenderedAt\)\} at \{formatDateTime\(dashboardRenderedAt\)\} with \{healthyFeedCount\}\/\{totalDashboardFeedCount\} dashboard feeds responding/,
+    'dashboard should stop presenting a server-rendered relative age string as if it keeps updating in a stale tab',
   );
   assert.doesNotMatch(
     dashboardPageSource,
@@ -334,34 +551,480 @@ test('wrong-backend blocker exposes route evidence and copy-paste verification c
   );
 });
 
+test('dashboard surfaces learner app deployment handoff from live device registrations', () => {
+  assert.match(
+    dashboardPageSource,
+    /import \{ DeviceDeploymentHandoff \} from '\.\.\/components\/device-deployment-handoff';/,
+    'dashboard should import the learner app deployment handoff component',
+  );
+  assert.match(
+    dashboardPageSource,
+    /import \{ getDeviceDeploymentReadiness \} from '\.\.\/lib\/device-deployment';/,
+    'dashboard should import the shared learner app rollout readiness helper',
+  );
+  assert.match(
+    dashboardPageSource,
+    /fetchDeviceRegistrations\(\),/,
+    'dashboard should pull live device registrations so learner build rollout readiness is visible from the front door',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const deviceDeploymentReadiness = deviceRegistrationsResult\.status === 'fulfilled'[\s\S]*getDeviceDeploymentReadiness\(deviceRegistrations\)/,
+    'dashboard should derive rollout readiness from the live device-registration feed',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const hasDeviceDeploymentGap = deviceRegistrationsResult\.status === 'rejected'[\s\S]*!deviceDeploymentReadiness\.hasRolloutReadyRegistration[\s\S]*deviceDeploymentReadiness\.hasDuplicateLiveScope[\s\S]*deviceDeploymentReadiness\.hasDuplicateDeviceIdentifiers;/,
+    'dashboard should treat blind, colliding, or zero-ready learner rollout handoff as a top-level deployment gap',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Learner app deployment handoff/,
+    'dashboard should label the new learner app rollout block explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Learner build provisioning depends on a real device identifier, active tablet status, a unique live pod scope, and a unique active device identifier\./,
+    'dashboard should explain the rollout-safety rules instead of making operators infer them',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<DeviceDeploymentHandoff[\s\S]*registrations=\{deviceRegistrations\}[\s\S]*apiBase=\{apiTarget\}[\s\S]*provisioningBlocked=\{hasDeviceDeploymentGap\}[\s\S]*\/>/,
+    'dashboard should render the learner build handoff against the actual dashboard API target and keep fleet-wide rollout blockers from exposing live provisioning bundles',
+  );
+  assert.match(
+    dashboardPageSource,
+    /!deviceRegistrations\.length \? \(/,
+    'dashboard should treat an empty tablet registry as a deployment blocker, not a harmless zero-state',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Tablet deployment handoff is blocked because the LMS has zero registered tablets\./,
+    'dashboard should call out the zero-tablet rollout blocker explicitly',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Tablet deployment handoff is blocked because every registered tablet is missing at least one rollout requirement\./,
+    'dashboard should escalate the all-blocked tablet state into an explicit deployment blocker instead of burying it in the handoff table',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: duplicate active tablet scope is still live\./,
+    'dashboard should hard-block learner rollout when active tablet scope is colliding',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: duplicate active device identifiers are still live\./,
+    'dashboard should hard-block learner rollout when active device identifiers are colliding',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Top blockers: \{deviceDeploymentReadiness\.blockingSummary\.slice\(0, 3\)\.map\(\(entry\) => `\$\{entry\.count\} \$\{entry\.label\}`\)\.join\(', '\)\}\./,
+    'dashboard should summarize the top rollout blocker counts when every registered tablet is blocked',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Repair tablet records/,
+    'dashboard should keep a direct repair CTA when every registered tablet is blocked',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>\s*Register first tablet\s*<\/Link>/,
+    'dashboard should give zero-tablet rollout blockers a direct CTA into device registration',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<Link href="\/settings" style=\{\{ \.\.\.quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5', padding: '10px 12px' \}\}>\s*Check deployment settings\s*<\/Link>/,
+    'dashboard should keep deployment config recovery one click away when learner rollout is fully blocked',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Tablet deployment handoff is blind right now because device registrations failed to load\./,
+    'dashboard should warn loudly when learner rollout targeting is blind',
+  );
+  assert.match(
+    dashboardPageSource,
+    /hasDeviceDeploymentGap,/,
+    'dashboard should feed learner rollout readiness into the top-level blocker gate',
+  );
+});
+
+test('device deployment handoff only treats active tablets as duplicate live scope and shell-escapes provisioning commands', () => {
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /import \{ getDeviceDeploymentReadiness \} from '\.\.\/lib\/device-deployment';/,
+    'device deployment handoff should reuse the shared rollout-readiness helper so the dashboard blocker gate and handoff table cannot drift apart',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const readiness = getDeviceDeploymentReadiness\(registrations\);/,
+    'device deployment handoff should derive rollout readiness from the same shared helper the dashboard uses for deployment blocking',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /function shellEscape\(value: string\)/,
+    'device deployment handoff should shell-escape provisioning snippets before copy-paste',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /cd apps\/learner-tablet/,
+    'learner provisioning bundle should start in the Flutter app directory instead of assuming imaginary root npm scripts',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /cd apps\/learner-tablet &&[\s\S]*dart run tool\/build_release\.dart/,
+    'learner provisioning bundle should chain into the guarded release wrapper instead of emitting a broken multiline shell snippet',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /dart run tool\/build_release\.dart/,
+    'learner provisioning bundle should run through the guarded release wrapper before exposing copyable release commands',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--release-target=\$\{shellEscape\(buildTarget\)\}/,
+    'learner provisioning bundle should pass the requested release target into the guarded wrapper',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /flutter build web --release/,
+    'copyable learner provisioning commands should stop in the guarded wrapper instead of duplicating raw flutter build steps in the LMS source',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /function buildAndroidSigningEnvTemplate\(\)/,
+    'device deployment handoff should expose a reusable Android signing template instead of assuming APK signing is magically configured',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Android release signing is a hard deployment blocker/,
+    'handoff should call out missing Android release signing as a deployment blocker before operators copy APK commands',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /flutter build apk --release<\/code> will fail unless the learner app gets a real release keystore/,
+    'handoff should explain plainly that release APK builds fail without a real keystore',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy Android App Bundle provisioning command/,
+    'handoff should keep a copyable Android App Bundle command beside the APK path for release operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /function normalizePlatform\(value: string \| null \| undefined\)/,
+    'handoff should normalize tablet platforms before choosing build commands so iPadOS rows stop inheriting Android release copy',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /flutter build ipa --release/,
+    'learner iPadOS provisioning bundle should use the real Flutter IPA release build command',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /iPadOS release signing is a hard deployment blocker/,
+    'handoff should call out missing iPadOS signing/export setup before operators copy a fake Android command for an iPad row',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy iPadOS IPA provisioning command/,
+    'handoff should expose a platform-correct IPA provisioning command for iPadOS tablets',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy iPadOS signing checklist/,
+    'handoff should keep the iPadOS signing/export checklist copyable for release operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /normalizedPlatform === 'ios'/,
+    'handoff should branch on iPadOS rows instead of rendering Android build commands for every tablet',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /\['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'\]\.includes\(normalized\)/,
+    'handoff should keep explicit iPadOS aliases normalized before picking release commands',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const compact = normalized\.replace\(/,
+    'handoff should sanitize noisy platform strings before trying to classify deployment targets',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const tokens = compact\.split\(/,
+    'handoff should tokenize platform metadata so versioned registry labels still map to the right release artifact',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /containsPhrase\('ipad'\)/,
+    'handoff should normalize versioned iPad labels instead of only accepting a perfect ios enum from the registry',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /containsPhrase\('chrome os'\)/,
+    'handoff should normalize noisy kiosk platform labels before deciding which learner deployment command to expose',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /LUMO_ANDROID_STORE_FILE/,
+    'handoff should surface the Android signing env contract used by the learner release build',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy signing env template/,
+    'handoff should keep the signing env template copyable for deployment operators',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /# Required for flutter build apk --release or flutter build appbundle --release/,
+    'handoff should make it explicit that the signing env contract covers both APK and App Bundle release builds',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--dart-define=LUMO_API_BASE_URL=\$\{shellEscape\(normalizedApiBase\)\}/,
+    'learner release build command should pass the API base through Flutter dart-define',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--dart-define=LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
+    'learner release build command should pass the device identifier through Flutter dart-define',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? ' \\\\' : ''/,
+    'learner web release handoff should keep the final dart-define line open for the web-only wrapper flag',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? \['    --no-wasm-dry-run'\] : \[\]/,
+    'learner web release handoff should include the web-only no-wasm dry-run guard required by the release wrapper',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /'cd apps\/learner-tablet && \\\\',\s*'  dart run tool\/build_release\.dart \\\\'/,
+    'learner release handoff should keep the wrapper command as one valid chained shell snippet instead of breaking after &&',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /npm run build:learner:(web|apk)/,
+    'learner deployment handoff should stop advertising nonexistent root npm build scripts',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /export API_BASE=\$\{shellEscape\(base\)\}/,
+    'bootstrap curl smoke test should shell-escape the API base export',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /export DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
+    'bootstrap curl smoke test should shell-escape the device identifier export',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /curl -fsS -G \\\"\$API_BASE\/api\/v1\/learner-app\/bootstrap\\\" \\\\/,
+    'bootstrap curl smoke test should hit the learner bootstrap with curl -G so query parameters stay explicit',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /--data-urlencode \\\"deviceIdentifier=\$DEVICE_IDENTIFIER\\\" \\\\/,
+    'bootstrap curl smoke test should URL-encode the device identifier instead of trusting raw shell interpolation in the query string',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /bootstrap\?deviceIdentifier=\$DEVICE_IDENTIFIER/,
+    'bootstrap curl smoke test should stop inlining raw device identifiers into the query string',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const normalizedPodId = normalizePodIdentifier\(registration\.podId\);[\s\S]*if \(!normalizedPodId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'duplicate live scope should normalize pod ids first so case or whitespace drift does not sneak through the handoff UI',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const normalizedIdentifier = normalizeDeviceIdentifier\(registration\.deviceIdentifier\);/,
+    'handoff should normalize tablet identifiers before duplicate checks so case or whitespace drift does not sneak through rollout review',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /if \(!normalizedIdentifier \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'handoff should only treat active non-blank tablet identifiers as rollout-safe duplicate signals',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device identifier is blank, so the dashboard cannot generate a trustworthy learner release bundle for this tablet yet\./,
+    'handoff should block blank learner rollout identifiers instead of generating a bogus provisioning bundle',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /This device identifier is duplicated across active tablet records\./,
+    'handoff should hard-block duplicate live tablet identifiers before release commands get copied',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /blank device ID/,
+    'handoff blocker summary should count blank device identifiers explicitly',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /duplicate device ID/,
+    'handoff blocker summary should count duplicate device identifiers explicitly',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device identifier missing/,
+    'handoff card should fall back to an explicit missing-identifier label instead of rendering an empty heading',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Keep the diagnostics copyable even while provisioning is blocked so ops can fix the exact tablet record instead of retyping device ids, bootstrap probes, or backend targets from screenshots\./,
+    'blocked handoff rows should stay operational by surfacing copyable diagnostics instead of dead-ending at prose',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy device identifier/,
+    'blocked handoff rows should expose the tablet identifier as copyable repair data',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy LMS API target/,
+    'blocked handoff rows should expose the normalized LMS API target for repair and cross-checking',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Collision evidence/,
+    'blocked handoff rows should surface exact collision evidence instead of generic duplicate warnings',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Pod conflict: \{peer\}/,
+    'blocked handoff rows should name the exact pod-conflicting tablet peers',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Device ID collision: \{peer\}/,
+    'blocked handoff rows should name the exact duplicate device-id peers',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy pod collision peers/,
+    'blocked handoff rows should keep pod collision peers copyable for ops handoff',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy device ID collision peers/,
+    'blocked handoff rows should keep duplicate device-id peers copyable for ops handoff',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /normalizeDeviceIdentifier\(registration\.deviceIdentifier\) \? \(/,
+    'blocked handoff diagnostics should only surface bootstrap probes when a real device identifier exists',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy bootstrap probe/,
+    'blocked handoff rows should keep the learner bootstrap probe copyable for rollout debugging',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Copy curl smoke test/,
+    'blocked handoff rows should keep the curl smoke test copyable for rollout debugging',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /provisioningBlocked = false/,
+    'device deployment handoff should accept a route-level provisioning block so pages can keep diagnostics visible without exposing live build bundles',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /const rowProvisioningBlocked = provisioningBlocked \|\| !rolloutReady;/,
+    'device deployment handoff should treat route-level rollout blocks as stronger than per-row readiness',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /Route-level rollout blocking is still active elsewhere in the fleet, so this tablet stays diagnostics-only until duplicate scope or device-ID collisions are repaired\./,
+    'handoff should explain why an otherwise-clean tablet is still diagnostics-only when the fleet has a global rollout blocker',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /\{rolloutReady \? \(/,
+    'handoff should stop keying build-bundle visibility off per-row readiness alone once route-level rollout blocking exists',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /multiple active tablets attached/,
+    'handoff blocker copy should describe duplicate active tablets explicitly',
+  );
+  assert.doesNotMatch(
+    deviceDeploymentHandoffSource,
+    /multiple non-retired tablets attached/,
+    'handoff blocker copy should stop treating inactive or repair tablets as live-scope duplicates',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /const normalizedPodId = normalizePodIdentifier\(registration\.podId\);[\s\S]*if \(!normalizedPodId \|\| normalizedStatus !== 'active'\) return accumulator;/,
+    'shared rollout readiness helper should normalize pod ids before counting active duplicate live scope',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /function normalizePodIdentifier\(value: string \| null \| undefined\)/,
+    'shared rollout readiness helper should normalize pod ids the same way it normalizes device identifiers',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(!normalizeDeviceIdentifier\(registration\.deviceIdentifier\)\) reasons\.push\('missing-device-identifier'\);/,
+    'shared rollout readiness helper should mark blank tablet identifiers as deployment blockers',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(normalizeDeviceIdentifier\(registration\.deviceIdentifier\) && duplicateDeviceIdentifierCount > 1\) reasons\.push\('duplicate-device-identifier'\);/,
+    'shared rollout readiness helper should block duplicate live tablet identifiers before the dashboard reports a rollout-ready registration',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /const blockingSummary = Object\.entries\(blockingReasonCounts\)/,
+    'shared rollout readiness helper should expose a blocker summary so the dashboard can call out why every tablet is blocked without making ops infer it from the table',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /hasDuplicateLiveScope: Boolean\(blockingReasonCounts\['duplicate-live-scope'\]\)/,
+    'shared rollout readiness helper should expose duplicate active pod-scope state so the dashboard can hard-block ambiguous learner rollout handoff',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /hasDuplicateDeviceIdentifiers: Boolean\(blockingReasonCounts\['duplicate-device-identifier'\]\)/,
+    'shared rollout readiness helper should expose duplicate active device-identifier state so the dashboard can hard-block ambiguous learner rollout handoff',
+  );
+});
+
 test('global error route keeps the dashboard recovery actions without forcing Next to prerender-bug itself', () => {
   assert.doesNotMatch(
-    routeErrorSource,
+    globalErrorSource,
     /export const dynamic = 'force-dynamic';/,
     'global error route should not force dynamic rendering because Next 16 trips a prerender invariant on /_global-error during production builds',
   );
   assert.match(
-    routeErrorSource,
+    globalErrorSource,
     /Retry page/,
     'global error route should keep the retry action visible',
   );
   assert.match(
-    routeErrorSource,
+    globalErrorSource,
     /Treat this as a deployment blocker until proven otherwise\./,
     'global error route should call out repeated runtime crashes as a deployment blocker',
   );
   assert.match(
-    routeErrorSource,
+    globalErrorSource,
     /href="\/settings"/,
     'global error route should keep the settings escape hatch visible',
   );
   assert.match(
-    routeErrorSource,
+    globalErrorSource,
     /href="\/DEPLOY_VERIFICATION_CHECKLIST\.html"/,
     'global error route should link directly to the shipped deploy checklist',
   );
   assert.match(
-    routeErrorSource,
+    globalErrorSource,
     /href="\/content\?view=blocked"/,
     'global error route should expose the content blocker board as a recovery path',
   );

@@ -63,7 +63,12 @@ class _LumoAppState extends State<LumoApp> {
   void initState() {
     super.initState();
     state.attachVoiceReplay(
-      voiceReplayService.replay,
+      (text, mode, {supportLanguage}) => voiceReplayService.replay(
+        text,
+        mode,
+        supportLanguage: supportLanguage,
+        baseUrl: state.backendBaseUrl,
+      ),
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
@@ -96,7 +101,7 @@ class _LumoAppState extends State<LumoApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lumo',
+      title: 'Lumo Learner',
       debugShowCheckedModeBanner: false,
       theme: LumoTheme.light,
       navigatorObservers: [lumoRouteObserver],
@@ -124,6 +129,17 @@ class SessionRecoveryGate extends StatefulWidget {
 class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
   bool _recoveryLaunchHandled = false;
 
+  void _handleStateChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_handleStateChanged);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -133,14 +149,26 @@ class _SessionRecoveryGateState extends State<SessionRecoveryGate> {
   @override
   void didUpdateWidget(covariant SessionRecoveryGate oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.removeListener(_handleStateChanged);
+      widget.state.addListener(_handleStateChanged);
+    }
     _launchRecoveredSessionIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_handleStateChanged);
+    super.dispose();
   }
 
   void _launchRecoveredSessionIfNeeded() {
     final blockedFromRecovery = widget.state.isBootstrapping ||
+        widget.state.shouldBlockProductionDeployment ||
         (widget.state.deploymentBlockerReason != null &&
             widget.state.usingFallbackData &&
-            !widget.state.hasUsableOfflineSnapshot);
+            (!widget.state.hasUsableOfflineSnapshot ||
+                widget.state.hasHardDeploymentIdentityBlocker));
     if (_recoveryLaunchHandled ||
         !widget.state.restoredFromPersistence ||
         blockedFromRecovery) {
@@ -288,6 +316,72 @@ class LearnerBootstrapLoadingPage extends StatelessWidget {
   }
 }
 
+String _shellEscapeSingleQuoted(String value) {
+  if (value.isEmpty) return "''";
+  return "'${value.replaceAll("'", "'\\''")}'";
+}
+
+String learnerReleaseBuildCommandForPlatform({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) {
+    return 'flutter build web --release --no-wasm-dry-run';
+  }
+
+  return switch (platform) {
+    TargetPlatform.iOS => 'flutter build ipa --release',
+    TargetPlatform.android => 'flutter build apk --release',
+    TargetPlatform.macOS => 'flutter build macos --release',
+    TargetPlatform.windows => 'flutter build windows --release',
+    TargetPlatform.linux => 'flutter build linux --release',
+    TargetPlatform.fuchsia => 'flutter build web --release --no-wasm-dry-run',
+  };
+}
+
+String learnerReleaseTargetForPlatform({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  if (isWeb) {
+    return 'web';
+  }
+
+  return switch (platform) {
+    TargetPlatform.iOS => 'ipa',
+    TargetPlatform.android => 'apk',
+    TargetPlatform.macOS => 'macos',
+    TargetPlatform.windows => 'windows',
+    TargetPlatform.linux => 'linux',
+    TargetPlatform.fuchsia => 'web',
+  };
+}
+
+String buildReleaseRebuildCommand({
+  required String backendBaseUrl,
+  required String deviceIdentifier,
+  bool? isWebOverride,
+  TargetPlatform? platformOverride,
+  String? releaseTargetOverride,
+}) {
+  final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
+  final isWeb = isWebOverride ?? kIsWeb;
+  final platform = platformOverride ?? defaultTargetPlatform;
+  final releaseTarget = releaseTargetOverride ??
+      learnerReleaseTargetForPlatform(
+        isWeb: isWeb,
+        platform: platform,
+      );
+  return [
+    'cd apps/learner-tablet &&',
+    'dart run tool/build_release.dart',
+    '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
+    '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
+    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+    if (releaseTarget == 'web') '  --no-wasm-dry-run',
+  ].join(' \\\n');
+}
+
 class LearnerDeploymentBlockerPage extends StatelessWidget {
   const LearnerDeploymentBlockerPage({
     super.key,
@@ -309,18 +403,71 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
     final backendLabel = backendHost != null && backendHost.isNotEmpty
         ? '$backendHost · $configuredBackend'
         : configuredBackend;
-    final bootstrapProbeUrl = (backendUri != null
-            ? backendUri.resolve('/api/v1/learner-app/bootstrap')
-            : Uri.tryParse('$configuredBackend/api/v1/learner-app/bootstrap'))
-        ?.toString();
     final deviceIdentifier = state.stableDeviceIdentifier?.trim();
+    final bootstrapProbeUri = Uri.tryParse(
+      '${LumoApiClient.normalizeBaseUrl(configuredBackend)}/api/v1/learner-app/bootstrap',
+    );
+    final bootstrapProbeUrl = bootstrapProbeUri == null
+        ? null
+        : ((deviceIdentifier != null && deviceIdentifier.isNotEmpty)
+                ? bootstrapProbeUri.replace(
+                    queryParameters: <String, String>{
+                      ...bootstrapProbeUri.queryParameters,
+                      'deviceIdentifier': deviceIdentifier,
+                    },
+                  )
+                : bootstrapProbeUri)
+            .toString();
+    final bootstrapProbeCommand = bootstrapProbeUrl == null
+        ? null
+        : 'curl -i ${_shellEscapeSingleQuoted(bootstrapProbeUrl)}';
     final deviceIdentifierLabel =
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : 'Not provisioned in this build';
+    final rebuildDeviceIdentifier =
+        deviceIdentifier != null && deviceIdentifier.isNotEmpty
+            ? deviceIdentifier
+            : '<copy-device-identifier-from-lms>';
+    final currentReleaseTarget = learnerReleaseTargetForPlatform(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
+    final releaseRebuildCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: configuredBackend,
+      deviceIdentifier: rebuildDeviceIdentifier,
+      releaseTargetOverride: currentReleaseTarget,
+    );
+    final releaseAppBundleCommand = currentReleaseTarget == 'apk'
+        ? buildReleaseRebuildCommand(
+            backendBaseUrl: configuredBackend,
+            deviceIdentifier: rebuildDeviceIdentifier,
+            releaseTargetOverride: 'appbundle',
+          )
+        : null;
+    final normalizedBlockerReason = blockerReason.toLowerCase();
     final blockerNeedsDeviceIdentity =
-        blockerReason.toLowerCase().contains('device identifier') ||
-            blockerReason.toLowerCase().contains('tablet registration');
+        normalizedBlockerReason.contains('device identifier') ||
+            normalizedBlockerReason.contains('tablet registration');
+    final blockerMissingProvisionedIdentifier =
+        normalizedBlockerReason.contains('lumo_device_identifier');
+    final blockerRegistrationMismatch =
+        blockerNeedsDeviceIdentity && !blockerMissingProvisionedIdentifier;
+    final deviceIdentifierCardCopy = blockerMissingProvisionedIdentifier
+        ? 'This build never received a tablet identifier, so there is nothing useful to compare against the LMS yet. Copy the correct identifier from the dashboard, rebuild, and redeploy before retrying on-device.'
+        : blockerNeedsDeviceIdentity
+            ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
+            : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.';
+    final blockerHeroTitle = blockerMissingProvisionedIdentifier
+        ? 'Deployment blocker: this release build was shipped without its tablet identity.'
+        : blockerRegistrationMismatch
+            ? 'Deployment blocker: this tablet identity does not match the LMS registration.'
+            : 'Deployment blocker: learner app is offline and refusing to fake a live roster.';
+    final blockerHeroSummary = blockerMissingProvisionedIdentifier
+        ? 'This tablet was deployed without the exact LMS device identifier baked into the release build. Until the app is rebuilt with LUMO_DEVICE_IDENTIFIER, the learner bootstrap cannot prove which tablet is asking, so retrying on-device is just theater.'
+        : blockerRegistrationMismatch
+            ? 'The learner app reached deployment trust checks, but the backend could not match this tablet identity to a valid LMS registration. Until the identifier and LMS device record agree, the roster and pod scope are not safe to trust.'
+            : 'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.';
 
     return Scaffold(
       body: SafeArea(
@@ -360,9 +507,9 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Deployment blocker: learner app is offline and refusing to fake a live roster.',
-                          style: TextStyle(
+                        Text(
+                          blockerHeroTitle,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w900,
@@ -371,7 +518,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'This release build could not load the production learner bootstrap, and there is no trusted offline snapshot on this device. Showing seed learners or demo lessons here would be polished nonsense.',
+                          blockerHeroSummary,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.92),
                             height: 1.5,
@@ -467,7 +614,9 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               Text(
                                 blockerReason.contains('LUMO_API_BASE_URL')
                                     ? 'This build is blocked on release config, not learner content. Fix the API host, redeploy, then retry on the tablet.'
-                                    : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
+                                    : blockerMissingProvisionedIdentifier
+                                        ? 'The backend host may be fine. This release is blocked because the tablet identity was never provisioned into the build, so it needs a rebuild and redeploy before the learner bootstrap can succeed.'
+                                        : 'This is the production host the tablet is trying to reach right now. If it looks wrong, fix the release config before blaming the learner roster.',
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,
@@ -529,9 +678,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                blockerNeedsDeviceIdentity
-                                    ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
-                                    : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.',
+                                deviceIdentifierCardCopy,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,
@@ -560,6 +707,141 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 icon: const Icon(Icons.copy_all_rounded),
                                 label: const Text('Copy tablet identifier'),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: blockerNeedsDeviceIdentity
+                                ? const Color(0xFFFFF7ED)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: blockerNeedsDeviceIdentity
+                                  ? const Color(0xFFFED7AA)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Release rebuild handoff',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                releaseRebuildCommand,
+                                style: const TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                blockerMissingProvisionedIdentifier
+                                    ? 'This release needs a rebuild with the exact LMS device identifier before it can ever pass production bootstrap. Copy the command, replace the placeholder identifier if needed, then ship a real signed build instead of retrying the broken one.'
+                                    : blockerRegistrationMismatch
+                                        ? 'If this tablet identity is wrong, rebuild the learner app with the exact LMS device identifier instead of trying random retries on the current install.'
+                                        : 'If release config drift caused this blocker, rebuild from this command so the backend target and tablet identity stay pinned together.',
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  height: 1.45,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () async {
+                                  await ClipboardBridge.copy(
+                                    releaseRebuildCommand,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Copied learner rebuild command.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy_all_rounded),
+                                label: const Text('Copy rebuild command'),
+                              ),
+                              if (releaseAppBundleCommand != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF7ED),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0xFFFED7AA),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Android App Bundle handoff',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF9A3412),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SelectableText(
+                                        releaseAppBundleCommand,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7C2D12),
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'If ops is shipping the learner app through a signed Android release lane, copy the App Bundle command instead of pretending the APK path is the only production handoff.',
+                                        style: TextStyle(
+                                          color: Color(0xFF9A3412),
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () async {
+                                          await ClipboardBridge.copy(
+                                            releaseAppBundleCommand,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied Android App Bundle rebuild command.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon:
+                                            const Icon(Icons.copy_all_rounded),
+                                        label: const Text(
+                                          'Copy Android App Bundle command',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -601,24 +883,90 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                     height: 1.45,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                FilledButton.tonalIcon(
-                                  onPressed: () async {
-                                    await ClipboardBridge.copy(
-                                        bootstrapProbeUrl);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Copied bootstrap probe endpoint.',
+                                if (bootstrapProbeCommand != null) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFC7D2FE),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Copy-paste bootstrap verification',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF312E81),
                                           ),
                                         ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.copy_all_rounded),
-                                  label: const Text('Copy bootstrap probe'),
+                                        const SizedBox(height: 8),
+                                        SelectableText(
+                                          bootstrapProbeCommand,
+                                          style: const TextStyle(
+                                            color: Color(0xFF312E81),
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    FilledButton.tonalIcon(
+                                      onPressed: () async {
+                                        await ClipboardBridge.copy(
+                                            bootstrapProbeUrl);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Copied bootstrap probe endpoint.',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(Icons.copy_all_rounded),
+                                      label: const Text('Copy bootstrap probe'),
+                                    ),
+                                    if (bootstrapProbeCommand != null)
+                                      FilledButton.tonalIcon(
+                                        onPressed: () async {
+                                          await ClipboardBridge.copy(
+                                            bootstrapProbeCommand,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied bootstrap verification command.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(
+                                          Icons.terminal_rounded,
+                                        ),
+                                        label: const Text(
+                                          'Copy bootstrap command',
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -870,6 +1218,7 @@ enum _SubjectLessonAvailabilitySummary {
   locked,
   waitingForSync,
   syncIncomplete,
+  backendSyncPending,
   unavailable,
 }
 
@@ -895,6 +1244,9 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       return _SubjectLessonAvailabilitySummary.locked;
     }
+    if (availability.kind == LearnerLessonAvailabilityKind.backendSyncPending) {
+      return _SubjectLessonAvailabilitySummary.backendSyncPending;
+    }
     if (availability.label == 'Waiting for sync') {
       return _SubjectLessonAvailabilitySummary.waitingForSync;
     }
@@ -916,6 +1268,7 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   var sawLocked = false;
   var sawWaitingForSync = false;
   var sawSyncIncomplete = false;
+  var sawBackendSyncPending = false;
   for (final candidate in eligibleLearners) {
     if (!state.learnerMatchesTabletPod(candidate)) continue;
     final availability = learnerLessonAvailability(
@@ -935,6 +1288,10 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
     }
     if (availability.kind == LearnerLessonAvailabilityKind.locked) {
       sawLocked = true;
+      continue;
+    }
+    if (availability.kind == LearnerLessonAvailabilityKind.backendSyncPending) {
+      sawBackendSyncPending = true;
       continue;
     }
     if (availability.label == 'Waiting for sync') {
@@ -961,6 +1318,9 @@ _SubjectLessonAvailabilitySummary _summarizeLessonAvailability({
   if (sawSyncIncomplete) {
     return _SubjectLessonAvailabilitySummary.syncIncomplete;
   }
+  if (sawBackendSyncPending) {
+    return _SubjectLessonAvailabilitySummary.backendSyncPending;
+  }
   return _SubjectLessonAvailabilitySummary.unavailable;
 }
 
@@ -972,6 +1332,7 @@ String _subjectCardStatusLabel({
   required int lockedLessonCount,
   required int waitingForSyncLessonCount,
   required int syncIncompleteLessonCount,
+  required int backendSyncPendingLessonCount,
   required bool hasEligibleLearner,
 }) {
   if (!hasEligibleLearner) {
@@ -999,6 +1360,9 @@ String _subjectCardStatusLabel({
   }
   if (syncIncompleteLessonCount > 0) {
     return 'Sync incomplete';
+  }
+  if (backendSyncPendingLessonCount > 0) {
+    return 'Backend sync pending';
   }
   if (completedTodayLessonCount > 0) {
     return 'Progress saved today';
@@ -1052,6 +1416,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
         var lockedLessonCount = 0;
         var waitingForSyncLessonCount = 0;
         var syncIncompleteLessonCount = 0;
+        var backendSyncPendingLessonCount = 0;
 
         for (final lesson in visibleLessons) {
           final summary = _summarizeLessonAvailability(
@@ -1075,6 +1440,9 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
           } else if (summary ==
               _SubjectLessonAvailabilitySummary.syncIncomplete) {
             syncIncompleteLessonCount += 1;
+          } else if (summary ==
+              _SubjectLessonAvailabilitySummary.backendSyncPending) {
+            backendSyncPendingLessonCount += 1;
           }
         }
 
@@ -1099,6 +1467,7 @@ List<LearnerSubjectCardModel> buildLearnerSubjectCards({
             lockedLessonCount: lockedLessonCount,
             waitingForSyncLessonCount: waitingForSyncLessonCount,
             syncIncompleteLessonCount: syncIncompleteLessonCount,
+            backendSyncPendingLessonCount: backendSyncPendingLessonCount,
             hasEligibleLearner: hasEligibleLearner,
           ),
         );
@@ -1142,6 +1511,7 @@ enum LearnerLessonAvailabilityKind {
   absent,
   skipped,
   podMismatch,
+  backendSyncPending,
   unavailable,
 }
 
@@ -1184,6 +1554,15 @@ LearnerLessonAvailability learnerLessonAvailability({
       label: 'Sync incomplete',
       detail:
           'This lesson shell landed on the tablet without any activity steps, so it cannot be launched safely yet.',
+    );
+  }
+
+  if (learnerNeedsBackendSyncBeforeLaunch(learner)) {
+    return const LearnerLessonAvailability(
+      kind: LearnerLessonAvailabilityKind.backendSyncPending,
+      label: 'Backend sync pending',
+      detail:
+          'This learner is still saved only on the tablet. Refresh backend sync before treating lessons or roster handoff as deployment-ready.',
     );
   }
 
@@ -1317,6 +1696,8 @@ Color _learnerAvailabilityColor(LearnerLessonAvailabilityKind kind) {
       return const Color(0xFF475569);
     case LearnerLessonAvailabilityKind.podMismatch:
       return const Color(0xFF7C3AED);
+    case LearnerLessonAvailabilityKind.backendSyncPending:
+      return const Color(0xFFB45309);
     case LearnerLessonAvailabilityKind.unavailable:
       return const Color(0xFF64748B);
   }
@@ -1327,7 +1708,9 @@ bool lessonRequiresSyncBeforeStarting(LessonCardModel lesson) {
 }
 
 String lessonSyncBlockerStatusLabel(LessonCardModel lesson) {
-  return lesson.isAssignmentPlaceholder ? 'Waiting for sync' : 'Sync incomplete';
+  return lesson.isAssignmentPlaceholder
+      ? 'Waiting for sync'
+      : 'Sync incomplete';
 }
 
 String lessonSyncBlockerCtaLabel(LessonCardModel lesson) {
@@ -1344,6 +1727,18 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
+  final learnerLaunchTrustBlocker = state.learnerLaunchTrustBlockerReason;
+  if (learnerLaunchTrustBlocker != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Tablet trust is blocked. $learnerLaunchTrustBlocker',
+        ),
+      ),
+    );
+    return;
+  }
+
   if (lesson.isAssignmentPlaceholder) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1502,6 +1897,165 @@ class _OperatorStatusChip extends StatelessWidget {
   }
 }
 
+class _PendingRecoveredSessionBanner extends StatelessWidget {
+  const _PendingRecoveredSessionBanner({
+    required this.state,
+    required this.onChanged,
+    this.compact = false,
+  });
+
+  final LumoAppState state;
+  final VoidCallback onChanged;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    Future<void> refreshTabletSync() async {
+      await state.bootstrap();
+      onChanged();
+    }
+
+    void openRoster() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AllStudentsPage(state: state, onChanged: onChanged),
+        ),
+      );
+    }
+
+    if (compact) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.history_toggle_off_rounded,
+              color: Color(0xFFB45309),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Recovered lesson waiting for sync.',
+                    style: TextStyle(
+                      color: Color(0xFF78350F),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    state.pendingRecoveredSessionLabel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF92400E),
+                      height: 1.3,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: state.isBootstrapping
+                  ? null
+                  : () async {
+                      await refreshTabletSync();
+                    },
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              child: Text(state.isBootstrapping ? 'Refreshing…' : 'Refresh'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFCD34D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.history_toggle_off_rounded,
+                color: Color(0xFFB45309),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Recovered lesson is waiting for live lesson sync.',
+                  style: TextStyle(
+                    color: Color(0xFF78350F),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            state.pendingRecoveredSessionLabel,
+            style: const TextStyle(
+              color: Color(0xFF92400E),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: state.isBootstrapping
+                    ? null
+                    : () async {
+                        await refreshTabletSync();
+                      },
+                icon: const Icon(Icons.sync_rounded),
+                label: Text(
+                  state.isBootstrapping
+                      ? 'Refreshing live sync…'
+                      : 'Refresh live sync',
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: openRoster,
+                icon: const Icon(Icons.groups_rounded),
+                label: const Text('Open student list'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class HomePage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -1513,15 +2067,17 @@ class HomePage extends StatelessWidget {
     final viewportSize = MediaQuery.sizeOf(context);
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
-    final ultraShortHeight = viewportHeight <= 560;
+    final ultraShortHeight = viewportHeight <= 640;
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
-        state.registrationBlockerReason != null;
-    final forceTrustBannerOnUltraShort = state.deploymentBlockerReason != null ||
-        state.backendError != null ||
-        state.hasPendingRecoveredSession ||
-        state.pendingSyncEvents.isNotEmpty ||
-        state.lastSyncedAt != null;
+        state.registrationBlockerReason != null ||
+        state.hasPendingLocalFallbackRegistration;
+    final forceTrustBannerOnUltraShort =
+        state.deploymentBlockerReason != null ||
+            state.backendError != null ||
+            state.hasPendingRecoveredSession ||
+            state.pendingSyncEvents.isNotEmpty ||
+            state.lastSyncedAt != null;
     final showTrustBanner =
         hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
@@ -1565,45 +2121,9 @@ class HomePage extends StatelessWidget {
               ],
               if (state.hasPendingRecoveredSession && !ultraShortHeight) ...[
                 const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.history_toggle_off_rounded,
-                            color: Color(0xFFB45309),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Recovered lesson is waiting for live lesson sync.',
-                              style: TextStyle(
-                                color: Color(0xFF78350F),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        state.pendingRecoveredSessionLabel,
-                        style: const TextStyle(
-                          color: Color(0xFF92400E),
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+                _PendingRecoveredSessionBanner(
+                  state: state,
+                  onChanged: onChanged,
                 ),
               ],
               SizedBox(height: ultraShortHeight ? 0 : 6),
@@ -1651,25 +2171,19 @@ class HomePage extends StatelessWidget {
                       );
                     }
 
-                    Widget buildActionPanel() {
-                      if (ultraShortHeight) {
-                        return const SizedBox.shrink();
-                      }
-
+                    List<Widget> buildQuickActions() {
                       final registrationBlocked =
                           state.registrationBlockerReason != null;
-                      final actions = [
+                      return [
                         _HomeQuickAction(
-                          title: registrationBlocked
-                              ? 'Register blocked'
-                              : 'Register',
+                          title: 'Register',
                           icon: registrationBlocked
                               ? Icons.sync_problem_rounded
                               : Icons.person_add_alt_1_rounded,
                           color: registrationBlocked
                               ? LumoTheme.accentOrange
                               : LumoTheme.primary,
-                          onTap: registrationBlocked ? null : openRegister,
+                          onTap: openRegister,
                         ),
                         _HomeQuickAction(
                           title: 'Student list',
@@ -1678,6 +2192,33 @@ class HomePage extends StatelessWidget {
                           onTap: openLearners,
                         ),
                       ];
+                    }
+
+                    Widget buildActionPanel() {
+                      final actions = buildQuickActions();
+
+                      if (ultraShortHeight) {
+                        return Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (var index = 0;
+                                      index < actions.length;
+                                      index++) ...[
+                                    actions[index],
+                                    if (index < actions.length - 1)
+                                      const SizedBox(width: 10),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
 
                       return Align(
                         alignment: Alignment.topRight,
@@ -1724,121 +2265,133 @@ class HomePage extends StatelessWidget {
                                             ? 'The tablet is running on fallback data and there are still no learner-safe published subjects to show. Refresh live sync before handoff.'
                                             : 'Publish at least one learner-safe subject with live lesson content before handing the tablet to a learner.';
 
-                                return Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 760,
-                                    ),
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: EdgeInsets.all(
-                                        compact ? 18 : 24,
+                                return SingleChildScrollView(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: compact ? 8 : 12,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 760,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(28),
-                                        border: Border.all(
-                                          color: const Color(0xFFE2E8F0),
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.all(
+                                          compact ? 18 : 24,
                                         ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(0x140F172A),
-                                            blurRadius: 24,
-                                            offset: Offset(0, 14),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(28),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
                                           ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFFFFF7ED,
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Color(0x140F172A),
+                                              blurRadius: 24,
+                                              offset: Offset(0, 14),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    12,
                                                   ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.menu_book_rounded,
-                                                  color: LumoTheme.accentOrange,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 14),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      headline,
-                                                      style: const TextStyle(
-                                                        fontSize: 24,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                        color: Color(
-                                                          0xFF0F172A,
-                                                        ),
-                                                        height: 1.15,
-                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFFFFF7ED,
                                                     ),
-                                                    const SizedBox(height: 10),
-                                                    Text(
-                                                      detail,
-                                                      style: const TextStyle(
-                                                        color: Color(
-                                                          0xFF475569,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            18),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.menu_book_rounded,
+                                                    color:
+                                                        LumoTheme.accentOrange,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        headline,
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.w900,
+                                                          color: Color(
+                                                            0xFF0F172A,
+                                                          ),
+                                                          height: 1.15,
                                                         ),
-                                                        height: 1.5,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      const SizedBox(
+                                                          height: 10),
+                                                      Text(
+                                                        detail,
+                                                        style: const TextStyle(
+                                                          color: Color(
+                                                            0xFF475569,
+                                                          ),
+                                                          height: 1.5,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 18),
-                                          Wrap(
-                                            spacing: 12,
-                                            runSpacing: 12,
-                                            children: [
-                                              FilledButton.icon(
-                                                onPressed: state.isBootstrapping
-                                                    ? null
-                                                    : () async {
-                                                        await state.bootstrap();
-                                                        onChanged();
-                                                      },
-                                                icon: const Icon(
-                                                  Icons.sync_rounded,
+                                              ],
+                                            ),
+                                            const SizedBox(height: 18),
+                                            Wrap(
+                                              spacing: 12,
+                                              runSpacing: 12,
+                                              children: [
+                                                FilledButton.icon(
+                                                  onPressed:
+                                                      state.isBootstrapping
+                                                          ? null
+                                                          : () async {
+                                                              await state
+                                                                  .bootstrap();
+                                                              onChanged();
+                                                            },
+                                                  icon: const Icon(
+                                                    Icons.sync_rounded,
+                                                  ),
+                                                  label: Text(
+                                                    state.isBootstrapping
+                                                        ? 'Refreshing live sync…'
+                                                        : 'Refresh live sync',
+                                                  ),
                                                 ),
-                                                label: Text(
-                                                  state.isBootstrapping
-                                                      ? 'Refreshing live sync…'
-                                                      : 'Refresh live sync',
+                                                OutlinedButton.icon(
+                                                  onPressed: openLearners,
+                                                  icon: const Icon(
+                                                    Icons.groups_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Open student list',
+                                                  ),
                                                 ),
-                                              ),
-                                              OutlinedButton.icon(
-                                                onPressed: openLearners,
-                                                icon: const Icon(
-                                                  Icons.groups_rounded,
-                                                ),
-                                                label: const Text(
-                                                  'Open student list',
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -2023,6 +2576,18 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                         buildActionPanel(),
+                        if (ultraShortHeight &&
+                            state.hasPendingRecoveredSession)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            child: _PendingRecoveredSessionBanner(
+                              state: state,
+                              onChanged: onChanged,
+                              compact: true,
+                            ),
+                          ),
                       ],
                     );
                   },
@@ -2044,6 +2609,34 @@ class _HomeFreshnessBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trustBlocked = state.criticalSyncTrustBlockerReason != null ||
+        (state.usingFallbackData && state.offlineSnapshotTrustProblem != null);
+    final needsAttention = trustBlocked ||
+        state.usingFallbackData ||
+        state.lastSyncError != null ||
+        state.isOperatorSyncStale ||
+        state.isOperatorRosterStale;
+    final bannerAccent = trustBlocked
+        ? const Color(0xFF9A3412)
+        : needsAttention
+            ? LumoTheme.accentOrange
+            : const Color(0xFF166534);
+    final bannerSurface = trustBlocked
+        ? const Color(0xFFFFF7ED)
+        : needsAttention
+            ? const Color(0xFFFFFBEB)
+            : const Color(0xFFF0FDF4);
+    final bannerTitle = trustBlocked
+        ? 'Sync trust blocked'
+        : needsAttention
+            ? 'Sync needs attention'
+            : 'Sync freshness';
+    final bannerIcon = trustBlocked
+        ? Icons.sync_problem_rounded
+        : needsAttention
+            ? Icons.warning_amber_rounded
+            : Icons.schedule_rounded;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 14 : 16),
@@ -2059,12 +2652,12 @@ class _HomeFreshnessBanner extends StatelessWidget {
             width: compact ? 36 : 40,
             height: compact ? 36 : 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
+              color: bannerSurface,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: const Icon(
-              Icons.schedule_rounded,
-              color: Color(0xFF166534),
+            child: Icon(
+              bannerIcon,
+              color: bannerAccent,
             ),
           ),
           SizedBox(width: compact ? 10 : 12),
@@ -2073,7 +2666,7 @@ class _HomeFreshnessBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sync freshness',
+                  bannerTitle,
                   style: TextStyle(
                     fontSize: compact ? 16 : 18,
                     fontWeight: FontWeight.w900,
@@ -2083,8 +2676,8 @@ class _HomeFreshnessBanner extends StatelessWidget {
                 SizedBox(height: compact ? 4 : 6),
                 Text(
                   state.trustedSyncHeadline,
-                  style: const TextStyle(
-                    color: Color(0xFF166534),
+                  style: TextStyle(
+                    color: bannerAccent,
                     fontWeight: FontWeight.w800,
                     height: 1.35,
                   ),
@@ -2104,15 +2697,15 @@ class _HomeFreshnessBanner extends StatelessWidget {
                   children: [
                     StatusPill(
                       text: state.rosterFreshnessLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                     StatusPill(
                       text: state.syncQueueLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                     StatusPill(
                       text: state.lastSyncSummaryLabel,
-                      color: LumoTheme.accentGreen,
+                      color: bannerAccent,
                     ),
                   ],
                 ),
@@ -2139,10 +2732,16 @@ class _HomeTrustBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final registrationBlocked = state.registrationBlockerReason;
+    final pendingRegistrationCount =
+        state.pendingLocalFallbackRegistrationCount;
+    final hasPendingRegistrationTrustBlocker = pendingRegistrationCount > 0;
     final assignmentGapCount =
         state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
-    final hasPriorityWarning =
-        registrationBlocked != null || assignmentGapCount > 0;
+    final criticalSyncBlocker = state.criticalSyncTrustBlockerReason;
+    final hasPriorityWarning = registrationBlocked != null ||
+        criticalSyncBlocker != null ||
+        hasPendingRegistrationTrustBlocker ||
+        assignmentGapCount > 0;
 
     Future<void> refreshTabletSync() async {
       await state.bootstrap();
@@ -2157,11 +2756,43 @@ class _HomeTrustBanner extends StatelessWidget {
       );
     }
 
-    final compactWarning = registrationBlocked != null
-        ? '$registrationBlocked Fix backend reachability first.'
-        : assignmentGapCount == 1
-            ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
-            : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.';
+    final compactWarning = criticalSyncBlocker ??
+        (registrationBlocked != null
+            ? '$registrationBlocked Fix backend reachability first.'
+            : hasPendingRegistrationTrustBlocker
+                ? pendingRegistrationCount == 1
+                    ? '1 learner registration is still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                    : '$pendingRegistrationCount learner registrations are still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                : assignmentGapCount == 1
+                    ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+                    : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
+    final compactStatusTone = criticalSyncBlocker != null
+        ? (
+            background: const Color(0xFFFFF7ED),
+            border: const Color(0xFFFED7AA),
+            accent: const Color(0xFF9A3412),
+            icon: Icons.sync_problem_rounded,
+          )
+        : hasPriorityWarning
+            ? (
+                background: const Color(0xFFFFFBEB),
+                border: const Color(0xFFFDE68A),
+                accent: const Color(0xFF92400E),
+                icon: Icons.warning_amber_rounded,
+              )
+            : state.usingFallbackData
+                ? (
+                    background: const Color(0xFFFFF7ED),
+                    border: const Color(0xFFFED7AA),
+                    accent: const Color(0xFF9A3412),
+                    icon: Icons.cloud_off_rounded,
+                  )
+                : (
+                    background: const Color(0xFFF0FDF4),
+                    border: const Color(0xFFBBF7D0),
+                    accent: const Color(0xFF166534),
+                    icon: Icons.cloud_done_rounded,
+                  );
 
     return Container(
       width: double.infinity,
@@ -2200,9 +2831,13 @@ class _HomeTrustBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      hasPriorityWarning
-                          ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
-                          : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+                      criticalSyncBlocker != null
+                          ? 'Deployment trust is blocked until the backend sync mismatch is reconciled. Do not hand this tablet off as if progress is safely landing upstream.'
+                          : hasPendingRegistrationTrustBlocker
+                              ? 'This tablet has learner registrations saved locally that the backend has not accepted yet. Do not sign this deployment off as roster-safe until that sync lands.'
+                              : hasPriorityWarning
+                                  ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
+                                  : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         height: 1.45,
@@ -2219,15 +2854,9 @@ class _HomeTrustBanner extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: state.usingFallbackData
-                    ? const Color(0xFFFFF7ED)
-                    : const Color(0xFFF0FDF4),
+                color: compactStatusTone.background,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: state.usingFallbackData
-                      ? const Color(0xFFFED7AA)
-                      : const Color(0xFFBBF7D0),
-                ),
+                border: Border.all(color: compactStatusTone.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2236,12 +2865,8 @@ class _HomeTrustBanner extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        state.usingFallbackData
-                            ? Icons.cloud_off_rounded
-                            : Icons.cloud_done_rounded,
-                        color: state.usingFallbackData
-                            ? const Color(0xFF9A3412)
-                            : const Color(0xFF166534),
+                        compactStatusTone.icon,
+                        color: compactStatusTone.accent,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2251,9 +2876,7 @@ class _HomeTrustBanner extends StatelessWidget {
                             Text(
                               state.backendStatusLabel,
                               style: TextStyle(
-                                color: state.usingFallbackData
-                                    ? const Color(0xFF9A3412)
-                                    : const Color(0xFF166534),
+                                color: compactStatusTone.accent,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -2277,30 +2900,24 @@ class _HomeTrustBanner extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.72),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: state.usingFallbackData
-                            ? const Color(0xFFFED7AA)
-                            : const Color(0xFFBBF7D0),
-                      ),
+                      border: Border.all(color: compactStatusTone.border),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          Icons.schedule_rounded,
+                          criticalSyncBlocker != null
+                              ? Icons.sync_problem_rounded
+                              : Icons.schedule_rounded,
                           size: 18,
-                          color: state.usingFallbackData
-                              ? const Color(0xFF9A3412)
-                              : const Color(0xFF166534),
+                          color: compactStatusTone.accent,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             state.trustedSyncHeadline,
                             style: TextStyle(
-                              color: state.usingFallbackData
-                                  ? const Color(0xFF9A3412)
-                                  : const Color(0xFF166534),
+                              color: compactStatusTone.accent,
                               fontWeight: FontWeight.w800,
                               height: 1.35,
                             ),
@@ -2369,13 +2986,28 @@ class _HomeTrustBanner extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFED7AA)),
                 ),
-                child: Text(
-                  compactWarning,
-                  style: const TextStyle(
-                    color: Color(0xFF9A3412),
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (criticalSyncBlocker != null) ...[
+                      const Text(
+                        'Pilot trust blocker',
+                        style: TextStyle(
+                          color: Color(0xFF9A3412),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Text(
+                      compactWarning,
+                      style: const TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -2416,11 +3048,16 @@ class _HomeTrustBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      registrationBlocked != null
-                          ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
-                          : assignmentGapCount == 1
-                              ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                              : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.',
+                      criticalSyncBlocker ??
+                          (registrationBlocked != null
+                              ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
+                              : hasPendingRegistrationTrustBlocker
+                                  ? pendingRegistrationCount == 1
+                                      ? '1 learner registration is still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                      : '$pendingRegistrationCount learner registrations are still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                  : assignmentGapCount == 1
+                                      ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                                      : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
@@ -2757,11 +3394,6 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-bool _learnerNeedsBackendSync(LearnerProfile learner) {
-  final status = learner.enrollmentStatus.toLowerCase();
-  return status.contains('sync') || status.contains('pending');
-}
-
 class AllStudentsPage extends StatelessWidget {
   final LumoAppState state;
   final VoidCallback onChanged;
@@ -2776,8 +3408,9 @@ class AllStudentsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final leaderboard = buildLearnerLeaderboard(state.learners);
     final topLearner = leaderboard.firstOrNull;
-    final unsyncedLearners =
-        state.learners.where(_learnerNeedsBackendSync).toList(growable: false);
+    final unsyncedLearners = state.learners
+        .where(learnerNeedsBackendSyncBeforeLaunch)
+        .toList(growable: false);
     final averagePoints = state.learners.isEmpty
         ? 0
         : state.learners
@@ -2958,6 +3591,9 @@ class AllStudentsPage extends StatelessWidget {
                         leaderboard,
                         learner.id,
                       );
+                      final nextLesson = state.nextAssignedLessonForLearner(
+                        learner,
+                      );
                       return GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
@@ -2994,19 +3630,18 @@ class AllStudentsPage extends StatelessWidget {
                               ),
                             );
                           },
-                          onStartLesson: () {
-                            final nextLesson =
-                                state.nextAssignedLessonForLearner(learner);
-                            if (nextLesson == null) return;
-                            state.selectLearner(learner);
-                            onChanged();
-                            launchLessonFlow(
-                              context: context,
-                              state: state,
-                              onChanged: onChanged,
-                              lesson: nextLesson,
-                            );
-                          },
+                          onStartLesson: nextLesson == null
+                              ? null
+                              : () {
+                                  state.selectLearner(learner);
+                                  onChanged();
+                                  launchLessonFlow(
+                                    context: context,
+                                    state: state,
+                                    onChanged: onChanged,
+                                    lesson: nextLesson,
+                                  );
+                                },
                         ),
                       );
                     },
@@ -3337,7 +3972,25 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
     final totalMinutes = learner.estimatedTotalMinutes;
     final totalPoints = learnerMotivationPoints(learner);
     final allAssignedLessons = state.lessonsForLearner(learner);
-    final assignedLessons = allAssignedLessons.take(3).toList();
+    final rankedAssignedLessons = allAssignedLessons.asMap().entries.toList()
+      ..sort((left, right) {
+        final leftAvailability = learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: left.value,
+        );
+        final rightAvailability = learnerLessonAvailability(
+          state: state,
+          learner: learner,
+          lesson: right.value,
+        );
+        if (leftAvailability.canLaunch != rightAvailability.canLaunch) {
+          return leftAvailability.canLaunch ? -1 : 1;
+        }
+        return left.key.compareTo(right.key);
+      });
+    final assignedLessons =
+        rankedAssignedLessons.take(3).map((entry) => entry.value).toList();
     final hiddenAssignedLessonCount =
         (allAssignedLessons.length - assignedLessons.length).clamp(0, 999);
     final launchableNextLesson = state.nextAssignedLessonForLearner(learner);
@@ -3822,48 +4475,91 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             if (session.status ==
                                                 'in_progress') ...[
                                               const SizedBox(height: 12),
-                                              Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: FilledButton.tonalIcon(
-                                                  onPressed: () {
-                                                    final resumeLesson = state
-                                                        .lessonForBackendSession(
-                                                      session,
-                                                    );
-                                                    if (resumeLesson == null) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                            session.lessonTitle
-                                                                        ?.trim()
-                                                                        .isNotEmpty ==
-                                                                    true
-                                                                ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                                : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.',
+                                              Builder(
+                                                builder: (context) {
+                                                  final resumeLesson = state
+                                                      .lessonForBackendSession(
+                                                    session,
+                                                  );
+                                                  final resumeBlocked =
+                                                      resumeLesson == null ||
+                                                          lessonRequiresSyncBeforeStarting(
+                                                            resumeLesson,
+                                                          );
+                                                  final blockedLabel = resumeLesson ==
+                                                          null
+                                                      ? (session.lessonTitle
+                                                                  ?.trim()
+                                                                  .isNotEmpty ==
+                                                              true
+                                                          ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                          : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
+                                                      : resumeLesson
+                                                              .isAssignmentPlaceholder
+                                                          ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
+                                                          : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
+                                                  return Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Align(
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child: FilledButton
+                                                            .tonalIcon(
+                                                          onPressed:
+                                                              resumeBlocked
+                                                                  ? null
+                                                                  : () {
+                                                                      launchLessonFlow(
+                                                                        context:
+                                                                            context,
+                                                                        state:
+                                                                            state,
+                                                                        onChanged:
+                                                                            () {},
+                                                                        lesson:
+                                                                            resumeLesson,
+                                                                        resumeFrom:
+                                                                            session,
+                                                                      );
+                                                                    },
+                                                          icon: Icon(
+                                                            resumeBlocked
+                                                                ? Icons
+                                                                    .sync_problem_rounded
+                                                                : Icons
+                                                                    .play_circle_fill_rounded,
+                                                          ),
+                                                          label: Text(
+                                                            resumeBlocked
+                                                                ? 'Refresh sync before resuming'
+                                                                : 'Resume from backend session',
                                                           ),
                                                         ),
-                                                      );
-                                                      return;
-                                                    }
-
-                                                    launchLessonFlow(
-                                                      context: context,
-                                                      state: state,
-                                                      onChanged: () {},
-                                                      lesson: resumeLesson,
-                                                      resumeFrom: session,
-                                                    );
-                                                  },
-                                                  icon: const Icon(
-                                                    Icons
-                                                        .play_circle_fill_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Resume from backend session',
-                                                  ),
-                                                ),
+                                                      ),
+                                                      if (resumeBlocked)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                            top: 10,
+                                                          ),
+                                                          child: Text(
+                                                            blockedLabel,
+                                                            style:
+                                                                const TextStyle(
+                                                              color: Color(
+                                                                0xFF92400E,
+                                                              ),
+                                                              height: 1.35,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
                                               ),
                                             ],
                                           ],
@@ -3984,6 +4680,12 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                 ...assignedLessons.map((lesson) {
                                   final matchesResumableSession =
                                       resumableLesson?.id == lesson.id;
+                                  final availability =
+                                      learnerLessonAvailability(
+                                    state: state,
+                                    learner: learner,
+                                    lesson: lesson,
+                                  );
                                   return Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(bottom: 10),
@@ -4013,25 +4715,18 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                             ),
                                             const SizedBox(width: 12),
                                             StatusPill(
-                                              text:
-                                                  lessonRequiresSyncBeforeStarting(
-                                                lesson,
-                                              )
-                                                      ? lessonSyncBlockerStatusLabel(
-                                                          lesson,
-                                                        )
-                                                      : matchesResumableSession
-                                                          ? 'Resume ready'
-                                                          : 'Ready',
-                                              color:
-                                                  lessonRequiresSyncBeforeStarting(
-                                                lesson,
-                                              )
-                                                      ? LumoTheme.accentOrange
-                                                      : matchesResumableSession
-                                                          ? LumoTheme.primary
-                                                          : LumoTheme
-                                                              .accentGreen,
+                                              text: availability.canLaunch
+                                                  ? matchesResumableSession
+                                                      ? 'Resume ready'
+                                                      : 'Ready'
+                                                  : availability.label,
+                                              color: availability.canLaunch
+                                                  ? matchesResumableSession
+                                                      ? LumoTheme.primary
+                                                      : LumoTheme.accentGreen
+                                                  : _learnerAvailabilityColor(
+                                                      availability.kind,
+                                                    ),
                                             ),
                                           ],
                                         ),
@@ -4051,42 +4746,47 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                         SizedBox(
                                           width: double.infinity,
                                           child: FilledButton.tonalIcon(
-                                            onPressed:
-                                                lesson.isAssignmentPlaceholder ||
-                                                        lesson.steps.isEmpty
-                                                    ? null
-                                                    : () {
-                                                        state.selectLearner(
-                                                          learner,
-                                                        );
-                                                        launchLessonFlow(
-                                                          context: context,
-                                                          state: state,
-                                                          onChanged: () {},
-                                                          lesson: lesson,
-                                                          resumeFrom:
-                                                              matchesResumableSession
-                                                                  ? resumableSession
-                                                                  : null,
-                                                        );
-                                                      },
+                                            onPressed: availability.canLaunch
+                                                ? () {
+                                                    state.selectLearner(
+                                                      learner,
+                                                    );
+                                                    launchLessonFlow(
+                                                      context: context,
+                                                      state: state,
+                                                      onChanged: () {},
+                                                      lesson: lesson,
+                                                      resumeFrom:
+                                                          matchesResumableSession
+                                                              ? resumableSession
+                                                              : null,
+                                                    );
+                                                  }
+                                                : null,
                                             icon: Icon(
-                                              lesson.isAssignmentPlaceholder ||
-                                                      lesson.steps.isEmpty
-                                                  ? Icons.sync_problem_rounded
-                                                  : matchesResumableSession
+                                              availability.canLaunch
+                                                  ? matchesResumableSession
                                                       ? Icons
                                                           .play_circle_fill_rounded
                                                       : Icons
-                                                          .open_in_new_rounded,
+                                                          .open_in_new_rounded
+                                                  : availability.kind ==
+                                                          LearnerLessonAvailabilityKind
+                                                              .backendSyncPending
+                                                      ? Icons.cloud_off_rounded
+                                                      : Icons
+                                                          .sync_problem_rounded,
                                             ),
                                             label: Text(
-                                              lesson.isAssignmentPlaceholder ||
-                                                      lesson.steps.isEmpty
-                                                  ? 'Sync required before starting'
-                                                  : matchesResumableSession
+                                              availability.canLaunch
+                                                  ? matchesResumableSession
                                                       ? 'Resume lesson'
-                                                      : 'Open lesson',
+                                                      : 'Open lesson'
+                                                  : availability.kind ==
+                                                          LearnerLessonAvailabilityKind
+                                                              .backendSyncPending
+                                                      ? 'Refresh sync before starting'
+                                                      : 'Sync required before starting',
                                             ),
                                           ),
                                         ),
@@ -4700,6 +5400,8 @@ class _LessonJourneyStepCard extends StatelessWidget {
     final aggregateStatusLabel = switch (aggregateStatus) {
       _SubjectLessonAvailabilitySummary.waitingForSync => 'Waiting for sync',
       _SubjectLessonAvailabilitySummary.syncIncomplete => 'Sync incomplete',
+      _SubjectLessonAvailabilitySummary.backendSyncPending =>
+        'Backend sync pending',
       _SubjectLessonAvailabilitySummary.locked => 'Locked',
       _SubjectLessonAvailabilitySummary.completedToday => 'Completed',
       _SubjectLessonAvailabilitySummary.completed => 'Completed',
@@ -4728,6 +5430,9 @@ class _LessonJourneyStepCard extends StatelessWidget {
                             aggregateStatus ==
                                 _SubjectLessonAvailabilitySummary
                                     .syncIncomplete ||
+                            aggregateStatus ==
+                                _SubjectLessonAvailabilitySummary
+                                    .backendSyncPending ||
                             aggregateStatus ==
                                 _SubjectLessonAvailabilitySummary.unavailable
                         ? const Color(0xFFB45309)
@@ -6175,109 +6880,111 @@ class RegistrationSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recommendedModule = state.recommendedModuleForLearner(learner);
+    final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final canStartAssignedLesson =
+        nextLesson != null && !lessonRequiresSyncBeforeStarting(nextLesson);
+
+    void openRecommendedDestination() {
+      state.selectLearner(learner);
+      state.selectModule(recommendedModule);
+      onChanged();
+      if (canStartAssignedLesson) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => LessonLaunchSetupPage(
+              state: state,
+              onChanged: onChanged,
+              lesson: nextLesson,
+              module: recommendedModule,
+            ),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => SubjectModulesPage(
+            state: state,
+            onChanged: onChanged,
+            module: recommendedModule,
+          ),
+        ),
+      );
+    }
+
+    final actionRow = _ResponsiveButtonRow(
+      primary: FilledButton(
+        onPressed: openRecommendedDestination,
+        child: Text(
+          canStartAssignedLesson ? 'Start assigned lesson' : 'Open subject',
+        ),
+      ),
+      secondary: OutlinedButton(
+        onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+        child: const Text('Back home'),
+      ),
+    );
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: DetailCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(0xFFDCFCE7),
-                      child: Icon(
-                        Icons.person_add_alt_1_rounded,
-                        color: Colors.green,
-                        size: 42,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      '${learner.name} is ready for Lumo.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Profile posted to the backend and added to the learner list.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    _BackendStatusBanner(state: state),
-                    const SizedBox(height: 20),
-                    LabelValueWrap(
-                      items: [
-                        ('Learner', learner.name),
-                        ('Language', learner.preferredLanguage),
-                        ('Readiness', learner.readinessLabel),
-                        ('Learner code', learner.learnerCode),
-                        ('Recommended start', recommendedModule.title),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _ResponsiveButtonRow(
-                      primary: FilledButton(
-                        onPressed: () {
-                          final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
-                          );
-                          state.selectLearner(learner);
-                          state.selectModule(recommendedModule);
-                          onChanged();
-                          if (nextLesson != null &&
-                              !lessonRequiresSyncBeforeStarting(nextLesson)) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => LessonLaunchSetupPage(
-                                  state: state,
-                                  onChanged: onChanged,
-                                  lesson: nextLesson,
-                                  module: recommendedModule,
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => SubjectModulesPage(
-                                state: state,
-                                onChanged: onChanged,
-                                module: recommendedModule,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: DetailCard(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Color(0xFFDCFCE7),
+                              child: Icon(
+                                Icons.person_add_alt_1_rounded,
+                                color: Colors.green,
+                                size: 42,
                               ),
                             ),
-                          );
-                        },
-                        child: Text(() {
-                          final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
-                          );
-                          if (nextLesson == null) {
-                            return 'Open subject';
-                          }
-                          if (lessonRequiresSyncBeforeStarting(nextLesson)) {
-                            return 'Open subject';
-                          }
-                          return 'Start assigned lesson';
-                        }()),
-                      ),
-                      secondary: OutlinedButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                        child: const Text('Back home'),
+                            const SizedBox(height: 18),
+                            Text(
+                              '${learner.name} is ready for Lumo.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Profile posted to the backend and added to the learner list.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            state.hasCriticalSyncTrustBlocker
+                                ? _BackendStatusBanner(state: state)
+                                : _CompactBackendStatusBanner(state: state),
+                            const SizedBox(height: 20),
+                            LabelValueWrap(
+                              items: [
+                                ('Learner', learner.name),
+                                ('Language', learner.preferredLanguage),
+                                ('Readiness', learner.readinessLabel),
+                                ('Learner code', learner.learnerCode),
+                                ('Recommended start', recommendedModule.title),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 16),
+                  actionRow,
+                ],
               ),
             ),
           ),
@@ -6387,16 +7094,7 @@ class _LessonLaunchSetupPageState extends State<LessonLaunchSetupPage> {
   }
 
   LearnerProfile? get _resumeLearner {
-    final resumeFrom = _matchedResumeSession;
-    if (resumeFrom == null) return null;
-
-    for (final learner in widget.state.learners) {
-      if (learner.id == resumeFrom.studentId) {
-        return learner;
-      }
-    }
-
-    return null;
+    return widget.state.learnerForBackendSession(_matchedResumeSession);
   }
 
   bool get _resumeLocksLearner => _matchedResumeSession != null;
@@ -8802,9 +9500,23 @@ class _LessonSessionPageState extends State<LessonSessionPage>
     String itemId,
     LessonActivityDragTarget target,
   ) {
-    final itemForTarget = activity.dragItems.firstWhere(
-      (candidate) => candidate.id == itemId,
-    );
+    final itemForTarget = activity.dragItems
+        .where((candidate) => candidate.id == itemId)
+        .cast<LessonActivityDragItem?>()
+        .firstWhere((candidate) => candidate != null, orElse: () => null);
+    if (itemForTarget == null) {
+      _playUiFeedback(
+        UiFeedbackSound.incorrect,
+        minGap: const Duration(milliseconds: 140),
+      );
+      setState(() {
+        _selectedDragItemId = null;
+        microphoneStatus =
+            'That card is no longer available. Try picking it up again.';
+      });
+      return;
+    }
+
     final placementIsCorrect = itemForTarget.targetId == target.id;
     _playUiFeedback(
       placementIsCorrect ? UiFeedbackSound.correct : UiFeedbackSound.incorrect,
@@ -13383,6 +14095,60 @@ class _RosterFreshnessBanner extends StatelessWidget {
   }
 }
 
+class _CompactBackendStatusBanner extends StatelessWidget {
+  final LumoAppState state;
+
+  const _CompactBackendStatusBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLive = !state.usingFallbackData && state.lastSyncedAt != null;
+    final hasCriticalSyncBlocker = state.hasCriticalSyncTrustBlocker;
+    final color = hasCriticalSyncBlocker
+        ? const Color(0xFFB91C1C)
+        : isLive
+            ? LumoTheme.accentGreen
+            : (state.isBootstrapping
+                ? LumoTheme.primary
+                : LumoTheme.accentOrange);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLive ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                color: color,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  state.backendStatusLabel,
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            state.backendStatusDetail,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BackendStatusBanner extends StatelessWidget {
   final LumoAppState state;
 
@@ -13442,12 +14208,60 @@ class _BackendStatusBanner extends StatelessWidget {
               StatusPill(text: state.lastSyncSummaryLabel, color: color),
               StatusPill(text: state.syncReceiptLabel, color: color),
               StatusPill(
+                text: state.backendLocalTruthGapLabel,
+                color: hasCriticalSyncBlocker
+                    ? const Color(0xFFB91C1C)
+                    : (state.pendingSyncEvents.isNotEmpty ||
+                            state.lastSyncWarnings.isNotEmpty ||
+                            state.usingFallbackData
+                        ? LumoTheme.accentOrange
+                        : color),
+              ),
+              StatusPill(
                 text: state.syncWarningsLabel,
                 color: state.lastSyncWarnings.isEmpty
                     ? color
                     : LumoTheme.accentOrange,
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Authoritative vs local handoff',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  state.authoritativeBackendSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  state.pendingLocalStateSummary,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (blockerReason != null) ...[
             const SizedBox(height: 12),
@@ -13508,6 +14322,37 @@ class _BackendStatusBanner extends StatelessWidget {
                     height: 1.35,
                   ),
                 ),
+                if (state.criticalSyncTrustBlockerEvidence.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...state.criticalSyncTrustBlockerEvidence.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Icon(
+                              Icons.error_outline_rounded,
+                              size: 16,
+                              color: Color(0xFFB91C1C),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                color: Color(0xFF7F1D1D),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 ...state.runtimeSyncActionItems().take(2).map(
                       (action) => Padding(
@@ -13744,7 +14589,7 @@ LearnerSourceStatusSignal buildLearnerSourceStatusSignal(
           ? '1 learner still needs backend registration'
           : '$count learners still need backend registration',
       detail:
-          'This tablet saved learner intake locally, but the live roster is not trustworthy until that registration sync lands. Keep the backend reachable before treating those learners as safely deployed.',
+          'This tablet saved learner intake locally, but the live roster is not trustworthy until that registration sync lands. Do not treat local-only registration as pilot-ready progress yet: keep the backend reachable and reconcile those learners before trusting roster, sync, or lesson evidence.',
       icon: Icons.person_add_alt_1_rounded,
       color: const Color(0xFF9A3412),
       backgroundColor: const Color(0xFFFFF7ED),
@@ -14253,7 +15098,7 @@ class _LearnerCard extends StatelessWidget {
     final streak = learner.streakDays;
     final hasActions =
         onSetActive != null || onOpenProfile != null || onStartLesson != null;
-    final needsBackendSync = _learnerNeedsBackendSync(learner);
+    final needsBackendSync = learnerNeedsBackendSyncBeforeLaunch(learner);
 
     final identityCue = _learnerIdentityCue(learner);
 

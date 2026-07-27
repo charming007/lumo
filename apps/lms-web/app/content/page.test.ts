@@ -65,6 +65,26 @@ test('content board honors the focused module id filter and hard-blocks scoped d
     /The dashboard passed moduleId <code style=\{\{ color: 'white', fontWeight: 900 \}\}>\{moduleIdFilter\}<\/code>, but this board cannot find that module in the live curriculum feed\./,
     'content board should treat a missing focused module as stale or mismatched deployment evidence',
   );
+  assert.match(
+    contentPageSource,
+    /Dashboard, content board, and settings blocker evidence all agree on the same module once the handoff is repaired/,
+    'scoped module handoff recovery should keep operators inside the pilot-safe routes instead of telling them to cross-check the blocked canvas route',
+  );
+  assert.match(
+    contentPageSource,
+    /\{ label: 'Open blocker board', href: '\/content\?view=blocked'/,
+    'scoped module handoff blocker should route operators back to the live blocker board instead of the deferred canvas route',
+  );
+  assert.doesNotMatch(
+    contentPageSource,
+    /\{ label: 'Open canvas', href: '\/canvas'/,
+    'scoped module handoff blocker should not point at the pilot-blocked canvas route during deployment review',
+  );
+  assert.match(
+    contentPageSource,
+    /buildContentReturnPath/,
+    'content board should keep operator recovery inside the live content control plane',
+  );
 });
 
 test('content board normalizes status filters so legacy live module states still stay visible', () => {
@@ -155,6 +175,19 @@ test('content board does not hard-block on subject metadata degradation alone', 
     contentPageSource,
     /Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane\./,
     'content board should warn about degraded subject metadata instead of blocking the whole release workflow',
+  );
+});
+
+test('content board blocks when the strand graph is degraded', () => {
+  assert.match(
+    contentPageSource,
+    /const criticalReleaseFailures = \[[\s\S]*strandsResult\.status === 'rejected' \? 'strands' : null,[\s\S]*\]\.filter\(Boolean\);/,
+    'content page should treat degraded strands as a critical release-readiness failure instead of a warning-only support feed',
+  );
+  assert.match(
+    contentPageSource,
+    /Strands are the structural spine for subject lanes and module placement\./,
+    'content blocker copy should explain why blind strand structure makes the content board unsafe to keep interactive',
   );
 });
 

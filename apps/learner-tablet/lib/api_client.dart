@@ -12,6 +12,47 @@ const String kConfiguredApiBaseUrl = String.fromEnvironment(
   'LUMO_API_BASE_URL',
   defaultValue: kDefaultProductionApiBaseUrl,
 );
+const bool kTabletReleaseBuild = bool.fromEnvironment('dart.vm.product');
+
+List<String> learnerReleaseBuildConfigIssues({
+  required String rawApiBaseUrl,
+  required bool hasExplicitApiBaseUrl,
+  required String rawDeviceIdentifier,
+  bool includeSeedDemoContent = false,
+}) {
+  final issues = <String>[];
+  if (rawDeviceIdentifier.trim().isEmpty) {
+    issues.add(
+      includeSeedDemoContent
+          ? 'Learner-tablet release build still has LUMO_ENABLE_SEED_DEMO_CONTENT enabled but no LUMO_DEVICE_IDENTIFIER. Demo seed content is not a valid substitute for provisioning a real tablet identity before shipping learner devices.'
+          : 'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
+    );
+  }
+
+  final trimmedApiBaseUrl = rawApiBaseUrl.trim();
+  if (trimmedApiBaseUrl.isEmpty) {
+    issues.add(
+      'Learner-tablet release build is missing LUMO_API_BASE_URL. Pass the real production learner API host with --dart-define=LUMO_API_BASE_URL=... before shipping a release artifact.',
+    );
+    return issues;
+  }
+
+  if (!hasExplicitApiBaseUrl) {
+    issues.add(
+      'Learner-tablet release build must set LUMO_API_BASE_URL explicitly instead of relying on the baked-in default backend target.',
+    );
+  }
+
+  final apiIssue = LumoApiClient.productionBaseUrlIssue(
+    trimmedApiBaseUrl,
+    hasExplicitConfig: true,
+  );
+  if (apiIssue != null) {
+    issues.add(apiIssue);
+  }
+
+  return issues;
+}
 
 class TutorVoiceClip {
   final Uint8List audioBytes;
@@ -77,10 +118,8 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    final canonicalProductionBaseUrl =
-        normalizeBaseUrl(kDefaultProductionApiBaseUrl);
-    if (!hasExplicitConfig && normalized != canonicalProductionBaseUrl) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets, even for non-canonical learner API targets.';
+    if (!hasExplicitConfig) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets instead of relying on the baked-in default backend target.';
     }
 
     final parsed = Uri.tryParse(normalized);
@@ -115,6 +154,61 @@ class LumoApiClient {
   String? get invalidProductionBaseUrlReason =>
       productionBaseUrlIssue(baseUrl, hasExplicitConfig: _hasExplicitBaseUrl);
 
+  static String? publicMediaUrlIssue(
+    String rawUrl, {
+    bool isReleaseBuild = kTabletReleaseBuild,
+  }) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) {
+      return 'Media URL is empty.';
+    }
+
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+      return 'Media URL is not a valid absolute URL. Current value: $rawUrl';
+    }
+
+    final scheme = parsed.scheme.toLowerCase();
+    final hostname = parsed.host.toLowerCase();
+    final looksLocal = hostname == 'localhost' ||
+        hostname == '127.0.0.1' ||
+        hostname == '0.0.0.0' ||
+        hostname.endsWith('.local');
+
+    if (scheme != 'http' && scheme != 'https') {
+      return 'Media URL must use http or https. Current value: $trimmed';
+    }
+
+    if (looksLocal) {
+      return 'Media URL points at $hostname, which is not a production-safe asset origin for learner tablets.';
+    }
+
+    if (isReleaseBuild && scheme != 'https') {
+      return 'Media URL must use https in release builds. Current value: $trimmed';
+    }
+
+    return null;
+  }
+
+  Uri? resolvePublicUri(String rawPath) {
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) return null;
+
+    final absolute = Uri.tryParse(trimmed);
+    if (absolute != null && absolute.hasScheme) {
+      return publicMediaUrlIssue(absolute.toString()) == null ? absolute : null;
+    }
+
+    final baseUri = Uri.tryParse(baseUrl);
+    if (baseUri == null || baseUri.host.isEmpty) {
+      return null;
+    }
+
+    final normalizedPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    final resolved = baseUri.resolve(normalizedPath);
+    return publicMediaUrlIssue(resolved.toString()) == null ? resolved : null;
+  }
+
   static List<String> _stripApiSuffix(List<String> segments) {
     if (segments.isEmpty) return const [];
 
@@ -124,10 +218,14 @@ class LumoApiClient {
       ['api', 'v1'],
       ['bootstrap'],
     ];
+    final normalizedSegments =
+        segments.map((segment) => segment.toLowerCase()).toList();
 
     for (final suffix in suffixes) {
       if (segments.length < suffix.length) continue;
-      final tail = segments.sublist(segments.length - suffix.length);
+      final tail = normalizedSegments.sublist(
+        normalizedSegments.length - suffix.length,
+      );
       var matches = true;
       for (var index = 0; index < suffix.length; index++) {
         if (tail[index] != suffix[index]) {
@@ -349,7 +447,7 @@ class LumoApiClient {
                 (event) => {
                   'id': event.id,
                   'type': _canonicalSyncEventType(event.type),
-                  ...event.payload,
+                  ..._canonicalSyncEventPayload(event),
                 },
               )
               .toList(),
@@ -428,9 +526,13 @@ class LumoApiClient {
     _ensureOk(response, 'load lesson asset $trimmed', uri);
     final decoded = _decodeObject(response.body,
         action: 'load lesson asset $trimmed', uri: uri);
+    final rawFileUrl = decoded['fileUrl']?.toString();
+    final sanitizedFileUrl =
+        rawFileUrl == null ? null : resolvePublicUri(rawFileUrl)?.toString();
+
     return LessonAssetRecord(
       id: decoded['id']?.toString() ?? trimmed,
-      fileUrl: decoded['fileUrl']?.toString(),
+      fileUrl: sanitizedFileUrl,
     );
   }
 
@@ -483,6 +585,21 @@ class LumoApiClient {
       default:
         return type;
     }
+  }
+
+  Map<String, dynamic> _canonicalSyncEventPayload(SyncEvent event) {
+    final payload = <String, dynamic>{...event.payload};
+    if (event.type == 'learner_registered_local_fallback') {
+      final resolvedDeviceIdentifier = deviceIdentifier?.trim();
+      final hasDeviceIdentifier =
+          payload['deviceIdentifier']?.toString().trim().isNotEmpty == true;
+      if (!hasDeviceIdentifier &&
+          resolvedDeviceIdentifier != null &&
+          resolvedDeviceIdentifier.isNotEmpty) {
+        payload['deviceIdentifier'] = resolvedDeviceIdentifier;
+      }
+    }
+    return payload;
   }
 
   List<Map<String, dynamic>> _asList(Object? value) {

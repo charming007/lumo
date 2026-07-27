@@ -11,18 +11,6 @@ function emptyAttendanceRows(message: string): ReactNode[][] {
   return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, '', '']];
 }
 
-function routeAlert(message: string, tone: 'warning' | 'error' = 'warning') {
-  const palette = tone === 'error'
-    ? { background: '#FEF2F2', border: '#FCA5A5', text: '#B91C1C' }
-    : { background: '#FFF7ED', border: '#FDBA74', text: '#9A3412' };
-
-  return (
-    <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: palette.background, border: `1px solid ${palette.border}`, color: palette.text, fontWeight: 700, lineHeight: 1.6 }}>
-      {message}
-    </div>
-  );
-}
-
 export default async function AttendancePage() {
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
@@ -73,60 +61,11 @@ export default async function AttendancePage() {
   const records = recordsResult.status === 'fulfilled' ? recordsResult.value : [];
   const students = studentsResult.status === 'fulfilled' ? studentsResult.value : [];
   const failedSources = [
-    recordsResult.status === 'rejected' ? 'attendance records' : null,
-    studentsResult.status === 'rejected' ? 'students' : null,
-  ].filter(Boolean) as string[];
-  const criticalAttendanceFailures = [
-    recordsResult.status === 'rejected' ? 'attendance records' : null,
-    studentsResult.status === 'rejected' ? 'students' : null,
-  ].filter(Boolean) as string[];
-
-  if (criticalAttendanceFailures.length) {
-    const secondaryFailures = failedSources.filter((source) => !criticalAttendanceFailures.includes(source));
-    const blockerDetail = criticalAttendanceFailures.length === 1
-      ? `The ${criticalAttendanceFailures[0]} feed failed, so daily roll-call cannot be trusted for live present/late/absent decisions.`
-      : `The ${criticalAttendanceFailures.join(', ')} feeds failed, so daily roll-call cannot be trusted for live present/late/absent decisions.`;
-
-    return (
-      <DeploymentBlockerCard
-        title="Attendance"
-        subtitle="Daily roll-call operations are blocked while the live attendance register or learner roster is degraded, because writing blind attendance is worse than a loud outage card."
-        blockerHeadline="Deployment blocker: attendance operations feeds are degraded."
-        blockerDetail={secondaryFailures.length
-          ? `${blockerDetail} Additional degraded feed${secondaryFailures.length === 1 ? '' : 's'}: ${secondaryFailures.join(', ')}.`
-          : blockerDetail}
-        whyBlocked={[
-          'If the register itself is down, operators cannot see the current attendance truth. If the learner roster is down, they cannot honestly know who should be present in the first place. Either way, leaving capture live invites duplicate, conflicting, or confidence-destroying roll-call writes.',
-          'Attendance is a live operational control surface, not a harmless report. A calm-looking form or table on top of a missing register or roster is polished nonsense.',
-        ]}
-        verificationItems={[
-          {
-            surface: 'Attendance register',
-            expected: 'Current learner attendance rows load from the backend before operators mark anyone present, late, or absent',
-            failure: 'Capture stays available while the board itself is missing or stale',
-          },
-          {
-            surface: 'Attendance capture',
-            expected: 'New attendance writes happen only when the live register and learner roster are both visible and trustworthy',
-            failure: 'Operators can submit attendance against a blind or partial register',
-          },
-          {
-            surface: 'Cross-route trust check',
-            expected: 'Attendance changes line up with the same learners shown in students and progress after the feed recovers',
-            failure: 'Attendance data looks disconnected from the rest of the LMS because the register outage was masked',
-          },
-        ]}
-        docs={[
-          { label: 'Dashboard blocker', href: '/', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-          { label: 'Students', href: '/students', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-          { label: 'Progress', href: '/progress', background: '#F5F3FF', color: '#6D28D9', border: '1px solid #DDD6FE' },
-        ]}
-      />
-    );
-  }
-
+    recordsResult.status === 'rejected' ? 'attendance register' : null,
+    studentsResult.status === 'rejected' ? 'learner roster' : null,
+  ].filter(Boolean);
   const present = records.filter((record) => (record.status || '').toLowerCase() === 'present');
-  const canCaptureAttendance = students.length > 0;
+  const captureDisabled = students.length === 0;
 
   return (
     <PageShell
@@ -145,18 +84,22 @@ export default async function AttendancePage() {
         </Card>
       }
     >
-      {failedSources.length ? routeAlert(`Attendance is running in degraded mode: ${failedSources.join(', ')} ${failedSources.length === 1 ? 'feed is' : 'feeds are'} unavailable. Keeping the route up is safer than a 500, but do not treat missing rows as clean attendance until those feeds recover.`, studentsResult.status === 'rejected' ? 'error' : 'warning') : null}
+      {failedSources.length ? (
+        <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 16, background: '#fff7ed', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 700 }}>
+          Attendance is running in degraded mode: {failedSources.join(' and ')} {failedSources.length === 1 ? 'is' : 'are'} unavailable.
+        </div>
+      ) : null}
 
       <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
-        {canCaptureAttendance ? (
-          <AttendanceCaptureForm students={students} />
-        ) : (
-          <Card title="Capture attendance" eyebrow="Unavailable right now">
-            <div style={{ color: '#64748b', lineHeight: 1.6 }}>
-              Attendance capture is paused until the learner roster loads again. Better a loud pause than writing attendance against missing learner context.
+        <Card title="Attendance capture" eyebrow={captureDisabled ? 'Capture paused' : 'Live write path'}>
+          {captureDisabled ? (
+            <div style={{ color: '#9a3412', lineHeight: 1.7, fontWeight: 700 }}>
+              Learner roster is unavailable right now, so attendance capture is paused instead of risking marks against missing or stale records.
             </div>
-          </Card>
-        )}
+          ) : (
+            <AttendanceCaptureForm students={students} />
+          )}
+        </Card>
         <Card title="Live attendance posture" eyebrow="Operations">
           <div style={{ color: '#475569', lineHeight: 1.7 }}>
             This surface shows the raw attendance feed instead of bouncing operators into Progress. Use it to spot pods or learners slipping before completion metrics hide the damage.
@@ -170,7 +113,7 @@ export default async function AttendancePage() {
           record.studentName || 'Unknown learner',
           record.date || '—',
           <Pill key={`${record.id}-status`} label={record.status || 'Unknown'} tone="#F8FAFC" text="#334155" />,
-        ]) : emptyAttendanceRows(failedSources.length ? 'Attendance feed unavailable right now.' : 'No attendance records yet.')}
+        ]) : emptyAttendanceRows(failedSources.length ? 'Attendance records are temporarily unavailable.' : 'No attendance records yet.')}
       />
     </PageShell>
   );

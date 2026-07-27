@@ -116,6 +116,48 @@ void main() {
         ),
       );
     });
+
+    test('enriches queued local registration sync events with tablet identity',
+        () async {
+      Map<String, dynamic>? postedBody;
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/learner-app/sync');
+          postedBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'accepted': 1,
+              'ignored': 0,
+              'syncedAt': '2026-04-12T10:00:00.000Z',
+              'results': const [
+                {'id': 'sync-register-1', 'status': 'accepted'},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://example.com',
+        deviceIdentifier: 'lumo-tablet-stable-01',
+      );
+
+      await client.syncEvents([
+        const SyncEvent(
+          id: 'sync-register-1',
+          type: 'learner_registered_local_fallback',
+          payload: {
+            'learnerCode': 'AMI-001',
+            'fullName': 'Amina Ibrahim',
+          },
+        ),
+      ]);
+
+      final events = postedBody?['events'] as List<dynamic>?;
+      expect(events, isNotNull);
+      expect(events, hasLength(1));
+      expect(events!.single['type'], 'learner_registered');
+      expect(events.single['deviceIdentifier'], 'lumo-tablet-stable-01');
+    });
   });
 
   group('LumoApiClient.normalizeBaseUrl', () {
@@ -168,18 +210,72 @@ void main() {
         'https://lumo-api-production-303a.up.railway.app',
       );
     });
+
+    test('strips known API suffixes even when pasted with mixed-case path segments', () {
+      expect(
+        LumoApiClient.normalizeBaseUrl(
+          'https://lumo-api-production-303a.up.railway.app/API/V1/Learner-App/Bootstrap',
+        ),
+        'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      expect(
+        LumoApiClient.normalizeBaseUrl(
+          'https://lumo-api-production-303a.up.railway.app/Api/V1',
+        ),
+        'https://lumo-api-production-303a.up.railway.app',
+      );
+    });
+  });
+
+  group('learnerReleaseBuildConfigIssues', () {
+    test('requires an explicit tablet identity for shippable release builds',
+        () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: '',
+        ),
+        contains(contains('missing LUMO_DEVICE_IDENTIFIER')),
+      );
+    });
+
+    test('requires an explicit backend target even for the canonical host', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: false,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+        ),
+        contains(contains('must set LUMO_API_BASE_URL explicitly')),
+      );
+    });
+
+    test(
+        'accepts a shippable release config when backend and tablet identity are explicit',
+        () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+        ),
+        isEmpty,
+      );
+    });
   });
 
   group('LumoApiClient.productionBaseUrlIssue', () {
     test(
-        'accepts the canonical production host when release config falls back to the built-in default',
+        'rejects the canonical production host when release config falls back to the built-in default',
         () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
           hasExplicitConfig: false,
         ),
-        isNull,
+        contains('LUMO_API_BASE_URL is missing'),
       );
     });
 
@@ -224,6 +320,72 @@ void main() {
         ),
         isNull,
       );
+    });
+
+    test(
+        'resolvePublicUri upgrades backend-relative media paths to absolute urls',
+        () {
+      final client = LumoApiClient(
+        baseUrl:
+            'https://lumo-api-production-303a.up.railway.app/api/v1/learner-app/bootstrap',
+      );
+
+      expect(
+        client.resolvePublicUri('/media/takes/review-1.m4a')?.toString(),
+        'https://lumo-api-production-303a.up.railway.app/media/takes/review-1.m4a',
+      );
+      expect(
+        client.resolvePublicUri('uploads/runtime/take-2.webm')?.toString(),
+        'https://lumo-api-production-303a.up.railway.app/uploads/runtime/take-2.webm',
+      );
+    });
+
+    test('resolvePublicUri leaves absolute urls untouched', () {
+      final client = LumoApiClient(
+          baseUrl: 'https://lumo-api-production-303a.up.railway.app');
+
+      expect(
+        client
+            .resolvePublicUri('https://cdn.example.com/audio/clip.mp3')
+            ?.toString(),
+        'https://cdn.example.com/audio/clip.mp3',
+      );
+    });
+
+    test('rejects unsafe absolute media origins and schemes', () {
+      final client = LumoApiClient(
+        baseUrl: 'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      expect(client.resolvePublicUri('file:///tmp/clip.mp3'), isNull);
+      expect(client.resolvePublicUri('data:audio/mpeg;base64,AAAA'), isNull);
+      expect(
+          client.resolvePublicUri('https://localhost/audio/clip.mp3'), isNull);
+      expect(client.resolvePublicUri('http://127.0.0.1:4000/audio/clip.mp3'),
+          isNull);
+    });
+
+    test('sanitizes backend asset file urls through the same public-uri guard',
+        () async {
+      final client = LumoApiClient(
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/assets/lesson-audio-1');
+          return http.Response(
+            jsonEncode({
+              'id': 'lesson-audio-1',
+              'fileUrl': 'file:///tmp/unsafe-audio.mp3',
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'https://lumo-api-production-303a.up.railway.app',
+      );
+
+      final asset = await client.fetchLessonAsset('lesson-audio-1');
+
+      expect(asset, isNotNull);
+      expect(asset!.fileUrl, isNull);
     });
   });
 

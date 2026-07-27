@@ -8,24 +8,52 @@ import { buildPodLabelParts } from '../lib/pod-naming';
 
 const fieldStyle = {
   display: 'grid',
-  gap: 6,
-  color: '#475569',
+  gap: 10,
+  color: '#334155',
   fontSize: 14,
+  fontWeight: 750,
+  lineHeight: 1.25,
+  minWidth: 0,
+  maxWidth: '100%',
+  width: '100%',
+  boxSizing: 'border-box',
 } as const;
 
 const inputStyle = {
-  border: '1px solid #d1d5db',
-  borderRadius: 12,
-  padding: '12px 14px',
-  fontSize: 14,
+  border: '1px solid #d8deea',
+  borderRadius: 14,
+  padding: '13px 42px 13px 15px',
+  fontSize: 15,
   width: '100%',
+  maxWidth: '100%',
+  minWidth: 0,
+  boxSizing: 'border-box',
   background: 'white',
+  color: '#111827',
+  boxShadow: '0 1px 0 rgba(15, 23, 42, 0.02), inset 0 0 0 1px rgba(255,255,255,0.7)',
+  outlineColor: '#6D5DF7',
+} as const;
+
+const displayFieldStyle = {
+  ...inputStyle,
+  display: 'block',
+  width: 'calc(100% - 2px)',
+  maxWidth: 'calc(100% - 2px)',
+  justifySelf: 'start',
+  background: '#f8fafc',
+  color: '#0f172a',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 } as const;
 
 const twoColumnGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
-  gap: 12,
+  gap: '18px 20px',
+  minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
 } as const;
 
 function FieldLabel({ children }: { children: ReactNode }) {
@@ -226,7 +254,7 @@ export function StudentGeographySelectors({
       <input type="hidden" name="mallamId" value={mallamId} />
       <FieldLabel>
         Derived primary mallam
-        <div style={{ ...inputStyle, background: '#f8fafc', color: '#0f172a' }}>
+        <div style={displayFieldStyle}>
           {podId
             ? (filteredMallams[0]?.displayName || filteredMallams[0]?.name || 'No primary mallam linked to this pod yet')
             : 'Select pod first'}

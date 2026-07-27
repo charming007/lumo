@@ -1,15 +1,10 @@
 const PILOT_OFF_SHELL_ROUTES = Object.freeze([
   { id: 'devices', label: 'Devices' },
-  { id: 'canvas', label: 'Curriculum Canvas' },
-  { id: 'english', label: 'English Studio' },
   { id: 'students', label: 'Learners' },
   { id: 'mallams', label: 'Mallams' },
   { id: 'pods', label: 'Pods' },
   { id: 'attendance', label: 'Attendance' },
   { id: 'assessments', label: 'Assessments' },
-  { id: 'rewards', label: 'Rewards' },
-  { id: 'reports', label: 'Reports' },
-  { id: 'guide', label: 'Guide' },
 ]);
 
 export const PILOT_OFF_SHELL_ROUTE_IDS = Object.freeze(

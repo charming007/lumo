@@ -7,11 +7,16 @@ const topbarSource = readFileSync(fileURLToPath(new URL('./topbar.tsx', import.m
 const shellSource = readFileSync(fileURLToPath(new URL('./shell.tsx', import.meta.url)), 'utf8');
 const pilotShellSource = readFileSync(fileURLToPath(new URL('../lib/pilot-shell.ts', import.meta.url)), 'utf8');
 
-test('pilot shell warnings only render when the pilot control-plane override is enabled', () => {
+test('pilot shell warnings only render when the pilot control-plane override or shell-scope blocker is active', () => {
   assert.match(
     shellSource,
-    /const pilotRoute = pilotControlPlaneEnabled \? describePilotShellRoute\(pathname\) : undefined;/,
-    'app shell should only classify pilot shell routes when the override is enabled',
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| shellScopeDeploymentBlocked;/,
+    'app shell should clamp shared chrome to the pilot shell when a production shell blocker is active',
+  );
+  assert.match(
+    shellSource,
+    /const pilotRoute = effectivePilotControlPlaneEnabled \? describePilotShellRoute\(pathname\) : undefined;/,
+    'app shell should classify pilot shell routes from the effective clamped shell state',
   );
   assert.match(
     topbarSource,

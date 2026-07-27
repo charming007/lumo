@@ -28,7 +28,7 @@ export function CopyableTextCard({
   }
 
   return (
-    <div style={{ padding: 16, borderRadius: 18, background: tone, border: `1px solid ${border}`, display: 'grid', gap: 10 }}>
+    <div style={{ padding: 16, borderRadius: 18, background: tone, border: `1px solid ${border}`, display: 'grid', gap: 10, minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
           {eyebrow ? (
@@ -60,6 +60,8 @@ export function CopyableTextCard({
         aria-label={title}
         style={{
           width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
           minHeight: 116,
           resize: 'vertical',
           borderRadius: 14,
@@ -69,6 +71,8 @@ export function CopyableTextCard({
           color: '#334155',
           lineHeight: 1.6,
           fontSize: 14,
+          overflowWrap: 'anywhere',
+          whiteSpace: 'pre-wrap',
         }}
       />
     </div>

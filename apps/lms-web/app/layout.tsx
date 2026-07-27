@@ -4,7 +4,7 @@ import { ProductionConfigBanner } from '../components/production-config-banner';
 import { fetchMeta } from '../lib/api';
 import { getBuildSignature } from '../lib/build-signature';
 import { API_BASE_SOURCE } from '../lib/config';
-import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
+import { getPilotControlPlaneFlagMode, isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import type { MetaResponse } from '../lib/types';
 
 export const metadata = {
@@ -28,12 +28,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const buildSignature = getBuildSignature();
 
   const seedCount = Object.values(meta.seedSummary ?? {}).reduce((sum, count) => sum + count, 0);
+  const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
+  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production'
+    && pilotControlPlaneFlagMode !== 'disabled'
+    && !pilotControlPlaneEnabled;
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'Inter, Arial, sans-serif', background: '#f5f7fb' }}>
-        <AppShell seedCount={seedCount} buildSignature={buildSignature} pilotControlPlaneEnabled={pilotControlPlaneEnabled}>
+      <body style={{ margin: 0, overflowX: 'hidden', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', background: '#eef2f7', color: '#202436' }}>
+        <AppShell
+          seedCount={seedCount}
+          buildSignature={buildSignature}
+          pilotControlPlaneEnabled={pilotControlPlaneEnabled}
+          shellScopeDeploymentBlocked={shellScopeDeploymentBlocked}
+        >
           <DemoBanner role={meta.actor.role} mode={meta.mode} seedCount={seedCount} apiSource={API_BASE_SOURCE} />
           <ProductionConfigBanner />
           {children}

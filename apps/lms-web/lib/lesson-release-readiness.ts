@@ -24,3 +24,18 @@ export function isLessonReleaseReady(lesson: Pick<Lesson, 'status' | 'activityCo
   return ['approved', 'published', 'active'].includes(normalize(lesson.status))
     && lessonHasLaunchableActivityPayload(lesson);
 }
+
+export function getLessonStatusTransitionBlockers(
+  targetStatus: string,
+  lesson: Pick<Lesson, 'status' | 'activityCount' | 'activitySteps' | 'activities'>,
+) {
+  if (!['approved', 'published', 'active'].includes(normalize(targetStatus))) {
+    return [] as string[];
+  }
+
+  if (lessonHasLaunchableActivityPayload(lesson)) {
+    return [] as string[];
+  }
+
+  return ['Add a launchable activity payload before moving this lesson into a live release status.'];
+}

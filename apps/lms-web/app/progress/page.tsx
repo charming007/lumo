@@ -243,7 +243,7 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
         </div>
       ) : null}
 
-      <section style={{ ...responsiveGrid(320), marginBottom: 20 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20, marginBottom: 20 }}>
         <Card title="Mastery board" eyebrow="Readiness operations">
           <SimpleTable
             columns={['Student', 'Subject', 'Module', 'Mastery', 'Lessons completed', 'Progression', 'Next module']}

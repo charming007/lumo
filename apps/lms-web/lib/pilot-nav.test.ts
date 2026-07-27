@@ -10,33 +10,31 @@ import {
   isPilotBlockedRoute,
 } from './pilot-nav.ts';
 
-test('pilot off-shell route list captures the specialist surfaces kept out of the sidebar without pretending they are all blocked', () => {
+test('pilot off-shell route list captures the specialist surfaces kept out of the sidebar without pretending blocked routes are live', () => {
   assert.deepEqual(PILOT_OFF_SHELL_ROUTE_IDS, [
     'devices',
-    'canvas',
-    'english',
     'students',
     'mallams',
     'pods',
     'attendance',
     'assessments',
-    'rewards',
-    'reports',
-    'guide',
   ]);
   assert.deepEqual(PILOT_OFF_SHELL_ROUTE_LABELS, [
     'Devices',
-    'Curriculum Canvas',
-    'English Studio',
     'Learners',
     'Mallams',
     'Pods',
     'Attendance',
     'Assessments',
-    'Rewards',
-    'Reports',
-    'Guide',
   ]);
+
+  for (const routeId of PILOT_BLOCKED_ROUTE_IDS) {
+    assert.equal(PILOT_OFF_SHELL_ROUTE_IDS.includes(routeId), false, `${routeId} must not leak into the off-shell specialist list`);
+  }
+
+  for (const routeLabel of PILOT_BLOCKED_ROUTE_LABELS) {
+    assert.equal(PILOT_OFF_SHELL_ROUTE_LABELS.includes(routeLabel), false, `${routeLabel} must not leak into the off-shell specialist list`);
+  }
 });
 
 test('pilot blocked route list names the explicitly deferred pilot surfaces that should render blocker pages', () => {

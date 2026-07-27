@@ -108,20 +108,6 @@ class _FooterGateMismatchState extends LumoAppState {
   }
 }
 
-class _UnregisteredTabletBootstrapApiClient extends LumoApiClient {
-  @override
-  Future<LumoBootstrap> fetchBootstrap({
-    String? overrideDeviceIdentifier,
-  }) async {
-    return LumoBootstrap(
-      learners: learnerProfilesSeed,
-      modules: learningModules,
-      lessons: assignedLessonsSeed,
-      registrationContext: const RegistrationContext(),
-    );
-  }
-}
-
 class _AmbiguousPlaceholderRecoveryApiClient extends LumoApiClient {
   @override
   Future<LumoBootstrap> fetchBootstrap({
@@ -165,6 +151,151 @@ class _FakeBundledContentLoader extends BundledContentLoader {
 void _noop() {}
 
 void main() {
+  test('release rebuild command matches the deployment target platform', () {
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: true,
+        platform: TargetPlatform.android,
+      ),
+      'flutter build web --release --no-wasm-dry-run',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.android,
+      ),
+      'flutter build apk --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.iOS,
+      ),
+      'flutter build ipa --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.macOS,
+      ),
+      'flutter build macos --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.windows,
+      ),
+      'flutter build windows --release',
+    );
+    expect(
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.linux,
+      ),
+      'flutter build linux --release',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: true,
+        platform: TargetPlatform.iOS,
+      ),
+      'web',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.android,
+      ),
+      'apk',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.iOS,
+      ),
+      'ipa',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.macOS,
+      ),
+      'macos',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.windows,
+      ),
+      'windows',
+    );
+    expect(
+      learnerReleaseTargetForPlatform(
+        isWeb: false,
+        platform: TargetPlatform.linux,
+      ),
+      'linux',
+    );
+  });
+
+  test(
+      'release rebuild command keeps backend and tablet identity pinned together',
+      () {
+    final command = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: false,
+      platformOverride: TargetPlatform.iOS,
+    );
+
+    expect(
+      command,
+      contains('dart run tool/build_release.dart'),
+    );
+    expect(command, contains("--release-target='ipa'"));
+    expect(command, isNot(contains('flutter build ipa --release')));
+    expect(
+      command,
+      contains("--dart-define=LUMO_API_BASE_URL='https://lumo.example.com'"),
+    );
+    expect(
+      command,
+      contains("--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007'"),
+    );
+    expect(
+      command,
+      contains('cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
+    );
+    expect(command, isNot(contains('--no-wasm-dry-run')));
+
+    final webCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: true,
+      platformOverride: TargetPlatform.android,
+    );
+
+    expect(webCommand, contains("--release-target='web'"));
+    expect(webCommand, contains('--no-wasm-dry-run'));
+    expect(
+      webCommand,
+      contains(
+        "--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007' \\\n  --no-wasm-dry-run",
+      ),
+    );
+
+    final appBundleCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: false,
+      platformOverride: TargetPlatform.android,
+      releaseTargetOverride: 'appbundle',
+    );
+
+    expect(appBundleCommand, contains("--release-target='appbundle'"));
+    expect(appBundleCommand, isNot(contains('--no-wasm-dry-run')));
+  });
+
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;
@@ -197,6 +328,59 @@ void main() {
     await tester.pump();
     await tester.pump(duration);
   }
+
+  testWidgets(
+    'session recovery gate rebuilds into the bootstrap loading screen during a live refresh',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1600, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final bootstrapCompleter = Completer<LumoBootstrap>();
+      final state = LumoAppState(
+        apiClient: _DelayedApiClient(bootstrapCompleter),
+        includeSeedDemoContent: false,
+      );
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsNothing,
+      );
+
+      unawaited(state.bootstrap());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsOneWidget,
+      );
+
+      bootstrapCompleter.complete(
+        LumoBootstrap(
+          learners: learnerProfilesSeed,
+          modules: learningModules,
+          lessons: assignedLessonsSeed,
+        ),
+      );
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+      await pumpForUi(tester, const Duration(milliseconds: 300));
+
+      expect(
+        find.text('Loading the live learner roster before the tablet opens.'),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets(
     'subject page blocks lesson entry when no synced learner is available',
@@ -377,6 +561,112 @@ void main() {
       expect(find.text('Tablet trust check'), findsOneWidget);
       expect(find.text('No trusted live sync on this tablet'), findsOneWidget);
       expect(find.text('Refresh sync'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'home screen blocks lesson launch from trust-blocked tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+
+      final lesson = state.assignedLessons.firstWhere(
+        (candidate) => candidate.steps.isNotEmpty,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () {
+                    launchLessonFlow(
+                      context: context,
+                      state: state,
+                      onChanged: _noop,
+                      lesson: lesson,
+                    );
+                  },
+                  child: const Text('Launch lesson'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Launch lesson'));
+      await tester.pump();
+
+      expect(find.textContaining('Tablet trust is blocked.'), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'home screen keeps recovered-session recovery actions visible on ultra-short tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 540);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingRecoveredSessionSnapshot = <String, dynamic>{
+          'lessonId': 'english-1',
+          'lessonTitle': 'Warm-up greeting',
+          'stepIndex': 1,
+        };
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Recovered lesson waiting for sync.'), findsOneWidget);
+      expect(find.textContaining('Warm-up greeting'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'home screen gives recovered-session banners a direct sync CTA on standard tablet heights',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..pendingRecoveredSessionSnapshot = <String, dynamic>{
+          'lessonId': 'english-1',
+          'lessonTitle': 'Warm-up greeting',
+          'stepIndex': 0,
+        };
+      addTearDown(state.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomePage(state: state, onChanged: _noop),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Refresh live sync'), findsOneWidget);
+      expect(find.text('Open student list'), findsOneWidget);
     },
   );
 
@@ -671,6 +961,61 @@ void main() {
   );
 
   testWidgets(
+    'recovered sessions stay blocked behind hard deployment identity blockers even with a trusted offline snapshot',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final learner = state.learners.first;
+      final lesson = state.assignedLessons.first;
+      state.selectLearner(learner);
+      state.selectModule(state.modules.first);
+      state.startLesson(lesson);
+      state.restoredFromPersistence = true;
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
+      state.snapshotTrustedFromLiveBootstrap = true;
+      state.lastSyncedAt = DateTime.now().subtract(
+        const Duration(minutes: 5),
+      );
+      state.snapshotSavedAt = DateTime.now().subtract(
+        const Duration(minutes: 10),
+      );
+      state.snapshotSourceBaseUrl = state.backendBaseUrl;
+      state.learners
+        ..clear()
+        ..addAll(learnerProfilesSeed);
+      state.modules
+        ..clear()
+        ..addAll(learningModules);
+      state.assignedLessons
+        ..clear()
+        ..addAll(assignedLessonsSeed);
+
+      expect(state.hasUsableOfflineSnapshot, isTrue);
+      expect(state.hasHardDeploymentIdentityBlocker, isTrue);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionRecoveryGate(state: state, onChanged: () {}),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LessonSessionPage), findsNothing);
+      expect(find.text('Back'), findsNothing);
+      expect(find.text('Student list'), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'reopens the completion page when a finished lesson is restored',
     (tester) async {
       tester.view.physicalSize = const Size(1600, 1500);
@@ -842,6 +1187,10 @@ void main() {
       expect(find.text('Retry production bootstrap'), findsOneWidget);
       expect(find.text('Open limited offline mode'), findsNothing);
       expect(find.text('Live backend target'), findsOneWidget);
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Android App Bundle handoff'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
@@ -863,6 +1212,74 @@ void main() {
       expect(state.learners, isEmpty);
       expect(state.modules, isEmpty);
       expect(state.assignedLessons, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'deployment blocker page shows unprovisioned tablet identifier when the build is missing device identity',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: false);
+      addTearDown(state.dispose);
+      state.learners.clear();
+      state.modules.clear();
+      state.assignedLessons.clear();
+      state.usingFallbackData = true;
+      state.deploymentBlockerReason =
+          'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LearnerDeploymentBlockerPage(
+            state: state,
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Provisioned tablet identifier'), findsOneWidget);
+      expect(find.text('Not provisioned in this build'), findsOneWidget);
+      expect(
+        find.text(
+          'Deployment blocker: this release build was shipped without its tablet identity.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'retrying on-device is just theater',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'it needs a rebuild and redeploy before the learner bootstrap can succeed',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'there is nothing useful to compare against the LMS yet',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Compare this exact identifier against the LMS device record before retrying',
+        ),
+        findsNothing,
+      );
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
+      expect(
+        find.textContaining('<copy-device-identifier-from-lms>'),
+        findsWidgets,
+      );
     },
   );
 
@@ -895,8 +1312,29 @@ void main() {
         ),
       );
 
+      expect(
+        find.text(
+          'Deployment blocker: this tablet identity does not match the LMS registration.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'the backend could not match this tablet identity to a valid LMS registration',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
-      expect(find.text('tablet-pod-a-007'), findsOneWidget);
+      expect(find.text('tablet-pod-a-007'), findsWidgets);
+      expect(find.text('Release rebuild handoff'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
+      expect(
+        find.textContaining(
+          '--dart-define=LUMO_DEVICE_IDENTIFIER=\'tablet-pod-a-007\'',
+        ),
+        findsWidgets,
+      );
       expect(
         find.textContaining(
           'Compare this exact identifier against the LMS device record before retrying',
@@ -907,7 +1345,7 @@ void main() {
   );
 
   testWidgets(
-    'deployment blocker page exposes copy actions for backend target, bootstrap probe, and tablet identifier',
+    'deployment blocker page exposes copy actions for backend target, bootstrap probe, bootstrap command, and tablet identifier',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       tester.view.physicalSize = const Size(1400, 1000);
@@ -936,37 +1374,17 @@ void main() {
       );
 
       expect(find.text('Copy backend target'), findsOneWidget);
+      expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
+      expect(find.text('Copy bootstrap command'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
-    },
-  );
-
-  test(
-    'unregistered live bootstrap does not get certified as a trusted offline snapshot',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      final state = LumoAppState(
-        apiClient: _UnregisteredTabletBootstrapApiClient(),
-        includeSeedDemoContent: false,
-        configuredDeviceIdentifier: 'tablet-pod-a-007',
-      );
-
-      await state.bootstrap();
-      await state.flushPersistence();
-
+      expect(find.text('Copy-paste bootstrap verification'), findsOneWidget);
+      expect(find.textContaining('curl -i'), findsOneWidget);
       expect(
-        state.deploymentBlockerReason,
-        contains('did not return a tablet registration'),
+        find.textContaining('deviceIdentifier=tablet-pod-a-007'),
+        findsWidgets,
       );
-      expect(state.usingFallbackData, isTrue);
-      expect(state.snapshotTrustedFromLiveBootstrap, isFalse);
-      expect(state.hasUsableOfflineSnapshot, isFalse);
-      expect(
-        state.offlineSnapshotTrustProblem,
-        contains('never confirmed by a successful live bootstrap'),
-      );
-
-      state.dispose();
     },
   );
 
@@ -983,6 +1401,26 @@ void main() {
     expect(find.text('English'), findsOneWidget);
     expect(find.text('Math'), findsOneWidget);
     expect(find.text('Life Skills'), findsOneWidget);
+  });
+
+  testWidgets(
+      'home screen keeps core handoff actions usable on 800x600 pilot tablets',
+      (
+    tester,
+  ) async {
+    await pumpAppAtSize(tester, const Size(800, 600));
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Math'), findsOneWidget);
+    expect(find.text('Life Skills'), findsOneWidget);
+    expect(find.text('Register'), findsOneWidget);
+    expect(find.text('Student list'), findsOneWidget);
+
+    await tester.tap(find.text('Register'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Guide registration from here'), findsOneWidget);
   });
 
   testWidgets(
@@ -1375,7 +1813,7 @@ void main() {
   );
 
   testWidgets(
-    'home screen keeps registration quick action read-only while backend registration is blocked',
+    'home screen still opens registration guidance while backend registration is blocked',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -1394,14 +1832,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Register blocked'), findsOneWidget);
+      expect(find.text('Register'), findsOneWidget);
       expect(find.byType(RegisterPage), findsNothing);
 
-      await tester.tap(find.text('Register blocked'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Register'));
+      await pumpForUi(tester);
 
-      expect(find.byType(HomePage), findsOneWidget);
-      expect(find.byType(RegisterPage), findsNothing);
+      expect(find.byType(RegisterPage), findsOneWidget);
+      expect(find.text('Guide registration from here'), findsOneWidget);
     },
   );
 
@@ -1937,7 +2375,7 @@ void main() {
   );
 
   testWidgets(
-    'learner profile exposes quick lesson actions and honest lesson counts',
+    'learner profile prioritizes launchable quick picks and honest lesson counts',
     (tester) async {
       tester.view.physicalSize = const Size(900, 1200);
       tester.view.devicePixelRatio = 1.0;
@@ -1987,6 +2425,11 @@ void main() {
 
       expect(find.text('3 of 5 shown'), findsOneWidget);
       expect(find.text('Open lesson'), findsNWidgets(3));
+      expect(find.text('Greetings at the learning circle'), findsOneWidget);
+      expect(find.text('Handwashing before food'), findsOneWidget);
+      expect(find.text('Counting oranges at the market'), findsOneWidget);
+      expect(find.text('Story sounds'), findsNothing);
+      expect(find.text('Word match'), findsNothing);
       expect(
         find.text(
           '2 more assigned lessons still available after these quick picks.',
@@ -2336,6 +2779,44 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Back home'), findsOneWidget);
       expect(find.text('Start assigned lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'registration success page exposes the full backend trust blocker state before live handoff',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+      final learner = state.learners.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Pilot trust blocker'), findsOneWidget);
+      expect(find.text('Backend connected • sync trust blocked'), findsOneWidget);
+      expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+      expect(find.text('Runtime sync feedback'), findsOneWidget);
+      expect(
+        find.textContaining(state.criticalSyncTrustBlockerReason!),
+        findsOneWidget,
+      );
     },
   );
 
@@ -4111,6 +4592,76 @@ void main() {
 
       expect(find.text('Resume with ${learner.name}'), findsOneWidget);
       expect(find.text('Start with ${otherLearner.name}'), findsNothing);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
+    'resume launch setup rebinds the learner by learner code after live id churn',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final module = state.modules.first;
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == module.id,
+        orElse: () => state.assignedLessons.first,
+      );
+      final learner = state.learners.first;
+      state.learners[0] = learner.copyWith(id: 'learner-live-id');
+      final reboundLearner = state.learners.first;
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-learner-code-rebind',
+        sessionId: 'session-code-rebind',
+        studentId: 'learner-stale-id',
+        learnerCode: reboundLearner.learnerCode,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        moduleId: lesson.moduleId,
+        moduleTitle: module.title,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the learner session.',
+        currentStepIndex: 1,
+        stepsTotal: lesson.steps.length,
+        responsesCaptured: 2,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+            resumeFrom: runtimeSession,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Resume learner'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Resume ready from',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          '${reboundLearner.name}. This learner is locked so the session cannot be resumed under the wrong child.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Resume with ${reboundLearner.name}'), findsOneWidget);
+      expect(find.text('Sync learner to resume'), findsNothing);
 
       state.dispose();
     },
@@ -5947,6 +6498,92 @@ void main() {
     await dragCardToPrompt('Banana', 'Yellow basket');
     expect(find.textContaining('Incorrect match:'), findsNothing);
     expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+
+    state.dispose();
+  });
+
+  testWidgets(
+      'drag to match ignores stale drag payloads instead of crashing the lesson',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const lesson = LessonCardModel(
+      id: 'drag-match-stale-payload',
+      moduleId: 'english',
+      title: 'Drag to match stale payload guard',
+      subject: 'English',
+      durationMinutes: 5,
+      status: 'Assigned',
+      mascotName: 'Mallam',
+      readinessFocus: 'Ignore invalid drag payloads safely.',
+      scenario:
+          'A stale drag payload lands after the lesson state has moved on.',
+      steps: [
+        LessonStep(
+          id: 'drag-stale-step',
+          type: LessonStepType.practice,
+          title: 'Match the fruit cards',
+          instruction: 'Drag each fruit card into the matching target zone.',
+          expectedResponse: 'matched',
+          coachPrompt: 'Drag every fruit card to the right place.',
+          facilitatorTip:
+              'The lesson should stay alive even if a stale drag event arrives.',
+          realWorldCheck:
+              'Invalid payloads do not crash the screen or unlock the CTA.',
+          speakerMode: SpeakerMode.listening,
+          activity: LessonActivity(
+            type: LessonActivityType.dragToMatch,
+            prompt: 'Match each fruit card to the right target.',
+            targetResponse: 'matched',
+            dragItems: [
+              LessonActivityDragItem(
+                  id: 'banana-card', label: 'Banana', targetId: 'banana-zone'),
+            ],
+            dragTargets: [
+              LessonActivityDragTarget(
+                  id: 'banana-zone', prompt: 'Drag Banana card here'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final state = LumoAppState(includeSeedDemoContent: true);
+    state.assignedLessons.add(lesson);
+    final learner = state.learners.first;
+    state.selectLearner(learner);
+    state.selectModule(
+        state.modules.firstWhere((module) => module.id == lesson.moduleId));
+    state.startLesson(lesson);
+
+    await tester.pumpWidget(MaterialApp(
+        home:
+            LessonSessionPage(state: state, lesson: lesson, onChanged: () {})));
+    await pumpForUi(tester);
+
+    final continueButton = find.widgetWithText(FilledButton, 'Finish lesson');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    final targetWidget = tester.widget<DragTarget<String>>(
+      find.byType(DragTarget<String>).first,
+    );
+
+    expect(
+      () => targetWidget.onAcceptWithDetails?.call(
+        DragTargetDetails<String>(
+          data: 'missing-card',
+          offset: Offset.zero,
+        ),
+      ),
+      returnsNormally,
+    );
+    await pumpForUi(tester);
+
+    expect(find.text('Banana'), findsOneWidget);
+    expect(find.text('Drag Banana card here'), findsOneWidget);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
 
     state.dispose();
   });
