@@ -792,6 +792,16 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? ' \\\\' : ''/,
+    'learner web release handoff should keep the final dart-define line open for the web-only wrapper flag',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? \['    --no-wasm-dry-run'\] : \[\]/,
+    'learner web release handoff should include the web-only no-wasm dry-run guard required by the release wrapper',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /'cd apps\/learner-tablet && \\\\',\s*'  dart run tool\/build_release\.dart \\\\'/,
     'learner release handoff should keep the wrapper command as one valid chained shell snippet instead of breaking after &&',
   );
