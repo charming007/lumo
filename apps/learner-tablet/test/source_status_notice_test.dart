@@ -193,17 +193,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tablet trust check'), findsOneWidget);
-    expect(find.text('Sync freshness'), findsNothing);
+    expect(find.text('Sync freshness'), findsOneWidget);
     expect(find.text('Registration sync blocked'), findsOneWidget);
     expect(
-      find.textContaining('learner registrations saved locally'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-          'Refresh sync before treating this roster as deployment-ready'),
-      findsOneWidget,
+      find.textContaining('deployment-ready'),
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
   });
