@@ -94,6 +94,29 @@ test('dashboard release blockers recover the subject name from live subject meta
   assert.equal(blockers[0]?.hasAuthoringContext, true);
 });
 
+test('dashboard release blockers still recover live subject names when recovered subject ids drift by case or whitespace', () => {
+  const blockers = getDashboardReleaseBlockers({
+    modules: [{
+      id: 'module-reading-drift',
+      title: 'Reading Drift Lane',
+      subjectId: ' legacy-reading ',
+      subjectName: '',
+      lessonCount: 2,
+      status: 'published',
+    } as CurriculumModule],
+    lessons: [
+      { id: 'lesson-1', title: 'Lesson 1', moduleId: 'module-reading-drift', subjectId: 'subject-reading', status: 'published', activityCount: 1 },
+    ] as Lesson[],
+    assessments: [] as Assessment[],
+    subjects: [{ id: '  SUBJECT-READING  ', name: 'Reading' }] as Subject[],
+  });
+
+  assert.equal(blockers.length, 1);
+  assert.equal(blockers[0]?.subjectId, 'legacy-reading');
+  assert.equal(blockers[0]?.subjectName, 'Reading');
+  assert.equal(blockers[0]?.hasAuthoringContext, false);
+});
+
 test('dashboard release blockers keep recoverable subject context when subject metadata feed is unavailable', () => {
   const blockers = getDashboardReleaseBlockers({
     modules: [{
