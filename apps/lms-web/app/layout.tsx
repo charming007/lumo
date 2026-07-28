@@ -4,7 +4,7 @@ import { ProductionConfigBanner } from '../components/production-config-banner';
 import { fetchMeta } from '../lib/api';
 import { getBuildSignature } from '../lib/build-signature';
 import { API_BASE_SOURCE } from '../lib/config';
-import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
+import { getPilotControlPlaneFlagMode, isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import type { MetaResponse } from '../lib/types';
 
 export const metadata = {
@@ -28,8 +28,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const buildSignature = getBuildSignature();
 
   const seedCount = Object.values(meta.seedSummary ?? {}).reduce((sum, count) => sum + count, 0);
+  const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
-  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production' && !pilotControlPlaneEnabled;
+  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production'
+    && pilotControlPlaneFlagMode !== 'disabled'
+    && !pilotControlPlaneEnabled;
 
   return (
     <html lang="en">
