@@ -2067,10 +2067,13 @@ class HomePage extends StatelessWidget {
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
     final ultraShortHeight = viewportHeight <= 640;
+    final hasAssignmentSyncWarnings =
+        state.assignedLessons.any(lessonRequiresSyncBeforeStarting);
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
         state.registrationBlockerReason != null ||
-        state.hasPendingLocalFallbackRegistration;
+        state.hasPendingLocalFallbackRegistration ||
+        hasAssignmentSyncWarnings;
     final forceTrustBannerOnUltraShort =
         state.deploymentBlockerReason != null ||
             state.backendError != null ||
