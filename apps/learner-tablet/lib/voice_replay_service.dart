@@ -6,47 +6,30 @@ import 'api_client.dart';
 import 'models.dart';
 
 class VoiceReplayService {
-  VoiceReplayService({
-    LumoApiClient? apiClient,
-    LumoApiClient Function(String baseUrl)? apiClientFactory,
-    @visibleForTesting bool enablePlatformAudio = true,
-  })  : _apiClient = apiClient ?? LumoApiClient(),
-        _apiClientFactory = apiClientFactory ??
-            ((baseUrl) => LumoApiClient(baseUrl: baseUrl)),
-        _enablePlatformAudio = enablePlatformAudio,
-        _tts = enablePlatformAudio ? FlutterTts() : null,
-        _remotePlayer = enablePlatformAudio ? AudioPlayer() : null {
-    if (_enablePlatformAudio) {
-      _configure();
-    }
+  VoiceReplayService({LumoApiClient? apiClient})
+      : _apiClient = apiClient ?? LumoApiClient() {
+    _configure();
   }
 
   final LumoApiClient _apiClient;
-  final LumoApiClient Function(String baseUrl) _apiClientFactory;
-  final bool _enablePlatformAudio;
-  final FlutterTts? _tts;
-  final AudioPlayer? _remotePlayer;
+  final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _remotePlayer = AudioPlayer();
   bool _configured = false;
 
   Future<void> _configure() async {
     if (_configured) return;
     _configured = true;
 
-    final tts = _tts;
-    final remotePlayer = _remotePlayer;
-    if (tts == null || remotePlayer == null) return;
-
-    await tts.setSpeechRate(kIsWeb ? 0.9 : 0.45);
-    await tts.setPitch(1.0);
-    await tts.awaitSpeakCompletion(true);
-    await remotePlayer.setReleaseMode(ReleaseMode.stop);
+    await _tts.setSpeechRate(kIsWeb ? 0.9 : 0.45);
+    await _tts.setPitch(1.0);
+    await _tts.awaitSpeakCompletion(true);
+    await _remotePlayer.setReleaseMode(ReleaseMode.stop);
   }
 
   Future<void> replay(
     String text,
     SpeakerMode mode, {
     String? supportLanguage,
-    String? baseUrl,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
@@ -54,10 +37,8 @@ class VoiceReplayService {
     await _configure();
     await stop();
 
-    final apiClient = _apiClientFor(baseUrl);
-
     try {
-      final clip = await apiClient.fetchTutorVoiceReplay(
+      final clip = await _apiClient.fetchTutorVoiceReplay(
         text: trimmed,
         mode: mode,
         supportLanguage: supportLanguage,
@@ -70,12 +51,9 @@ class VoiceReplayService {
       // Remote voice is best-effort for now. Local TTS stays the hard fallback.
     }
 
-    final tts = _tts;
-    if (tts == null) return;
-
-    await tts.setLanguage(_ttsLanguageFor(supportLanguage));
-    await tts.setVolume(_volumeFor(mode));
-    await tts.speak(trimmed);
+    await _tts.setLanguage(_ttsLanguageFor(supportLanguage));
+    await _tts.setVolume(_volumeFor(mode));
+    await _tts.speak(trimmed);
   }
 
   String _ttsLanguageFor(String? supportLanguage) {
@@ -85,34 +63,18 @@ class VoiceReplayService {
     return 'en-US';
   }
 
-  @visibleForTesting
-  LumoApiClient apiClientForBaseUrl(String? baseUrl) => _apiClientFor(baseUrl);
-
-  LumoApiClient _apiClientFor(String? baseUrl) {
-    final normalizedBaseUrl = baseUrl?.trim();
-    if (normalizedBaseUrl == null || normalizedBaseUrl.isEmpty) {
-      return _apiClient;
-    }
-    if (normalizedBaseUrl == _apiClient.baseUrl) {
-      return _apiClient;
-    }
-    return _apiClientFactory(normalizedBaseUrl);
-  }
-
   Future<void> _playRemoteClip(Uint8List bytes) async {
-    final remotePlayer = _remotePlayer;
-    if (remotePlayer == null) return;
-    await remotePlayer.play(BytesSource(bytes));
+    await _remotePlayer.play(BytesSource(bytes));
   }
 
   Future<void> stop() async {
-    await _remotePlayer?.stop();
-    await _tts?.stop();
+    await _remotePlayer.stop();
+    await _tts.stop();
   }
 
   Future<void> dispose() async {
     await stop();
-    await _remotePlayer?.dispose();
+    await _remotePlayer.dispose();
   }
 
   double _volumeFor(SpeakerMode mode) {

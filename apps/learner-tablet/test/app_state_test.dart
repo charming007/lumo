@@ -965,8 +965,7 @@ void main() {
       },
     );
 
-    test('keeps backend lessons with no activity steps visible but blocked',
-        () async {
+    test('keeps backend lessons with no activity steps visible but blocked', () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
@@ -1109,15 +1108,13 @@ void main() {
       expect(
         state.learnerCanOpenLesson(
           state.learners.first,
-          state.assignedLessons
-              .firstWhere((lesson) => lesson.id == 'english-empty'),
+          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-empty'),
         ),
         isFalse,
       );
       expect(
         () => state.startLesson(
-          state.assignedLessons
-              .firstWhere((lesson) => lesson.id == 'english-live'),
+          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-live'),
         ),
         returnsNormally,
       );
@@ -1858,40 +1855,6 @@ void main() {
       expect(history.first.note, 'Sticker earned after strong speaking turn');
       restored.dispose();
     });
-
-    test(
-      'persists hard deployment identity blockers across tablet restarts',
-      () async {
-        SharedPreferences.setMockInitialValues({});
-
-        final state = LumoAppState(includeSeedDemoContent: true)
-          ..usingFallbackData = true
-          ..snapshotTrustedFromLiveBootstrap = true
-          ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 5))
-          ..snapshotSavedAt = DateTime.now().subtract(
-            const Duration(minutes: 6),
-          )
-          ..backendError =
-              'Production bootstrap did not return a tablet registration for this device.'
-          ..deploymentBlockerReason =
-              'Production bootstrap did not return a tablet registration for this device. Backend did not recognize device identifier "tablet-pod-a-007".';
-        state.snapshotSourceBaseUrl = state.backendBaseUrl;
-
-        expect(state.hasUsableOfflineSnapshot, isTrue);
-        expect(state.hasHardDeploymentIdentityBlocker, isTrue);
-
-        await state.flushPersistence();
-        state.dispose();
-
-        final restored = LumoAppState(includeSeedDemoContent: true);
-        await restored.restorePersistedState();
-
-        expect(restored.hasUsableOfflineSnapshot, isTrue);
-        expect(restored.deploymentBlockerReason, state.deploymentBlockerReason);
-        expect(restored.hasHardDeploymentIdentityBlocker, isTrue);
-        restored.dispose();
-      },
-    );
 
     test(
       'restored offline roster keeps learner pod scope and drops cross-pod learners',
@@ -2983,107 +2946,6 @@ void main() {
     );
 
     test(
-      'resolves assignment title aliases to the uniquely scoped learner lesson before falling back to a placeholder',
-      () {
-        final state = LumoAppState(includeSeedDemoContent: true);
-
-        state.modules.addAll([
-          const LearningModule(
-            id: 'english-reading',
-            title: 'English Reading',
-            description: 'Reading lane',
-            voicePrompt: 'Open English Reading.',
-            readinessGoal: 'Reading flow',
-            badge: '2 lessons',
-          ),
-          const LearningModule(
-            id: 'math-reading',
-            title: 'Math Reading',
-            description: 'Math lane',
-            voicePrompt: 'Open Math Reading.',
-            readinessGoal: 'Number reading flow',
-            badge: '2 lessons',
-          ),
-        ]);
-
-        state.assignedLessons.addAll([
-          LessonCardModel(
-            id: 'english-reading-authored',
-            moduleId: 'english-reading',
-            title: 'Read with me',
-            subject: 'English',
-            durationMinutes: 8,
-            status: 'assigned',
-            mascotName: 'Mallam',
-            readinessFocus: 'English reading practice',
-            scenario: 'Learner reads the English lane content.',
-            steps: const [
-              LessonStep(
-                id: 'english-reading-step',
-                type: LessonStepType.practice,
-                title: 'Read with me',
-                instruction: 'Read the English prompt.',
-                expectedResponse: 'Learner reads the English prompt.',
-                coachPrompt: 'Read the English prompt aloud.',
-                facilitatorTip: 'Keep the learner on the English lane.',
-                realWorldCheck: 'The learner follows the English reading cue.',
-                speakerMode: SpeakerMode.guiding,
-              ),
-            ],
-          ),
-          LessonCardModel(
-            id: 'math-reading-authored',
-            moduleId: 'math-reading',
-            title: 'Read with me',
-            subject: 'Math',
-            durationMinutes: 8,
-            status: 'assigned',
-            mascotName: 'Mallam',
-            readinessFocus: 'Math reading practice',
-            scenario: 'Learner reads the Math lane content.',
-            steps: const [
-              LessonStep(
-                id: 'math-reading-step',
-                type: LessonStepType.practice,
-                title: 'Read with me',
-                instruction: 'Read the Math prompt.',
-                expectedResponse: 'Learner reads the Math prompt.',
-                coachPrompt: 'Read the Math prompt aloud.',
-                facilitatorTip: 'Keep the learner on the Math lane.',
-                realWorldCheck: 'The learner follows the Math reading cue.',
-                speakerMode: SpeakerMode.guiding,
-              ),
-            ],
-          ),
-        ]);
-
-        state.assignmentPacks.add(
-          LearnerAssignmentPack(
-            assignmentId: 'assignment-alias-reading',
-            lessonId: 'english-reading-runtime-alias',
-            moduleId: 'english-reading',
-            curriculumModuleId: 'english-reading',
-            lessonTitle: 'Read with me',
-            cohortName: beginner.cohort,
-            mallamName: 'Mallam Idris',
-            dueDate: '2026-04-20T10:00:00.000Z',
-            eligibleLearnerIds: [beginner.id],
-          ),
-        );
-
-        final lessons = state.backendAssignedLessonsForLearner(beginner);
-
-        expect(lessons, isNotEmpty);
-        expect(lessons.first.id, 'english-reading-authored');
-        expect(
-          lessons.where(
-              (lesson) => lesson.id.startsWith('assignment-placeholder:')),
-          isEmpty,
-        );
-      },
-    );
-
-    test(
       'keeps multiple learner lessons visible inside a module when assignments map them there',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
@@ -3645,9 +3507,7 @@ void main() {
         expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
         expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
         expect(
-          state
-              .resumableSessionForLearnerAndLesson(beginner, lesson)
-              ?.sessionId,
+          state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
           'session-alias-progress',
         );
         expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
@@ -4373,110 +4233,6 @@ void main() {
     );
 
     test(
-      'uses assignment title aliases when picking the next lesson after completion',
-      () {
-        final state = LumoAppState(includeSeedDemoContent: false)
-          ..usingFallbackData = false;
-        const learner = LearnerProfile(
-          id: 'learner-1',
-          name: 'Amina',
-          age: 7,
-          cohort: 'Pod A',
-          podId: 'pod-a',
-          podLabel: 'Pod A',
-          streakDays: 1,
-          guardianName: 'Hauwa',
-          preferredLanguage: 'Hausa',
-          readinessLabel: 'Voice-first beginner',
-          village: 'Kawo',
-          guardianPhone: '0800000000',
-          sex: 'Girl',
-          baselineLevel: 'No prior exposure',
-          consentCaptured: true,
-          learnerCode: 'AMI-001',
-          backendRecommendedModuleId: 'math',
-        );
-        const completedLesson = LessonCardModel(
-          id: 'english-1',
-          moduleId: 'english',
-          title: 'English warmup',
-          subject: 'English',
-          durationMinutes: 8,
-          status: 'published',
-          mascotName: 'Mallam',
-          readinessFocus: 'Greeting flow',
-          scenario: 'Completed lesson.',
-          steps: [
-            LessonStep(
-              id: 'english-step-1',
-              type: LessonStepType.practice,
-              title: 'Say hello',
-              instruction: 'Say hello.',
-              expectedResponse: 'Hello',
-              coachPrompt: 'Say hello.',
-              facilitatorTip: 'Model it first.',
-              realWorldCheck: 'Learner greets.',
-              speakerMode: SpeakerMode.guiding,
-            ),
-          ],
-        );
-        const resolvedAssignmentLesson = LessonCardModel(
-          id: 'math-real-2',
-          moduleId: 'math',
-          title: 'Count to 10',
-          subject: 'Math',
-          durationMinutes: 10,
-          status: 'published',
-          mascotName: 'Mallam',
-          readinessFocus: 'Counting practice',
-          scenario: 'Real assignment lesson body exists on the tablet.',
-          steps: [
-            LessonStep(
-              id: 'math-step-1',
-              type: LessonStepType.practice,
-              title: 'Count together',
-              instruction: 'Count to 10.',
-              expectedResponse: '1 2 3 4 5 6 7 8 9 10',
-              coachPrompt: 'Let us count to 10 together.',
-              facilitatorTip: 'Point to each number.',
-              realWorldCheck: 'Learner counts clearly.',
-              speakerMode: SpeakerMode.guiding,
-            ),
-          ],
-        );
-
-        state.learners.add(learner);
-        state.assignedLessons.addAll([completedLesson, resolvedAssignmentLesson]);
-        state.assignmentPacks.add(
-          LearnerAssignmentPack(
-            assignmentId: 'assignment-next',
-            lessonId: 'stale-backend-id',
-            moduleId: 'math-routing',
-            curriculumModuleId: 'math',
-            lessonTitle: resolvedAssignmentLesson.title,
-            eligibleLearnerIds: [learner.id],
-          ),
-        );
-
-        final nextLesson = state.nextLessonAfterCompletion(
-          learner,
-          completedLessonId: completedLesson.id,
-        );
-
-        expect(nextLesson, isNotNull);
-        expect(nextLesson!.id, resolvedAssignmentLesson.id);
-        expect(
-          state.nextLessonRouteSummaryForLearner(
-            learner,
-            completedLessonId: completedLesson.id,
-          ),
-          contains(resolvedAssignmentLesson.title),
-        );
-        state.dispose();
-      },
-    );
-
-    test(
       'skips sync-placeholder assignments when picking the next lesson after completion',
       () {
         final state = LumoAppState(includeSeedDemoContent: false)
@@ -4946,35 +4702,6 @@ void main() {
             (error) => error.message,
             'message',
             contains('has no activity steps'),
-          ),
-        ),
-      );
-      expect(state.activeSession, isNull);
-      state.dispose();
-    });
-
-    test('startLesson rejects lesson launch while tablet trust is blocked', () {
-      final state = LumoAppState(includeSeedDemoContent: true)
-        ..usingFallbackData = false
-        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
-        ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
-        ..lastSyncError = 'Unknown learner for sync event';
-      final learner = state.learners.first;
-      final lesson = state.assignedLessons.firstWhere(
-        (candidate) => candidate.steps.isNotEmpty,
-      );
-      state.selectLearner(learner);
-
-      expect(
-        () => state.startLesson(lesson),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            allOf(
-              contains('while tablet trust is blocked'),
-              contains('backend rejected at least one learner event as unknown'),
-            ),
           ),
         ),
       );

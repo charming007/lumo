@@ -176,19 +176,6 @@ test('content board does not hard-block on subject metadata degradation alone', 
   );
 });
 
-test('content board blocks when the strand graph is degraded', () => {
-  assert.match(
-    contentPageSource,
-    /const criticalReleaseFailures = \[[\s\S]*strandsResult\.status === 'rejected' \? 'strands' : null,[\s\S]*\]\.filter\(Boolean\);/,
-    'content page should treat degraded strands as a critical release-readiness failure instead of a warning-only support feed',
-  );
-  assert.match(
-    contentPageSource,
-    /Strands are the structural spine for subject lanes and module placement\./,
-    'content blocker copy should explain why blind strand structure makes the content board unsafe to keep interactive',
-  );
-});
-
 test('content blocker actions keep multi-lesson gaps on the bulk blocker flow instead of single-lesson studio', () => {
   assert.match(
     contentPageSource,

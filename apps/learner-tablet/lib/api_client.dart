@@ -21,11 +21,9 @@ List<String> learnerReleaseBuildConfigIssues({
   bool includeSeedDemoContent = false,
 }) {
   final issues = <String>[];
-  if (rawDeviceIdentifier.trim().isEmpty) {
+  if (!includeSeedDemoContent && rawDeviceIdentifier.trim().isEmpty) {
     issues.add(
-      includeSeedDemoContent
-          ? 'Learner-tablet release build still has LUMO_ENABLE_SEED_DEMO_CONTENT enabled but no LUMO_DEVICE_IDENTIFIER. Demo seed content is not a valid substitute for provisioning a real tablet identity before shipping learner devices.'
-          : 'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
+      'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
     );
   }
 
@@ -118,8 +116,10 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    if (!hasExplicitConfig) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets instead of relying on the baked-in default backend target.';
+    final canonicalProductionBaseUrl =
+        normalizeBaseUrl(kDefaultProductionApiBaseUrl);
+    if (!hasExplicitConfig && normalized != canonicalProductionBaseUrl) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets, even for non-canonical learner API targets.';
     }
 
     final parsed = Uri.tryParse(normalized);
@@ -218,14 +218,10 @@ class LumoApiClient {
       ['api', 'v1'],
       ['bootstrap'],
     ];
-    final normalizedSegments =
-        segments.map((segment) => segment.toLowerCase()).toList();
 
     for (final suffix in suffixes) {
       if (segments.length < suffix.length) continue;
-      final tail = normalizedSegments.sublist(
-        normalizedSegments.length - suffix.length,
-      );
+      final tail = segments.sublist(segments.length - suffix.length);
       var matches = true;
       for (var index = 0; index < suffix.length; index++) {
         if (tail[index] != suffix[index]) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 const defaultTriggerStyle: CSSProperties = {
@@ -35,7 +35,6 @@ export function ModalLauncher({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const modalTitleId = useId();
   const routeSignature = useMemo(() => {
     const safePathname = pathname || '';
     const query = searchParams?.toString() ?? '';
@@ -94,7 +93,7 @@ export function ModalLauncher({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby={modalTitleId}
+        aria-labelledby="modal-launcher-title"
         className="modal-launcher__dialog"
         style={{
           width: 'min(920px, calc(100vw - 32px))',
@@ -113,7 +112,7 @@ export function ModalLauncher({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'flex-start', marginBottom: 22 }}>
           <div style={{ minWidth: 0, display: 'grid', gap: 8 }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.2, color: '#8a94a6', fontWeight: 850 }}>{eyebrow}</div>
-            <h2 id={modalTitleId} style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 32px)', color: '#0f172a', lineHeight: 1.05, fontWeight: 900 }}>{title}</h2>
+            <h2 id="modal-launcher-title" style={{ margin: 0, fontSize: 'clamp(24px, 3vw, 32px)', color: '#0f172a', lineHeight: 1.05, fontWeight: 900 }}>{title}</h2>
             {description ? <p style={{ margin: 0, color: '#64748b', lineHeight: 1.65, maxWidth: 620 }}>{description}</p> : null}
           </div>
           <button
