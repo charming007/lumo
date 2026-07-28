@@ -9,21 +9,21 @@ const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../com
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
-test('dashboard hard-blocks when the subject feed is degraded', () => {
-  assert.match(
+test('dashboard degrades gracefully when only the subject feed is unavailable', () => {
+  assert.doesNotMatch(
     dashboardPageSource,
     /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
-    'subject feed degradation should count as a critical dashboard release blocker because blocker triage and authoring scope depend on live subject context',
+    'subject feed degradation alone should not count as a critical dashboard release blocker',
   );
   assert.match(
     dashboardPageSource,
-    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled' && subjectsResult\.status === 'fulfilled';/,
-    'dashboard release snapshot should only be treated as live when the subject feed is also available',
+    /releaseFeedsAvailable = modulesResult\.status === 'fulfilled' && lessonsResult\.status === 'fulfilled' && assessmentsResult\.status === 'fulfilled';/,
+    'dashboard release snapshot should stay live when the core release feeds are healthy even if subject metadata is degraded',
   );
   assert.match(
     dashboardPageSource,
-    /subject context can drift just enough to turn blocker CTAs into confident nonsense\./,
-    'dashboard blocker copy should explain why missing subjects is a release-trust failure, not a harmless metadata warning',
+    /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
+    'dashboard should explain the degraded-but-usable subject-metadata recovery path instead of hard-blocking it out of existence',
   );
 });
 
