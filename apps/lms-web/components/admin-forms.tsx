@@ -33,6 +33,7 @@ import {
 import type { Assessment, Center, Cohort, CurriculumModule, Lesson, LocalGovernment, Mallam, Pod, State, Strand, Student, Subject } from '../lib/types';
 import { ActionButton } from './action-button';
 import { CreateAssessmentFormClient } from './create-assessment-form';
+import { UpdateAssessmentFormClient, UpdateLessonFormClient, UpdateModuleFormClient } from './admin-update-forms-client';
 import { cohortGeographyLabel, mallamGeographyLabel, podGeographyLabel } from '../lib/geography';
 import { MallamGeographySelectors, PodGeographySelectors, StudentGeographySelectors } from './geo-scoped-selects';
 
@@ -574,23 +575,7 @@ export function CreateModuleForm({ strands, initialStrandId, initialTitle, initi
 }
 
 export function UpdateModuleForm({ modules, returnPath }: { modules: CurriculumModule[]; returnPath?: string }) {
-  const module = modules[0];
-
-  return (
-    <form action={updateModuleAction} style={cardStyle}>
-      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
-      <h2 style={{ margin: 0 }}>Update module</h2>
-      <SectionHint>Pick the exact module to edit. No more “first row wins” nonsense.</SectionHint>
-      <FieldLabel>Module<select name="moduleId" defaultValue={module?.id ?? ''} style={inputStyle}>{modules.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.strandName} • {item.title}</option>)}</select></FieldLabel>
-      <FieldLabel>Title<input name="title" defaultValue={module?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <LifecycleStatusField name="status" value={normalizeModuleLifecycleStatus(module?.status)} options={[...MODULE_LIFECYCLE_OPTIONS]} entityLabel="module" />
-      <div style={twoColumnGrid}>
-        <FieldLabel>Lesson count<input name="lessonCount" type="number" min="1" defaultValue={String(module?.lessonCount ?? 1)} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Level<select name="level" defaultValue={module?.level ?? 'beginner'} style={inputStyle}><option value="beginner">Beginner</option><option value="emerging">Emerging</option><option value="confident">Confident</option></select></FieldLabel>
-      </div>
-      <ActionButton label="Save module changes" pendingLabel="Saving module…" style={buttonStyle} />
-    </form>
-  );
+  return <UpdateModuleFormClient modules={modules} returnPath={returnPath} />;
 }
 
 export function DeleteModuleForm({ modules, returnPath }: { modules: CurriculumModule[]; returnPath?: string }) {
@@ -625,22 +610,7 @@ export function CreateLessonForm({ modules }: { modules: CurriculumModule[] }) {
 }
 
 export function UpdateLessonForm({ lessons, returnPath }: { lessons: Lesson[]; returnPath?: string }) {
-  const lesson = lessons[0];
-
-  return (
-    <form action={updateLessonAction} style={cardStyle}>
-      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
-      <h2 style={{ margin: 0 }}>Update lesson</h2>
-      <SectionHint>Pick the exact lesson to move through draft, review, approved, or published states.</SectionHint>
-      <FieldLabel>Lesson<select name="lessonId" defaultValue={lesson?.id ?? ''} style={inputStyle}>{lessons.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
-      <LifecycleStatusField name="status" value={lesson?.status ?? 'draft'} options={LESSON_LIFECYCLE_OPTIONS} entityLabel="lesson" />
-      <div style={twoColumnGrid}>
-        <FieldLabel>Mode<select name="mode" defaultValue={lesson?.mode ?? 'guided'} style={inputStyle}><option value="guided">Guided</option><option value="group">Group</option><option value="independent">Independent</option><option value="practice">Practice</option></select></FieldLabel>
-        <FieldLabel>Duration (min)<input name="durationMinutes" type="number" min="1" defaultValue={String(lesson?.durationMinutes ?? 8)} style={inputStyle} /></FieldLabel>
-      </div>
-      <ActionButton label="Save lesson changes" pendingLabel="Saving lesson…" style={buttonStyle} />
-    </form>
-  );
+  return <UpdateLessonFormClient lessons={lessons} returnPath={returnPath} />;
 }
 
 export function DeleteLessonForm({ lessons, returnPath }: { lessons: Lesson[]; returnPath?: string }) {
@@ -662,28 +632,7 @@ export function CreateAssessmentForm({ modules, subjects, returnPath }: { module
 }
 
 export function UpdateAssessmentForm({ assessments, returnPath }: { assessments: Assessment[]; returnPath?: string }) {
-  const assessment = assessments[0];
-
-  return (
-    <form action={updateAssessmentAction} style={cardStyle}>
-      <input type="hidden" name="returnPath" value={returnPath ?? '/content'} />
-      <h2 style={{ margin: 0 }}>Update assessment gate</h2>
-      <SectionHint>Target the exact assessment gate instead of silently editing the first one in the list.</SectionHint>
-      <FieldLabel>Assessment<select name="assessmentId" defaultValue={assessment?.id ?? ''} style={inputStyle}>{assessments.map((item) => <option key={item.id} value={item.id}>{item.subjectName} • {item.moduleTitle} • {item.title}</option>)}</select></FieldLabel>
-      <FieldLabel>Assessment title<input name="title" defaultValue={assessment?.title ?? ''} style={inputStyle} /></FieldLabel>
-      <div style={twoColumnGrid}>
-        <FieldLabel>Kind<select name="kind" defaultValue={assessment?.kind ?? 'automatic'} style={inputStyle}><option value="automatic">Automatic</option><option value="manual">Manual</option></select></FieldLabel>
-        <FieldLabel>Trigger<select name="trigger" defaultValue={assessment?.trigger ?? 'module-complete'} style={inputStyle}><option value="module-complete">After module complete</option><option value="lesson-cluster">After lesson cluster</option><option value="mallam-review">Mallam review</option></select></FieldLabel>
-      </div>
-      <FieldLabel>Trigger label<input name="triggerLabel" defaultValue={assessment?.triggerLabel ?? ''} style={inputStyle} /></FieldLabel>
-      <div style={threeColumnGrid}>
-        <FieldLabel>Progression gate<input name="progressionGate" defaultValue={assessment?.progressionGate ?? ''} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Passing score<input name="passingScore" type="number" min="0" max="1" step="0.01" defaultValue={String(assessment?.passingScore ?? 0.7)} style={inputStyle} /></FieldLabel>
-        <FieldLabel>Status<select name="status" defaultValue={assessment?.status ?? 'draft'} style={inputStyle}><option value="draft">Draft</option><option value="active">Active</option><option value="retired">Retired</option></select></FieldLabel>
-      </div>
-      <ActionButton label="Save assessment changes" pendingLabel="Saving assessment…" style={buttonStyle} />
-    </form>
-  );
+  return <UpdateAssessmentFormClient assessments={assessments} returnPath={returnPath} />;
 }
 
 export function DeleteAssessmentForm({ assessments, returnPath }: { assessments: Assessment[]; returnPath?: string }) {
