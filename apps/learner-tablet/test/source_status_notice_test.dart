@@ -207,6 +207,54 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'sync-incomplete assigned lessons keep the trust banner visible instead of the healthy freshness banner',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = false
+      ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+      ..lastSyncAttemptAt = DateTime.now().subtract(const Duration(minutes: 1))
+      ..assignedLessons
+          .add(
+            const LessonCardModel(
+              id: 'english-shell',
+              moduleId: 'english',
+              title: 'Greeting lesson shell',
+              subject: 'English',
+              durationMinutes: 8,
+              status: 'published',
+              mascotName: 'Mallam',
+              readinessFocus: 'Greeting flow',
+              scenario: 'Published lesson shell before steps sync.',
+              steps: [],
+            ),
+          );
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Sync freshness'), findsNothing);
+    expect(find.text('Refresh sync'), findsOneWidget);
+    expect(
+      find.textContaining('1 assigned lesson is still sync-incomplete'),
+      findsWidgets,
+    );
+    expect(tester.takeException(), isNull);
+  });
   test(
       'placeholder assignments never advertise a learner as ready before lesson sync lands',
       () {
