@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { checkpointStorageAction, deleteStorageBackupAction, repairStorageIntegrityAction, restoreStorageBackupAction } from '../actions';
-import { ActionButton } from '../../components/action-button';
 import { DeploymentBlockerCard } from '../../components/deployment-blocker-card';
 import { ExportShareCard } from '../../components/export-share-card';
 import { FeedbackBanner } from '../../components/feedback-banner';
+import { StorageDangerActionLauncher } from '../../components/storage-danger-action-launcher';
 import { fetchAssetRuntime, fetchLocalGovernments, fetchMeta, fetchOperationsReport, fetchRewardsLeaderboard, fetchRewardsReport, fetchStates, fetchStorageBackups, fetchStorageIntegrity, fetchStorageStatus, fetchWorkboard, isProtectedEndpointAuthFailure } from '../../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../../lib/config';
 import { Card, MetricList, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
@@ -838,11 +838,34 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                 Create storage checkpoint
               </button>
             </form>
-            <form action={repairStorageIntegrityAction}>
-              <button type="submit" style={{ background: integrity.summary.issueCount ? '#B91C1C' : '#0f172a', color: 'white', border: 0, borderRadius: 12, padding: '12px 16px', fontWeight: 700, width: '100%' }}>
-                {integrity.summary.issueCount ? 'Repair integrity issues now' : 'Run safe integrity cleanup'}
-              </button>
-            </form>
+            <StorageDangerActionLauncher
+              action={repairStorageIntegrityAction}
+              actionLabel={integrity.summary.issueCount ? 'Run production integrity repair' : 'Run production integrity cleanup'}
+              pendingLabel={integrity.summary.issueCount ? 'Running integrity repair…' : 'Running integrity cleanup…'}
+              triggerLabel={visibleBackups.length ? (integrity.summary.issueCount ? 'Repair integrity issues now' : 'Run safe integrity cleanup') : 'Create checkpoint before repair'}
+              triggerStyle={{
+                background: visibleBackups.length ? (integrity.summary.issueCount ? '#B91C1C' : '#0f172a') : '#CBD5E1',
+                color: 'white',
+                border: 0,
+                borderRadius: 12,
+                padding: '12px 16px',
+                fontWeight: 700,
+                width: '100%',
+                boxShadow: 'none',
+              }}
+              title="Confirm storage integrity repair"
+              description="This action can mutate live learner, reward, and runtime records. If you are not sure why you are running it, back out and create or verify a checkpoint first."
+              expectedText="REPAIR"
+              acknowledgementLabel="I understand this repair runs against the live persistence layer and should only happen after I verify the checkpoint state and impact." 
+              impactSummary={visibleBackups.length
+                ? `This repair will run against the live storage dataset with ${integrity.summary.issueCount} issue${integrity.summary.issueCount === 1 ? '' : 's'} currently reported and ${visibleBackups.length} visible checkpoint${visibleBackups.length === 1 ? '' : 's'} available for rollback context.`
+                : 'This repair would run against live storage with no visible restorable checkpoint in the current audit feed. That is exactly how a cleanup turns into a rollback horror story.'}
+              impactNote={visibleBackups.length
+                ? 'Typed confirmation is mandatory because this is not normal admin housekeeping. It can rewrite live state across the learner and rewards surfaces.'
+                : 'Repair is intentionally locked until you create a checkpoint from this page. No backup, no heroics.'}
+              dangerBadge="Production danger"
+              disabled={!visibleBackups.length}
+            />
           </div>
         </Card>
 
@@ -870,14 +893,38 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Pr
                       <Pill label="Backup" tone="#EEF2FF" text="#3730A3" />
                     </div>
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      <form action={restoreStorageBackupAction}>
+                      <StorageDangerActionLauncher
+                        action={restoreStorageBackupAction}
+                        actionLabel="Restore backup into live storage"
+                        pendingLabel="Restoring backup…"
+                        triggerLabel="Restore backup"
+                        triggerStyle={{ background: '#0f172a', color: 'white', border: 0, borderRadius: 12, padding: '10px 12px', fontWeight: 700, boxShadow: 'none' }}
+                        title="Confirm backup restore"
+                        description="Restoring the wrong checkpoint can overwrite live learner progress, rewards state, and runtime history. Make sure the path below is the one you actually intend to roll back to."
+                        expectedText={backup.path}
+                        acknowledgementLabel="I understand this restore can roll the live admin dataset backward and may overwrite newer learner, rewards, or runtime state."
+                        impactSummary={`This will restore the live storage dataset from ${backup.path}. Updated ${formatDateTime(backup.updatedAt)} with ${(backup.sizeBytes ?? 0).toLocaleString('en-US')} bytes in the checkpoint.`}
+                        impactNote="The exact backup path must be typed before restore unlocks. Close enough does not count when rollback is on the line."
+                        dangerBadge="Production restore"
+                      >
                         <input type="hidden" name="backupPath" value={backup.path} />
-                        <ActionButton label="Restore backup" pendingLabel="Restoring backup…" style={{ background: '#0f172a', color: 'white', border: 0, borderRadius: 12, padding: '10px 12px', fontWeight: 700 }} />
-                      </form>
-                      <form action={deleteStorageBackupAction}>
+                      </StorageDangerActionLauncher>
+                      <StorageDangerActionLauncher
+                        action={deleteStorageBackupAction}
+                        actionLabel="Delete backup permanently"
+                        pendingLabel="Deleting backup…"
+                        triggerLabel="Delete backup"
+                        triggerStyle={{ border: '1px solid #fecaca', background: '#FEF2F2', color: '#B91C1C', borderRadius: 12, padding: '10px 12px', fontWeight: 700, boxShadow: 'none' }}
+                        title="Confirm backup deletion"
+                        description="Deleting a checkpoint removes one of the few recovery paths this admin surface can see. If the path is wrong, you do not get a polite undo button afterward."
+                        expectedText={backup.path}
+                        acknowledgementLabel="I understand this permanently removes the checkpoint from the live recovery inventory visible to operators on this stack."
+                        impactSummary={`This will permanently delete the checkpoint at ${backup.path}. Updated ${formatDateTime(backup.updatedAt)} with ${(backup.sizeBytes ?? 0).toLocaleString('en-US')} bytes currently recoverable from this backup.`}
+                        impactNote="Type the full backup path exactly before delete unlocks. This is deliberate friction, not decoration."
+                        dangerBadge="Production delete"
+                      >
                         <input type="hidden" name="backupPath" value={backup.path} />
-                        <ActionButton label="Delete backup" pendingLabel="Deleting backup…" style={{ border: '1px solid #fecaca', background: '#FEF2F2', color: '#B91C1C', borderRadius: 12, padding: '10px 12px', fontWeight: 700 }} />
-                      </form>
+                      </StorageDangerActionLauncher>
                     </div>
                   </div>
                 ))}

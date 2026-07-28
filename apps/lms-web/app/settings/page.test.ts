@@ -33,3 +33,13 @@ test('settings route normalizes progression status before computing ops counts a
   assert.match(settingsPageSource, /<Pill key=\{item\.learnerId\} label=\{formatProgressionStatusLabel\(progressionStatus\)\} tone=\{pillTone\} text=\{pillText\} \/>/);
   assert.doesNotMatch(settingsPageSource, /workboard\.filter\(\(item\) => item\.progressionStatus === 'ready'\)|workboard\.filter\(\(item\) => item\.progressionStatus === 'watch'\)/);
 });
+
+test('settings route wraps storage restore, delete, and repair in production-danger confirmation flows', () => {
+  assert.match(settingsPageSource, /import \{ StorageDangerActionLauncher \} from '\.\.\/\.\.\/components\/storage-danger-action-launcher';/);
+  assert.match(settingsPageSource, /expectedText="REPAIR"/);
+  assert.match(settingsPageSource, /disabled=\{!visibleBackups\.length\}/);
+  assert.match(settingsPageSource, /expectedText=\{backup\.path\}/);
+  assert.match(settingsPageSource, /The exact backup path must be typed before restore unlocks\./);
+  assert.match(settingsPageSource, /Type the full backup path exactly before delete unlocks\./);
+  assert.match(settingsPageSource, /Create checkpoint before repair/);
+});
