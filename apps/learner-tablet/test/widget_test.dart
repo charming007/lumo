@@ -264,7 +264,8 @@ void main() {
     );
     expect(
       command,
-      contains('cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
+      contains(
+          'cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
     );
     expect(command, isNot(contains('--no-wasm-dry-run')));
 
