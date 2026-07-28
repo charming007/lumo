@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
-const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
+const globalErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
@@ -27,11 +27,11 @@ test('dashboard hard-blocks when the subject feed is degraded', () => {
   );
 });
 
-test('dashboard mirrors the shared shell clamp and stays in the pilot route map throughout production', () => {
+test('dashboard mirrors the shared shell clamp and keeps the pilot route map as the default production fallback only when pilot mode is not explicitly disabled', () => {
   assert.match(
     dashboardPageSource,
-    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| process\.env\.NODE_ENV === 'production';/,
-    'dashboard should mirror the shared shell clamp so production defaults to the pilot-safe route map even if the raw override flag is off',
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| \(process\.env\.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled'\);/,
+    'dashboard should only keep the production pilot-safe route clamp while the pilot mode is still on its default production behavior',
   );
   assert.doesNotMatch(
     dashboardPageSource,
@@ -48,13 +48,18 @@ test('dashboard mirrors the shared shell clamp and stays in the pilot route map 
 test('dashboard keeps the pilot route map as the production-safe default and leaves the full LMS shell for explicit override', () => {
   assert.match(
     dashboardPageSource,
+    /const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode\(\);/,
+    'dashboard should read the raw pilot-control-plane flag mode before deciding whether production still needs the pilot-safe clamp',
+  );
+  assert.match(
+    dashboardPageSource,
     /const pilotControlPlaneEnabled = isPilotControlPlaneEnabled\(\);/,
     'dashboard should still derive shell mode from the shared pilot control-plane helper',
   );
   assert.match(
     dashboardPageSource,
-    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| process\.env\.NODE_ENV === 'production';/,
-    'dashboard should clamp its route-map state the same way the shared shell clamps production back to the pilot-safe workspace',
+    /const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled \|\| \(process\.env\.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled'\);/,
+    'dashboard should clamp its route-map state the same way the shared shell clamps production back to the pilot-safe workspace unless the env explicitly disables pilot mode',
   );
   assert.match(
     dashboardPageSource,
@@ -784,6 +789,16 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHandoffSource,
     /--dart-define=LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
     'learner release build command should pass the device identifier through Flutter dart-define',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? ' \\\\' : ''/,
+    'learner web release handoff should keep the final dart-define line open for the web-only wrapper flag',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /buildTarget === 'web' \? \['    --no-wasm-dry-run'\] : \[\]/,
+    'learner web release handoff should include the web-only no-wasm dry-run guard required by the release wrapper',
   );
   assert.match(
     deviceDeploymentHandoffSource,

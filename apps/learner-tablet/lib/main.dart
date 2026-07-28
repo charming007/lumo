@@ -63,7 +63,12 @@ class _LumoAppState extends State<LumoApp> {
   void initState() {
     super.initState();
     state.attachVoiceReplay(
-      voiceReplayService.replay,
+      (text, mode, {supportLanguage}) => voiceReplayService.replay(
+        text,
+        mode,
+        supportLanguage: supportLanguage,
+        baseUrl: state.backendBaseUrl,
+      ),
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
@@ -6875,111 +6880,111 @@ class RegistrationSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recommendedModule = state.recommendedModuleForLearner(learner);
+    final nextLesson = state.nextAssignedLessonForLearner(learner);
+    final canStartAssignedLesson =
+        nextLesson != null && !lessonRequiresSyncBeforeStarting(nextLesson);
+
+    void openRecommendedDestination() {
+      state.selectLearner(learner);
+      state.selectModule(recommendedModule);
+      onChanged();
+      if (canStartAssignedLesson) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => LessonLaunchSetupPage(
+              state: state,
+              onChanged: onChanged,
+              lesson: nextLesson,
+              module: recommendedModule,
+            ),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => SubjectModulesPage(
+            state: state,
+            onChanged: onChanged,
+            module: recommendedModule,
+          ),
+        ),
+      );
+    }
+
+    final actionRow = _ResponsiveButtonRow(
+      primary: FilledButton(
+        onPressed: openRecommendedDestination,
+        child: Text(
+          canStartAssignedLesson ? 'Start assigned lesson' : 'Open subject',
+        ),
+      ),
+      secondary: OutlinedButton(
+        onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+        child: const Text('Back home'),
+      ),
+    );
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: DetailCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(0xFFDCFCE7),
-                      child: Icon(
-                        Icons.person_add_alt_1_rounded,
-                        color: Colors.green,
-                        size: 42,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      '${learner.name} is ready for Lumo.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Profile posted to the backend and added to the learner list.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    state.hasCriticalSyncTrustBlocker
-                        ? _BackendStatusBanner(state: state)
-                        : _CompactBackendStatusBanner(state: state),
-                    const SizedBox(height: 20),
-                    LabelValueWrap(
-                      items: [
-                        ('Learner', learner.name),
-                        ('Language', learner.preferredLanguage),
-                        ('Readiness', learner.readinessLabel),
-                        ('Learner code', learner.learnerCode),
-                        ('Recommended start', recommendedModule.title),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _ResponsiveButtonRow(
-                      primary: FilledButton(
-                        onPressed: () {
-                          final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
-                          );
-                          state.selectLearner(learner);
-                          state.selectModule(recommendedModule);
-                          onChanged();
-                          if (nextLesson != null &&
-                              !lessonRequiresSyncBeforeStarting(nextLesson)) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => LessonLaunchSetupPage(
-                                  state: state,
-                                  onChanged: onChanged,
-                                  lesson: nextLesson,
-                                  module: recommendedModule,
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => SubjectModulesPage(
-                                state: state,
-                                onChanged: onChanged,
-                                module: recommendedModule,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: DetailCard(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Color(0xFFDCFCE7),
+                              child: Icon(
+                                Icons.person_add_alt_1_rounded,
+                                color: Colors.green,
+                                size: 42,
                               ),
                             ),
-                          );
-                        },
-                        child: Text(() {
-                          final nextLesson = state.nextAssignedLessonForLearner(
-                            learner,
-                          );
-                          if (nextLesson == null) {
-                            return 'Open subject';
-                          }
-                          if (lessonRequiresSyncBeforeStarting(nextLesson)) {
-                            return 'Open subject';
-                          }
-                          return 'Start assigned lesson';
-                        }()),
-                      ),
-                      secondary: OutlinedButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).popUntil((route) => route.isFirst),
-                        child: const Text('Back home'),
+                            const SizedBox(height: 18),
+                            Text(
+                              '${learner.name} is ready for Lumo.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Profile posted to the backend and added to the learner list.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            state.hasCriticalSyncTrustBlocker
+                                ? _BackendStatusBanner(state: state)
+                                : _CompactBackendStatusBanner(state: state),
+                            const SizedBox(height: 20),
+                            LabelValueWrap(
+                              items: [
+                                ('Learner', learner.name),
+                                ('Language', learner.preferredLanguage),
+                                ('Readiness', learner.readinessLabel),
+                                ('Learner code', learner.learnerCode),
+                                ('Recommended start', recommendedModule.title),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 16),
+                  actionRow,
+                ],
               ),
             ),
           ),

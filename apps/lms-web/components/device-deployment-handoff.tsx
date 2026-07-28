@@ -118,7 +118,8 @@ function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTar
     '  dart run tool/build_release.dart \\',
     `    --release-target=${shellEscape(buildTarget)} \\`,
     `    --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
-    `    --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
+    `    --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}${buildTarget === 'web' ? ' \\' : ''}`,
+    ...(buildTarget === 'web' ? ['    --no-wasm-dry-run'] : []),
   ].join('\n');
 }
 

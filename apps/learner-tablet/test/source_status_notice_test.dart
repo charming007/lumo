@@ -1134,4 +1134,93 @@ void main() {
       'Sync required before starting',
     );
   });
+
+  testWidgets(
+      'registration success keeps the action row visible on short tablets',
+      (tester) async {
+    tester.view.physicalSize = const Size(768, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false);
+    addTearDown(state.dispose);
+
+    const learner = LearnerProfile(
+      id: 'learner-1',
+      name: 'Amina Bello',
+      age: 7,
+      cohort: 'Alpha',
+      streakDays: 1,
+      guardianName: 'Zainab',
+      preferredLanguage: 'Hausa',
+      readinessLabel: 'Voice-first beginner',
+      village: 'Kawo',
+      guardianPhone: '0800000000',
+      sex: 'Girl',
+      baselineLevel: 'No prior exposure',
+      consentCaptured: true,
+      learnerCode: 'AMI-001',
+    );
+    const lesson = LessonCardModel(
+      id: 'english-live',
+      moduleId: 'english',
+      title: 'Greetings with Mallam',
+      subject: 'English',
+      durationMinutes: 8,
+      status: 'published',
+      mascotName: 'Mallam',
+      readinessFocus: 'Greeting flow',
+      scenario: 'Ready to launch after registration.',
+      steps: [
+        LessonStep(
+          id: 'step-1',
+          type: LessonStepType.practice,
+          title: 'Say hello',
+          instruction: 'Say hello.',
+          expectedResponse: 'Hello',
+          coachPrompt: 'Say hello.',
+          facilitatorTip: 'Keep it warm.',
+          realWorldCheck: 'Learner greets.',
+          speakerMode: SpeakerMode.guiding,
+        ),
+      ],
+    );
+
+    state.modules.add(
+      const LearningModule(
+        id: 'english',
+        title: 'English',
+        description: 'English path',
+        voicePrompt: 'Open English.',
+        readinessGoal: 'Greeting flow',
+        badge: '1 lesson',
+      ),
+    );
+    state.learners.add(learner);
+    state.assignedLessons.add(lesson);
+    state.assignmentPacks.add(
+      LearnerAssignmentPack(
+        assignmentId: 'assignment-live',
+        lessonId: lesson.id,
+        moduleId: lesson.moduleId,
+        lessonTitle: lesson.title,
+        eligibleLearnerIds: const ['learner-1'],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RegistrationSuccessPage(
+          state: state,
+          learner: learner,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, 'Start assigned lesson'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Back home'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

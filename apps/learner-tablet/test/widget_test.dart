@@ -2811,8 +2811,7 @@ void main() {
       await pumpForUi(tester);
 
       expect(find.text('Pilot trust blocker'), findsOneWidget);
-      expect(
-          find.text('Backend connected • sync trust blocked'), findsOneWidget);
+      expect(find.text('Backend connected • sync trust blocked'), findsOneWidget);
       expect(find.text('Authoritative vs local handoff'), findsOneWidget);
       expect(find.text('Runtime sync feedback'), findsOneWidget);
       expect(
