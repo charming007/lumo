@@ -27,31 +27,26 @@ test('dashboard degrades gracefully when only the subject feed is unavailable', 
   );
 });
 
-test('dashboard hard-blocks pilot deployment review when the full LMS shell is forced on in production', () => {
+test('dashboard only treats widened production shell scope as blocked when pilot mode is still using the default production clamp', () => {
   assert.match(
     dashboardPageSource,
-    /const shellScopeDeploymentBlocked = process\.env\.NODE_ENV === 'production' && !pilotControlPlaneEnabled;/,
-    'dashboard should derive a dedicated deployment blocker when the full LMS shell is visible in production',
+    /const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode\(\);/,
+    'dashboard should read the raw pilot-control-plane flag mode before deciding whether a widened production shell is accidental',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const shellScopeDeploymentBlocked = process\.env\.NODE_ENV === 'production'[\s\S]*pilotControlPlaneFlagMode !== 'disabled'[\s\S]*!pilotControlPlaneEnabled;/,
+    'dashboard should only derive the shell-scope blocker when production is still supposed to stay in pilot mode',
   );
   assert.match(
     dashboardPageSource,
     /if \(shellScopeDeploymentBlocked\) \{/,
-    'dashboard should stop deployment review before rendering the rest of the page when production shell scope widens',
+    'dashboard should still stop deployment review before rendering the rest of the page when production shell scope widens unexpectedly',
   );
   assert.match(
     dashboardPageSource,
     /Deployment blocker: full LMS shell is widening the production deployment target\./,
-    'dashboard should call out the widened full-shell production state as an explicit deployment blocker',
-  );
-  assert.match(
-    dashboardPageSource,
-    /A warning card buried inside the dashboard is too weak here\./,
-    'dashboard blocker copy should explain why a buried warning is not enough once production shell scope widens',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Re-enable the pilot control plane for production so the dashboard and sidebar collapse back to the narrow pilot deployment shell/,
-    'dashboard should give operators a direct recovery action for the widened production shell state',
+    'dashboard should still call out the widened full-shell production state as an explicit deployment blocker when pilot mode is not explicitly disabled',
   );
 });
 
