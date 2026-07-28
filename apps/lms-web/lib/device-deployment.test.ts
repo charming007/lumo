@@ -54,3 +54,19 @@ test('rollout readiness exposes duplicate active device identifiers for dashboar
     [true, true],
   );
 });
+
+test('rollout readiness blocks tablets whose platform cannot produce a real learner release bundle', () => {
+  const readiness = getDeviceDeploymentReadiness([
+    makeRegistration({ id: 'unknown-platform', platform: 'windows kiosk' }),
+  ]);
+
+  assert.equal(readiness.hasRolloutReadyRegistration, false);
+  assert.deepEqual(readiness.annotated[0]?.blockingReasons, ['unsupported-platform']);
+  assert.deepEqual(readiness.blockingSummary, [
+    {
+      reason: 'unsupported-platform',
+      count: 1,
+      label: 'unsupported release platform',
+    },
+  ]);
+});

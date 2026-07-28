@@ -8,6 +8,48 @@ function normalizePodIdentifier(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizePlatform(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return normalized;
+
+  const compact = normalized.replace(/[^a-z0-9]+/g, ' ').trim();
+  const tokens = compact.split(/\s+/).filter(Boolean);
+  const hasToken = (target: string) => tokens.includes(target);
+  const containsPhrase = (target: string) => compact.includes(target);
+
+  if (
+    ['ios', 'ipad', 'ipad os', 'ipados', 'iphone', 'iphone os'].includes(normalized)
+    || hasToken('ios')
+    || hasToken('ipados')
+    || containsPhrase('ipad os')
+    || containsPhrase('iphone os')
+    || containsPhrase('ipad')
+    || containsPhrase('iphone')
+  ) return 'ios';
+
+  if (
+    ['web', 'web kiosk', 'browser', 'chromeos', 'chrome os'].includes(normalized)
+    || hasToken('web')
+    || hasToken('browser')
+    || hasToken('chromeos')
+    || containsPhrase('chrome os')
+    || containsPhrase('web kiosk')
+    || containsPhrase('kiosk browser')
+  ) return 'web';
+
+  if (
+    ['android', 'android tablet'].includes(normalized)
+    || hasToken('android')
+    || containsPhrase('android tablet')
+  ) return 'android';
+
+  return normalized;
+}
+
+function hasSupportedReleasePlatform(registration: DeviceRegistration) {
+  return ['android', 'ios', 'web'].includes(normalizePlatform(registration.platform));
+}
+
 function getDuplicateScopeCounts(registrations: DeviceRegistration[]) {
   return registrations.reduce<Record<string, number>>((accumulator, registration) => {
     const normalizedStatus = String(registration.status || '').trim().toLowerCase();
@@ -38,6 +80,7 @@ function getDeploymentBlockingReasons(
 
   if (!normalizeDeviceIdentifier(registration.deviceIdentifier)) reasons.push('missing-device-identifier');
   if (!normalizePodIdentifier(registration.podId)) reasons.push('missing-pod');
+  if (!hasSupportedReleasePlatform(registration)) reasons.push('unsupported-platform');
   if (normalizedStatus !== 'active') reasons.push('non-active-status');
   if (normalizePodIdentifier(registration.podId) && duplicateScopeCount > 1) reasons.push('duplicate-live-scope');
   if (normalizeDeviceIdentifier(registration.deviceIdentifier) && duplicateDeviceIdentifierCount > 1) reasons.push('duplicate-device-identifier');
@@ -63,6 +106,7 @@ export function getDeviceDeploymentReadiness(registrations: DeviceRegistration[]
   const blockingReasonLabels: Record<string, string> = {
     'missing-device-identifier': 'missing device ID',
     'missing-pod': 'missing pod owner',
+    'unsupported-platform': 'unsupported release platform',
     'non-active-status': 'inactive tablet status',
     'duplicate-live-scope': 'duplicate live pod scope',
     'duplicate-device-identifier': 'duplicate device ID',
