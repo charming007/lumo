@@ -718,6 +718,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
   );
   assert.match(
     deviceDeploymentHandoffSource,
+    /Tablet platform is \$\{platformLabel\(registration\.platform\)\}, so the dashboard cannot choose a real learner release bundle yet\./,
+    'handoff should block tablets whose platform is too vague to choose a real learner release bundle',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
     /This device identifier is duplicated across active tablet records\./,
     'handoff should hard-block duplicate live tablet identifiers before release commands get copied',
   );
@@ -725,6 +730,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHandoffSource,
     /blank device ID/,
     'handoff blocker summary should count blank device identifiers explicitly',
+  );
+  assert.match(
+    deviceDeploymentHandoffSource,
+    /unsupported platform/,
+    'handoff blocker summary should count tablets that cannot produce a real learner release bundle yet',
   );
   assert.match(
     deviceDeploymentHandoffSource,
@@ -835,6 +845,11 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     deviceDeploymentHelperSource,
     /if \(!normalizeDeviceIdentifier\(registration\.deviceIdentifier\)\) reasons\.push\('missing-device-identifier'\);/,
     'shared rollout readiness helper should mark blank tablet identifiers as deployment blockers',
+  );
+  assert.match(
+    deviceDeploymentHelperSource,
+    /if \(!hasSupportedReleasePlatform\(registration\)\) reasons\.push\('unsupported-platform'\);/,
+    'shared rollout readiness helper should block tablets whose platform cannot produce a real learner release bundle',
   );
   assert.match(
     deviceDeploymentHelperSource,
