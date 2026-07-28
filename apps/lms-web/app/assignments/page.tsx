@@ -166,6 +166,7 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
     cohortsResult.status === 'rejected' ? 'cohorts' : null,
     lessonsResult.status === 'rejected' ? 'lessons' : null,
     mallamsResult.status === 'rejected' ? 'mallams' : null,
+    assessmentsResult.status === 'rejected' ? 'assessments' : null,
   ].filter(Boolean) as string[];
 
   if (criticalAssignmentFailures.length) {
@@ -186,8 +187,8 @@ export default async function AssignmentsPage({ searchParams }: { searchParams?:
           </>
         )}
         whyBlocked={[
-          'Operators use this route to create, reassign, and triage live delivery windows. If assignments, cohorts, lessons, or mallams disappear, a polished UI becomes dangerous fiction fast.',
-          'Assessments and pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds are missing.',
+          'Operators use this route to create, reassign, and triage live delivery windows. If assignments, cohorts, lessons, mallams, or assessment gates disappear, a polished UI becomes dangerous fiction fast.',
+          'Pods can degrade separately, but the board and write paths should stop cold when the core delivery feeds or assessment-gate evidence are missing.',
         ]}
         verificationItems={[
           {

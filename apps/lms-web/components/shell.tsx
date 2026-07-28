@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { BuildSignature } from '../lib/build-signature';
 import { describePilotShellRoute } from '../lib/pilot-shell';
-import { DeploymentBlockerCard } from './deployment-blocker-card';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 
@@ -38,12 +37,6 @@ export function AppShell({
   const pathname = usePathname() || '/';
   const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || shellScopeDeploymentBlocked;
   const pilotRoute = effectivePilotControlPlaneEnabled ? describePilotShellRoute(pathname) : undefined;
-  const routeScopeDeploymentBlocked = Boolean(
-    shellScopeDeploymentBlocked
-    && pathname !== '/'
-    && pilotRoute
-    && pilotRoute.status !== 'visible',
-  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -80,53 +73,7 @@ export function AppShell({
           pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}
           pilotRoute={pilotRoute}
         />
-        {routeScopeDeploymentBlocked && pilotRoute ? (
-          <DeploymentBlockerCard
-            title={pilotRoute.routeLabel}
-            subtitle="This route is blocked during production deployment review because the pilot control plane is narrowed and this surface sits outside it."
-            blockerHeadline={`Deployment blocker: ${pilotRoute.routeLabel} sits outside the pilot control plane.`}
-            blockerDetail={(
-              <>
-                Production is intentionally clamped back to the pilot-safe shell right now. Letting <strong>{pilotRoute.routeLabel}</strong> keep rendering by direct URL would still widen the deployment target even if the sidebar hides the link. Use the visible pilot routes for review, or re-enable the full LMS shell deliberately before treating this route as deployable.
-              </>
-            )}
-            whyBlocked={[
-              'Hiding the wider route from navigation is not enough. If a bookmarked or pasted URL still opens the full UI, deployment review scope is still wider than the shell claims.',
-              'This keeps production reviewers from mistaking an internal admin surface for a pilot-approved workflow just because it shares the same host and chrome.',
-              'If the team truly wants this route live in production review, the pilot control plane should be widened intentionally instead of leaking through direct links.',
-            ]}
-            verificationItems={[
-              {
-                surface: `${pilotRoute.routeLabel} direct URL`,
-                expected: 'Shows a deployment blocker while the pilot control plane is narrowed',
-                failure: 'Opens the full admin UI even though production review is supposed to be limited to pilot-safe routes',
-              },
-              {
-                surface: 'Sidebar navigation',
-                expected: 'Only pilot-safe routes remain visible in the shared shell',
-                failure: 'Wider admin surfaces appear reachable as first-class production navigation',
-              },
-              {
-                surface: 'Pilot deployment contract',
-                expected: 'Dashboard, Content, Assignments, Progress, and Settings stay as the only reviewable routes',
-                failure: 'A direct link silently widens deployment review scope beyond the pilot control plane',
-              },
-            ]}
-            fixItems={[
-              { label: 'Frontend build', value: buildSignature.summary },
-              { label: 'Blocked route', value: `${pilotRoute.routeLabel} (${pathname})` },
-              { label: 'Route scope', value: pilotRoute.status === 'blocked' ? 'Explicitly blocked pilot surface' : pilotRoute.status === 'off-shell' ? 'Specialist route outside pilot shell' : 'Route outside pilot deployment scope' },
-              { label: 'Operator action', value: 'Stay on the pilot-safe routes for deployment review, or deliberately re-enable the full LMS shell before using this surface in production' },
-              { label: 'Cross-check', value: 'Verify Dashboard, Content, Assignments, Progress, and Settings remain the only reviewable routes in this deployment mode' },
-            ]}
-            docs={[
-              { label: 'Open dashboard', href: '/', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
-              { label: 'Open content', href: '/content', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
-              { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
-              { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
-            ]}
-          />
-        ) : children}
+        {children}
       </main>
       <style>{`
         .app-shell { box-sizing: border-box; display: grid; grid-template-columns: minmax(238px, 276px) minmax(0, 1fr); min-height: 100vh; width: 100%; max-width: 100vw; overflow-x: clip; background: radial-gradient(circle at 72% 0%, rgba(169, 146, 255, 0.20), transparent 32%), linear-gradient(135deg, #eef2f7 0%, #f7f4ff 46%, #f2fbf8 100%); transition: grid-template-columns 180ms ease; }

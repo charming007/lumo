@@ -10,7 +10,7 @@ import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumM
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
-import { getPilotControlPlaneFlagMode, isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
+import { isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { findSubjectByContext } from '../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
@@ -96,6 +96,22 @@ function formatDateTime(value: Date) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function formatRelativeMinutes(value: Date) {
+  const diffMs = Date.now() - value.getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / (60 * 1000)));
+
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes === 1) return '1 minute ago';
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours === 1) return '1 hour ago';
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  const diffDays = Math.round(diffHours / 24);
+  return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
 }
 
 function startOfDay(date: Date) {
@@ -234,9 +250,8 @@ function describeApiTarget() {
 export default async function HomePage() {
   const buildSignature = getBuildSignature();
   const apiTarget = describeApiTarget();
-  const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
-  const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || (process.env.NODE_ENV === 'production' && pilotControlPlaneFlagMode !== 'disabled');
+  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production' && !pilotControlPlaneEnabled;
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -396,7 +411,6 @@ export default async function HomePage() {
     assetRuntimeResult.status === 'rejected' && !assetRuntimeAuthBlocked ? 'asset runtime' : null,
   ].filter(Boolean) as string[];
   const hasCriticalAssetOpsGap = Boolean(assetOpsCriticalFailure);
-  const hasZeroDeviceRegistrations = deviceRegistrationsResult.status === 'fulfilled' && deviceRegistrations.length === 0;
   const hasDeviceDeploymentGap = deviceRegistrationsResult.status === 'rejected'
     || !deviceDeploymentReadiness
     || !deviceDeploymentReadiness.hasRolloutReadyRegistration
@@ -407,7 +421,6 @@ export default async function HomePage() {
   const readyLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'ready');
   const watchLearners = workboard.filter((item) => normalizeProgressionStatus(item.progressionStatus) === 'watch');
   const priorityQueue = [...watchLearners, ...readyLearners];
-  const readyToProgressCount = workboardAvailable ? readyLearners.length : null;
   const activeMallams = mallams.filter((mallam) => mallam.status === 'active');
   const hasCriticalDashboardGap = criticalDashboardFailures.length > 0;
   const apiSourceDetail = dashboardApiSourceDetail();
@@ -428,20 +441,12 @@ export default async function HomePage() {
     (modules.length > 0 && lessons.length === 0 && modules.some((module) => module.lessonCount > 0))
     || (modules.length === 0 && (lessons.length > 0 || assessments.length > 0))
   );
-  const dashboardPageBlocked = shouldBlockDashboardPage({
-    criticalDashboardFailureCount: criticalDashboardFailures.length,
-    criticalReleaseFailureCount: criticalReleaseFailures.length,
-    hasCriticalAssetOpsGap,
-    hasEmptyReleaseBoard,
-    hasDeviceDeploymentGap,
-    hasReleaseGraphMismatch,
-  });
-  const dashboardTrustBadge = dashboardPageBlocked
+  const dashboardTrustBadge = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
     ? 'Blocked'
     : failedSources.length
       ? 'Partial live pull'
       : 'Fresh live pull';
-  const dashboardTrustTone = dashboardPageBlocked
+  const dashboardTrustTone = criticalDashboardFailures.length || criticalReleaseFailures.length || hasCriticalAssetOpsGap || hasDeviceDeploymentGap || hasReleaseGraphMismatch
     ? { tone: '#FEE2E2', text: '#991B1B' }
     : failedSources.length
       ? { tone: '#FEF3C7', text: '#92400E' }
@@ -503,7 +508,64 @@ export default async function HomePage() {
     && topReleaseBlockerAssessmentSubjects.length,
   );
 
-  if (dashboardPageBlocked) {
+  if (shellScopeDeploymentBlocked) {
+    return (
+      <DeploymentBlockerCard
+        title="Dashboard"
+        subtitle="Pilot deployment review is blocked because the full LMS shell is visible again instead of the narrow pilot control plane."
+        blockerHeadline="Deployment blocker: full LMS shell is widening the production deployment target."
+        blockerDetail={(
+          <>
+            This production build is rendering the broader LMS admin shell instead of the pilot-safe route set. If deployment reviewers can see learners, pods, devices, attendance, and other wider admin surfaces from the front door, the UI is overselling what should count as a go-live target.
+          </>
+        )}
+        whyBlocked={[
+          'The dashboard is the first trust surface. If it renders the broader LMS shell in production, reviewers can mistake internal admin routes for deployment-approved pilot surfaces.',
+          'A warning card buried inside the dashboard is too weak here. The front door should stop deployment review cold until the visible shell matches the intended pilot control plane again.',
+          'Pilot scope is intentionally narrow: Dashboard, Content, Assignments, Progress, and Settings. Anything broader needs an explicit internal override, not a production-looking sign-off surface.',
+        ]}
+        verificationItems={[
+          {
+            surface: 'Visible dashboard shell',
+            expected: 'Pilot route map is active and the visible shell is limited to Dashboard, Content, Assignments, Progress, and Settings',
+            failure: 'Full LMS route map is visible from the production dashboard, widening deployment scope before the team explicitly signs off on those extra routes',
+          },
+          {
+            surface: 'Sidebar navigation',
+            expected: 'Primary navigation matches the pilot control plane instead of the broader LMS admin shell',
+            failure: 'Learners, mallams, pods, devices, attendance, or other wider admin routes are presented as first-class production navigation',
+          },
+          {
+            surface: 'Pilot scope contract',
+            expected: 'Deployment review treats only the pilot control plane as a valid UI target',
+            failure: 'The dashboard itself implies a broader admin rollout is already deployment-ready',
+          },
+        ]}
+        fixItems={[
+          { label: 'Frontend build', value: buildSignature.summary },
+          { label: 'Current API target', value: apiTarget },
+          { label: 'Failing area', value: 'pilot control plane override is disabled in production' },
+          { label: 'Operator action', value: 'Re-enable the pilot control plane for production so the dashboard and sidebar collapse back to the narrow pilot deployment shell' },
+          { label: 'Cross-check', value: 'Verify the dashboard switches back to the pilot route map and the sidebar only exposes Dashboard, Content, Assignments, Progress, and Settings' },
+        ]}
+        docs={[
+          { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
+          { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
+          { label: 'Open content blockers', href: '/content?view=blocked', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
+          { label: 'Open assignments', href: '/assignments', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+        ]}
+      />
+    );
+  }
+
+  if (shouldBlockDashboardPage({
+    criticalDashboardFailureCount: criticalDashboardFailures.length,
+    criticalReleaseFailureCount: criticalReleaseFailures.length,
+    hasCriticalAssetOpsGap,
+    hasEmptyReleaseBoard,
+    hasDeviceDeploymentGap,
+    hasReleaseGraphMismatch,
+  })) {
     const blockerDetail = backendTargetDiagnosis
       ? `Multiple LMS feeds are returning route-level 404 responses from ${API_BASE_DIAGNOSTIC.configuredApiBase ?? 'the configured API host'}. That pattern usually means this deployment is pointed at a stale or wrong backend build, not that the dashboard suddenly forgot how to fetch. Failing route checks: ${backendTargetDiagnosis.requestUrls.join(', ')}.`
       : hasCriticalDashboardGap
@@ -529,13 +591,11 @@ export default async function HomePage() {
         : hasDeviceDeploymentGap
           ? deviceRegistrationsResult.status === 'rejected'
             ? 'The dashboard cannot load device registrations from the live API, so it cannot honestly tell ops which learner tablet is safe to target. Shipping from a blind rollout handoff is how the wrong device identifier ends up blessed as a production build.'
-            : hasZeroDeviceRegistrations
-              ? 'The dashboard can see the learner rollout handoff, and it is empty: the LMS has zero registered tablets. Until at least one real tablet registration exists with a device identifier, active status, and pod ownership, this route should not pretend learner deployment is reviewable.'
-              : deviceDeploymentReadiness?.hasDuplicateLiveScope
-                ? 'Multiple active tablets are still attached to the same live pod scope. The dashboard should not pretend learner rollout is deployable while pod-targeted provisioning is ambiguous.'
-                : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
-                  ? 'The live registry still contains duplicate active device identifiers. Until each learner tablet proves a unique backend identity, the dashboard should not pose as a safe learner deployment handoff.'
-                  : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
+            : deviceDeploymentReadiness?.hasDuplicateLiveScope
+              ? 'Multiple active tablets are still attached to the same live pod scope. The dashboard should not pretend learner rollout is deployable while pod-targeted provisioning is ambiguous.'
+              : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
+                ? 'The live registry still contains duplicate active device identifiers. Until each learner tablet proves a unique backend identity, the dashboard should not pose as a safe learner deployment handoff.'
+                : 'The learner rollout handoff has no rollout-ready tablet. Without a live registration that is active, uniquely scoped, and tied to a real pod, the dashboard should not pose as a deployment-ready front door.'
         : hasReleaseGraphMismatch
           ? modules.length > 0 && lessons.length === 0
             ? 'The release feeds answered, but the curriculum graph is impossible: live modules claim lesson coverage while the lessons feed came back empty. Treat that as a stale or partial backend, not a real blocker board.'
@@ -573,13 +633,11 @@ export default async function HomePage() {
               : hasDeviceDeploymentGap
                 ? deviceRegistrationsResult.status === 'rejected'
                   ? 'Deployment blocker: learner rollout targeting is blind.'
-                  : hasZeroDeviceRegistrations
-                    ? 'Deployment blocker: LMS has zero registered learner tablets.'
-                    : deviceDeploymentReadiness?.hasDuplicateLiveScope
-                      ? 'Deployment blocker: duplicate active tablet scope is still live.'
-                      : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
-                        ? 'Deployment blocker: duplicate active device identifiers are still live.'
-                        : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
+                  : deviceDeploymentReadiness?.hasDuplicateLiveScope
+                    ? 'Deployment blocker: duplicate active tablet scope is still live.'
+                    : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers
+                      ? 'Deployment blocker: duplicate active device identifiers are still live.'
+                      : 'Deployment blocker: learner rollout handoff has no safe tablet target.'
                 : hasReleaseGraphMismatch
                   ? 'Deployment blocker: curriculum release graph is internally contradictory.'
                   : hasEmptyReleaseBoard
@@ -670,41 +728,23 @@ export default async function HomePage() {
                 },
               ]
             : hasDeviceDeploymentGap
-              ? hasZeroDeviceRegistrations
-                ? [
-                    {
-                      surface: 'Learner rollout handoff',
-                      expected: 'At least one tablet registration exists with a real device identifier, active status, and pod ownership',
-                      failure: 'Dashboard still looks deployable even though the LMS has zero registered learner tablets',
-                    },
-                    {
-                      surface: 'Provisioning bundle source',
-                      expected: 'Ops can copy a real device identifier and API target bundle from the first registered rollout-safe tablet',
-                      failure: 'There is no tablet row to trust, so learner bundle copy-paste would be pure fiction',
-                    },
-                    {
-                      surface: 'Cross-check routes',
-                      expected: '/devices and the dashboard both show the first registered tablet after setup',
-                      failure: 'Dashboard implies learner deployment is ready while the device registry is still empty',
-                    },
-                  ]
-                : [
-                    {
-                      surface: 'Learner rollout handoff',
-                      expected: 'At least one tablet registration is active, uniquely scoped, uniquely identified, and safe to target for learner builds',
-                      failure: 'Dashboard still looks deployable even though rollout targeting is blind, colliding, or every tablet is blocked',
-                    },
-                    {
-                      surface: 'Provisioning bundle source',
-                      expected: 'Ops can copy a real device identifier and API target bundle from the dashboard handoff card',
-                      failure: 'No trustworthy tablet row exists, so bundle copy-paste would be guesswork',
-                    },
-                    {
-                      surface: 'Cross-check routes',
-                      expected: '/devices and the dashboard handoff agree on the safe rollout tablet after cleanup',
-                      failure: 'Dashboard implies learner deployment is ready while device scope, device identity, or assignment cleanup is still pending',
-                    },
-                  ]
+              ? [
+                  {
+                    surface: 'Learner rollout handoff',
+                    expected: 'At least one tablet registration is active, uniquely scoped, uniquely identified, and safe to target for learner builds',
+                    failure: 'Dashboard still looks deployable even though rollout targeting is blind, colliding, or every tablet is blocked',
+                  },
+                  {
+                    surface: 'Provisioning bundle source',
+                    expected: 'Ops can copy a real device identifier and API target bundle from the dashboard handoff card',
+                    failure: 'No trustworthy tablet row exists, so bundle copy-paste would be guesswork',
+                  },
+                  {
+                    surface: 'Cross-check routes',
+                    expected: '/devices and the dashboard handoff agree on the safe rollout tablet after cleanup',
+                    failure: 'Dashboard implies learner deployment is ready while device scope, device identity, or assignment cleanup is still pending',
+                  },
+                ]
             : [
                 {
                   surface: 'Content release blockers',
@@ -760,9 +800,9 @@ export default async function HomePage() {
               ? [
                   { label: 'Frontend build', value: buildSignature.summary },
                   { label: 'Current API target', value: apiTarget },
-                  { label: 'Failing area', value: deviceRegistrationsResult.status === 'rejected' ? 'device registrations feed' : hasZeroDeviceRegistrations ? 'zero registered learner tablets' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'duplicate active tablet scope' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'duplicate active device identifiers' : 'rollout-ready tablet coverage' },
-                  { label: 'Operator action', value: deviceRegistrationsResult.status === 'rejected' ? 'Restore the device registration feed before handing off a learner build bundle' : hasZeroDeviceRegistrations ? 'Register the first learner tablet in the LMS before trusting any learner deployment bundle' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'Resolve duplicate active pod assignments before trusting learner deployment handoff' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'Repair duplicate active device identifiers before trusting learner deployment handoff' : 'Register or repair at least one active, uniquely scoped tablet before trusting learner deployment handoff' },
-                  { label: 'Cross-check', value: hasZeroDeviceRegistrations ? 'Verify /devices and the dashboard both show the new tablet registration before handing off a learner build' : 'Verify /devices and the dashboard tablet handoff agree on the safe rollout target after cleanup' },
+                  { label: 'Failing area', value: deviceRegistrationsResult.status === 'rejected' ? 'device registrations feed' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'duplicate active tablet scope' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'duplicate active device identifiers' : 'rollout-ready tablet coverage' },
+                  { label: 'Operator action', value: deviceRegistrationsResult.status === 'rejected' ? 'Restore the device registration feed before handing off a learner build bundle' : deviceDeploymentReadiness?.hasDuplicateLiveScope ? 'Resolve duplicate active pod assignments before trusting learner deployment handoff' : deviceDeploymentReadiness?.hasDuplicateDeviceIdentifiers ? 'Repair duplicate active device identifiers before trusting learner deployment handoff' : 'Register or repair at least one active, uniquely scoped tablet before trusting learner deployment handoff' },
+                  { label: 'Cross-check', value: 'Verify /devices and the dashboard tablet handoff agree on the safe rollout target after cleanup' },
                 ]
             : [
                 { label: 'Frontend build', value: buildSignature.summary },
@@ -804,7 +844,7 @@ export default async function HomePage() {
             : hasDeviceDeploymentGap
               ? [
                   { label: 'Deploy checklist', href: '/DEPLOY_VERIFICATION_CHECKLIST.html', background: '#111827', color: '#FFFFFF', border: '1px solid #1F2937' },
-                  { label: hasZeroDeviceRegistrations ? 'Register first tablet' : 'Open devices', href: '/devices', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
+                  { label: 'Open devices', href: '/devices', background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA' },
                   { label: 'Open settings', href: '/settings', background: '#ECFDF5', color: '#166534', border: '1px solid #BBF7D0' },
                   { label: 'Cross-check progress', href: '/progress', background: '#EEF2FF', color: '#3730A3', border: '1px solid #C7D2FE' },
                 ]
@@ -868,11 +908,11 @@ export default async function HomePage() {
               <Pill label={dashboardTrustBadge} tone={dashboardTrustTone.tone} text={dashboardTrustTone.text} />
             </div>
             <div style={{ color: '#5d6679', lineHeight: 1.65 }}>
-              Snapshot generated at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
+              Rendered {formatRelativeMinutes(dashboardRenderedAt)} at {formatDateTime(dashboardRenderedAt)} with {healthyFeedCount}/{totalDashboardFeedCount} dashboard feeds responding.
               {failedSources.length ? ` Missing or degraded: ${failedSources.join(', ')}.` : ' No missing feeds detected in this pull.'}
             </div>
             <div style={{ color: '#747b8f', lineHeight: 1.65 }}>
-              This is a server-rendered snapshot, not a self-updating freshness clock. Refresh the dashboard before deployment sign-off if the timestamp is no longer current.
+              If this timestamp is already old by the time someone screenshots the page, the dashboard should be treated as a stale briefing, not a deployment sign-off.
             </div>
           </div>
 
@@ -911,11 +951,11 @@ export default async function HomePage() {
           },
           {
             label: 'Ready to progress',
-            value: metricDisplay(String(readyToProgressCount ?? 0), readyToProgressCount !== null),
+            value: metricDisplay(String(summary.learnersReadyToProgress), summaryAvailable),
             gradient: 'linear-gradient(135deg, #F4EDFF 0%, #DDD0FF 100%)',
-            note: workboardAvailable
+            note: summaryAvailable
               ? 'Pulled from the live progression workboard'
-              : 'Unavailable until the live progression workboard feed recovers.',
+              : 'Unavailable until the live dashboard summary feed recovers.',
           },
           {
             label: 'Active assignments',
@@ -1004,28 +1044,6 @@ export default async function HomePage() {
               ))}
             </div>
             {!releaseFeedsAvailable ? sectionAlert('Modules, lessons, or assessments failed to load. Open Content Library after the feeds recover; the dashboard will not pretend to be the blocker board.', 'warning') : null}
-            {releaseFeedsAvailable && missingGateBlockers.length ? (
-              <div style={{ padding: '14px 16px', borderRadius: 18, background: '#FFF7ED', border: '1px solid #FED7AA', display: 'grid', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Assessment gate pressure</div>
-                    <strong style={{ color: '#7C2D12', fontSize: 18 }}>Assignment should stay frozen until every visible release lane has a progression gate.</strong>
-                    <div style={{ color: '#9A3412', lineHeight: 1.6 }}>
-                      {describeGateWarning(missingGateBlockers.length, liveMissingGateBlockers.length)}
-                    </div>
-                  </div>
-                  <Pill label={`${missingGateBlockers.length} missing gate${missingGateBlockers.length === 1 ? '' : 's'}`} tone="#FFFFFF" text="#9A3412" />
-                </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <Link href="/content?view=blocked" style={{ ...quickActionStyle, background: '#9A3412', color: 'white', padding: '10px 12px' }}>
-                    Review gate blockers
-                  </Link>
-                  <Link href="/assignments" style={{ ...quickActionStyle, background: '#fff', color: '#9A3412', border: '1px solid #FED7AA', padding: '10px 12px' }}>
-                    Cross-check assignments
-                  </Link>
-                </div>
-              </div>
-            ) : null}
             {releaseFeedsAvailable && !subjectFeedAvailable ? sectionAlert('Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane. Use Content Library if you need the full blocker board.', 'warning') : null}
             {releaseFeedsAvailable && topReleaseBlocker ? (
               <div style={{ padding: '16px 18px', borderRadius: 18, background: '#fff7ed', border: '1px solid #fed7aa', display: 'grid', gap: 12 }}>
@@ -1301,7 +1319,7 @@ export default async function HomePage() {
         </Card>
 
         <div style={{ gridColumn: '1 / -1' }}>
-        {effectivePilotControlPlaneEnabled ? (
+        {pilotControlPlaneEnabled ? (
           <Card title="Pilot route map" eyebrow="Visible shell">
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ padding: '14px 16px', borderRadius: 18, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
