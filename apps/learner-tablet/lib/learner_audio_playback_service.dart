@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 
@@ -20,6 +21,7 @@ bool looksLikeBackendRelativeMediaPath(String path) {
 Source learnerAudioPlaybackSourceForPath(
   String path, {
   LumoApiClient? apiClient,
+  bool isWeb = kIsWeb,
 }) {
   final uri = Uri.tryParse(path);
   final scheme = uri?.scheme ?? '';
@@ -36,7 +38,7 @@ Source learnerAudioPlaybackSourceForPath(
     return DeviceFileSource(uri?.toFilePath() ?? path);
   }
 
-  if (File(path).existsSync()) {
+  if (!isWeb && File(path).existsSync()) {
     return DeviceFileSource(path);
   }
 

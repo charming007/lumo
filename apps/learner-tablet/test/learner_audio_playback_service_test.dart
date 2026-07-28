@@ -42,4 +42,14 @@ void main() {
       'https://lumo-api-production-303a.up.railway.app/media/takes/review-1.m4a',
     );
   });
+
+  test('web playback skips local file probes for asset-like paths', () {
+    final source = learnerAudioPlaybackSourceForPath(
+      'assets/audio/ui_tap_soft.wav',
+      isWeb: true,
+    );
+
+    expect(source, isA<AssetSource>());
+    expect((source as AssetSource).path, 'assets/audio/ui_tap_soft.wav');
+  });
 }
