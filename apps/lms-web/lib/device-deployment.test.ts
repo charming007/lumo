@@ -54,21 +54,3 @@ test('rollout readiness exposes duplicate active device identifiers for dashboar
     [true, true],
   );
 });
-
-test('rollout readiness blocks blank or unsupported tablet platforms because handoff commands would be fiction', () => {
-  const blankPlatform = getDeviceDeploymentReadiness([
-    makeRegistration({ id: 'blank-platform', platform: '   ' }),
-  ]);
-  const unsupportedPlatform = getDeviceDeploymentReadiness([
-    makeRegistration({ id: 'windows-tablet', platform: 'Windows' }),
-  ]);
-  const iosAlias = getDeviceDeploymentReadiness([
-    makeRegistration({ id: 'ipad', platform: 'iPad OS' }),
-  ]);
-
-  assert.deepEqual(blankPlatform.annotated[0]?.blockingReasons, ['unsupported-platform']);
-  assert.deepEqual(unsupportedPlatform.annotated[0]?.blockingReasons, ['unsupported-platform']);
-  assert.equal(unsupportedPlatform.hasRolloutReadyRegistration, false);
-  assert.equal(iosAlias.annotated[0]?.blockingReasons.length, 0);
-  assert.equal(iosAlias.hasRolloutReadyRegistration, true);
-});

@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import type { BuildSignature } from '../lib/build-signature';
 import { getNavigationItems } from '../lib/navigation';
-import { PILOT_BLOCKED_ROUTE_LABELS } from '../lib/pilot-nav';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
@@ -61,25 +60,18 @@ export function Sidebar({
     previousPathnameRef.current = safePathname;
   }, [safePathname, onCloseMobileNav]);
 
-  const blockedPilotSurfaceCount = PILOT_BLOCKED_ROUTE_LABELS.length;
   const shellLabel = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Admin workspace';
   const shellHeadline = pilotControlPlaneEnabled ? 'Pilot-ready routes' : 'Education operations';
   const shellDetail = pilotControlPlaneEnabled
     ? 'Dashboard, content, assignments, progress, and settings are visible for pilot go-live.'
-    : blockedPilotSurfaceCount
-      ? `Core admin routes are visible, but ${blockedPilotSurfaceCount} pilot-deferred surfaces still hard-block on their own routes.`
-      : 'Learners, facilitators, pods, devices, curriculum, assessment, assignments, and reporting in one focused shell.';
+    : 'Learners, facilitators, pods, devices, curriculum, assessment, assignments, and reporting in one focused shell.';
   const brandDetail = pilotControlPlaneEnabled
     ? 'Pilot control plane for curriculum readiness and learner progress.'
-    : blockedPilotSurfaceCount
-      ? 'Field learning operations and curriculum delivery, with deferred pilot surfaces called out instead of pretending every nav item ships today.'
-      : 'Field learning operations and curriculum delivery.';
+    : 'Field learning operations and curriculum delivery.';
   const footerTitle = pilotControlPlaneEnabled ? 'Pilot workspace' : 'Full LMS shell';
   const footerDetail = pilotControlPlaneEnabled
     ? 'Visible routes stay limited to the pilot control plane.'
-    : blockedPilotSurfaceCount
-      ? `Shared chrome is live, but ${blockedPilotSurfaceCount} pilot-deferred routes still open explicit blocker pages.`
-      : 'All admin routes stay available; this redesign only changes presentation.';
+    : 'All admin routes stay available; this redesign only changes presentation.';
   const groupedNavigationItems = navigationGroups
     .map((group) => ({
       ...group,

@@ -67,7 +67,6 @@ class _LumoAppState extends State<LumoApp> {
         text,
         mode,
         supportLanguage: supportLanguage,
-        baseUrl: state.backendBaseUrl,
       ),
       onStop: voiceReplayService.stop,
     );

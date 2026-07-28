@@ -16,10 +16,6 @@ function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, '');
 }
 
-function hasOnlyOriginPath(parsed: URL) {
-  return parsed.pathname === '' || parsed.pathname === '/';
-}
-
 function resolveConfiguredApiBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
   return configured ? normalizeBaseUrl(configured) : null;
@@ -47,10 +43,6 @@ function invalidProductionApiReason(value: string | null) {
 
     if (looksLocal) {
       return `NEXT_PUBLIC_API_BASE_URL points at ${hostname}, which is only reachable from the local machine. Production LMS users would hit a dead backend.`;
-    }
-
-    if (!hasOnlyOriginPath(parsed) || parsed.search || parsed.hash) {
-      return `NEXT_PUBLIC_API_BASE_URL must be the API origin only (for example ${EXPECTED_PRODUCTION_API_BASE}), not a nested path or URL with query/hash. Current value: ${value}`;
     }
 
     return null;

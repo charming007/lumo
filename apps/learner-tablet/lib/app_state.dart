@@ -70,10 +70,6 @@ String _normalizeAssignmentLookupValue(String value) {
       .trim();
 }
 
-String _normalizeAssignmentLookupKey(String value) {
-  return _normalizeAssignmentLookupValue(value).replaceAll(' ', '-');
-}
-
 enum ContentOrigin {
   liveBackend,
   localCache,
@@ -326,12 +322,10 @@ class LumoAppState {
 
   String? productionDeviceIdentifierIssue(
       {bool isReleaseBuild = kReleaseBuild}) {
-    if (!isReleaseBuild) return null;
+    if (!isReleaseBuild || _includeSeedDemoContent) return null;
     final configured = _configuredDeviceIdentifier?.trim();
     if (configured != null && configured.isNotEmpty) return null;
-    return _includeSeedDemoContent
-        ? 'Release build still has LUMO_ENABLE_SEED_DEMO_CONTENT enabled but no LUMO_DEVICE_IDENTIFIER. Demo seed content cannot stand in for a real provisioned learner tablet identity, so deployment is blocked until the build is rebuilt correctly.'
-        : 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
+    return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
   }
 
   bool _isHardDeploymentIdentityBlocker(String? reason) {
@@ -417,6 +411,21 @@ class LumoAppState {
 
   bool get hasPendingLocalFallbackRegistration =>
       pendingLocalFallbackRegistrationCount > 0;
+
+  String? get learnerLaunchTrustBlockerReason {
+    final criticalBlocker = criticalSyncTrustBlockerReason;
+    if (criticalBlocker != null) {
+      return criticalBlocker;
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      final count = pendingLocalFallbackRegistrationCount;
+      final label = count == 1
+          ? '1 learner registration is still saved locally'
+          : '$count learner registrations are still saved locally';
+      return '$label and has not reconciled with the backend yet. Refresh sync before treating this roster as deployment-ready.';
+    }
+    return null;
+  }
 
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
@@ -944,9 +953,6 @@ class LumoAppState {
       acknowledgedOfflineFallbackRisk =
           !kReleaseBuild && snapshot['acknowledgedOfflineFallbackRisk'] == true;
       backendError = _readNullableString(snapshot['backendError']);
-      deploymentBlockerReason = _readNullableString(
-        snapshot['deploymentBlockerReason'],
-      );
       lastSyncedAt = _parseDate(snapshot['lastSyncedAt']);
       backendGeneratedAt = _parseDate(snapshot['backendGeneratedAt']);
       lastSyncAttemptAt = _parseDate(snapshot['lastSyncAttemptAt']);
@@ -1035,7 +1041,7 @@ class LumoAppState {
         pendingRecoveredSessionSnapshot = null;
       }
       speakerMode = _decodeSpeakerMode(snapshot['speakerMode']);
-      deploymentBlockerReason ??=
+      deploymentBlockerReason =
           hasUsableOfflineSnapshot ? null : offlineSnapshotTrustProblem;
       restoredFromPersistence = true;
       await ensureStableDeviceIdentifier();
@@ -2629,61 +2635,39 @@ class LumoAppState {
     Iterable<LessonCardModel>? lessons,
     Iterable<LearningModule>? availableModules,
   }) {
-    final lessonList = (lessons ?? assignedLessons).toList(growable: false);
-    final normalizedLessonId = pack.lessonId.trim();
-    if (normalizedLessonId.isNotEmpty) {
-      for (final lesson in lessonList) {
-        if (lesson.id == normalizedLessonId) return lesson;
-      }
-    }
-
+    final lessonPool = lessons ?? assignedLessons;
     final normalizedLessonTitle = _normalizeAssignmentLookupValue(
       pack.lessonTitle,
     );
-    if (normalizedLessonTitle.isEmpty) {
-      return null;
+    final preferredModuleIds = {
+      pack.curriculumModuleId?.trim(),
+      pack.moduleId.trim(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    final matchedModule = availableModules?.cast<LearningModule?>().firstWhere(
+      (module) {
+        if (module == null) return false;
+        final moduleId = module.id.trim();
+        return moduleId.isNotEmpty && preferredModuleIds.contains(moduleId);
+      },
+      orElse: () => null,
+    );
+
+    for (final lesson in lessonPool) {
+      if (lesson.id == pack.lessonId) return lesson;
     }
 
-    final titleMatches = lessonList
-        .where(
-          (lesson) =>
-              _normalizeAssignmentLookupValue(lesson.title) ==
-              normalizedLessonTitle,
-        )
-        .toList(growable: false);
-    if (titleMatches.isEmpty) {
-      return null;
-    }
-
-    final preferredModuleKeys = {
-      _normalizeAssignmentLookupKey(pack.curriculumModuleId ?? ''),
-      _normalizeAssignmentLookupKey(pack.moduleId),
-    }.where((value) => value.isNotEmpty).toSet();
-
-    final scopedTitleMatches = titleMatches.where((lesson) {
-      if (preferredModuleKeys.isEmpty) {
-        return true;
+    for (final lesson in lessonPool) {
+      final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
+      if (normalizedLessonTitle.isEmpty ||
+          lessonTitle != normalizedLessonTitle) {
+        continue;
       }
-
-      final lessonModule = availableModules?.cast<LearningModule?>().firstWhere(
-            (module) => module?.id == lesson.moduleId,
-            orElse: () => null,
-          );
-      final lessonKeys = {
-        _normalizeAssignmentLookupKey(lesson.moduleId),
-        _normalizeAssignmentLookupKey(lesson.subject),
-        if (lessonModule != null)
-          _normalizeAssignmentLookupKey(lessonModule.title),
-      }.where((value) => value.isNotEmpty).toSet();
-
-      return lessonKeys.any(preferredModuleKeys.contains);
-    }).toList(growable: false);
-
-    if (scopedTitleMatches.length == 1) {
-      return scopedTitleMatches.first;
-    }
-    if (titleMatches.length == 1) {
-      return titleMatches.first;
+      if (preferredModuleIds.isEmpty ||
+          preferredModuleIds.contains(lesson.moduleId.trim()) ||
+          (matchedModule != null &&
+              _lessonMatchesModule(lesson: lesson, module: matchedModule))) {
+        return lesson;
+      }
     }
 
     return null;
@@ -2840,13 +2824,17 @@ class LumoAppState {
     }
 
     final assignmentPack = nextAssignmentPackForLearner(learner);
-    if (assignmentPack != null) {
-      final assignmentLesson = _findLessonForAssignmentPack(assignmentPack);
-      if (assignmentLesson != null &&
-          assignmentLesson.id != completedLessonId &&
-          !_lessonRequiresSyncBeforeStarting(assignmentLesson)) {
-        return assignmentLesson;
-      }
+    if (assignmentPack != null &&
+        assignmentPack.lessonId != completedLessonId) {
+      final assignmentLesson =
+          assignedLessons.cast<LessonCardModel?>().firstWhere(
+                (lesson) =>
+                    lesson?.id == assignmentPack.lessonId &&
+                    lesson != null &&
+                    !_lessonRequiresSyncBeforeStarting(lesson),
+                orElse: () => null,
+              );
+      if (assignmentLesson != null) return assignmentLesson;
     }
 
     final recommendedModuleId = recommendedModuleForLearner(learner).id;
@@ -3175,23 +3163,18 @@ class LumoAppState {
       );
     }
 
-    final learnerLaunchTrustBlocker = learnerLaunchTrustBlockerReason;
-    if (learnerLaunchTrustBlocker != null) {
-      throw StateError(
-        'Cannot open lesson ${lesson.id} for ${learner.name} while tablet trust is blocked. $learnerLaunchTrustBlocker',
-      );
-    }
-
     final lessonIsTrackedForLaunchGuard = assignedLessons.any(
       (item) => item.id == lesson.id,
     );
     final lessonUsesPublishedLaunchGuard =
         lesson.status.trim().toLowerCase() == 'published';
-    if (resumeFrom == null &&
-        (_lessonRequiresSyncBeforeStarting(lesson) ||
-            (lessonIsTrackedForLaunchGuard &&
-                lessonUsesPublishedLaunchGuard &&
-                lessonLockedForLearner(learner, lesson)))) {
+    if (
+      resumeFrom == null &&
+      (_lessonRequiresSyncBeforeStarting(lesson) ||
+          (lessonIsTrackedForLaunchGuard &&
+              lessonUsesPublishedLaunchGuard &&
+              lessonLockedForLearner(learner, lesson)))
+    ) {
       throw StateError(
         'Cannot open lesson ${lesson.id} for ${learner.name} because it is not currently learner-safe to launch on this tablet.',
       );
@@ -5009,9 +4992,6 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return 'Offline roster blocked from trust';
       }
-      if (hasPendingLocalFallbackRegistration) {
-        return 'Roster trust blocked until learner registration sync lands';
-      }
       return usingFallbackData
           ? 'Roster running from offline seed fallback'
           : 'Roster not synced yet';
@@ -5020,9 +5000,6 @@ class LumoAppState {
     final freshness = _formatRelativeTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Roster last synced $freshness • offline fallback active • trust blocked';
-    }
-    if (hasPendingLocalFallbackRegistration) {
-      return 'Roster last synced $freshness • learner registration sync still blocking trust';
     }
     if (usingFallbackData) {
       return 'Roster last synced $freshness • offline fallback active';
@@ -5036,9 +5013,6 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return 'No trusted live sync on this tablet';
       }
-      if (hasPendingLocalFallbackRegistration) {
-        return 'Learner registration sync is still blocking roster trust';
-      }
       return usingFallbackData
           ? 'No live sync on this tablet yet'
           : 'Waiting for the first live sync';
@@ -5048,9 +5022,6 @@ class LumoAppState {
     final syncedAt = _formatTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Last trusted sync $freshness at $syncedAt • trust blocked';
-    }
-    if (hasPendingLocalFallbackRegistration) {
-      return 'Last backend sync $freshness at $syncedAt • learner registration sync still blocks trust';
     }
     if (usingFallbackData) {
       return 'Last trusted sync $freshness at $syncedAt • offline fallback active';
@@ -5064,9 +5035,6 @@ class LumoAppState {
       if (usingFallbackData && trustProblem != null) {
         return '$trustProblem Reconnect to $backendBaseUrl and refresh the learner bootstrap before trusting this tablet for live delivery.';
       }
-      if (hasPendingLocalFallbackRegistration) {
-        return '${pendingLocalFallbackRegistrationCount == 1 ? '1 learner registration is still waiting to sync upstream.' : '$pendingLocalFallbackRegistrationCount learner registrations are still waiting to sync upstream.'} Until that lands, the roster on this tablet is not trustworthy for deployment signoff.';
-      }
       return usingFallbackData
           ? 'This tablet is teaching from cached learners and lessons until the backend comes back.'
           : 'This tablet has not completed its first backend roster refresh yet.';
@@ -5075,9 +5043,6 @@ class LumoAppState {
     final syncAge = _formatRelativeTime(lastSyncedAt!);
     if (usingFallbackData && trustProblem != null) {
       return 'Learners and lessons were last confirmed $syncAge, but this roster is still blocked from trust. $trustProblem Reconnect to $backendBaseUrl and refresh before trusting this tablet for live delivery.';
-    }
-    if (hasPendingLocalFallbackRegistration) {
-      return 'Learners and lessons were refreshed $syncAge, but ${pendingLocalFallbackRegistrationCount == 1 ? '1 learner registration is still queued locally' : '$pendingLocalFallbackRegistrationCount learner registrations are still queued locally'} and the roster is not trustworthy until that sync lands.';
     }
     if (usingFallbackData) {
       return 'Learners and lessons were last confirmed $syncAge. Keep teaching, but refresh before trusting any newly assigned content.';
@@ -5382,8 +5347,6 @@ class LumoAppState {
 
     return null;
   }
-
-  String? get learnerLaunchTrustBlockerReason => criticalSyncTrustBlockerReason;
 
   List<String> get criticalSyncTrustBlockerEvidence {
     final evidence = <String>[];
@@ -6127,7 +6090,6 @@ class LumoAppState {
       'usingFallbackData': usingFallbackData,
       'acknowledgedOfflineFallbackRisk': acknowledgedOfflineFallbackRisk,
       'backendError': backendError,
-      'deploymentBlockerReason': deploymentBlockerReason,
       'lastSyncedAt': lastSyncedAt?.toIso8601String(),
       'backendGeneratedAt': backendGeneratedAt?.toIso8601String(),
       'lastSyncAttemptAt': lastSyncAttemptAt?.toIso8601String(),

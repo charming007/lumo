@@ -44,18 +44,12 @@ export function buildScopedLessonCreateHref({
   return `/content/lessons/new?${params.toString()}`;
 }
 
-export function buildReviewBlockersHref(returnPath: string): string {
+export function buildReviewBlockersHref(returnPath: string) {
   if (!returnPath.startsWith('/content')) {
     return '/content?view=blocked';
   }
 
   const [pathname, query = ''] = returnPath.split('?', 2);
-
-  if (pathname !== '/content') {
-    const nestedFrom = new URLSearchParams(query).get('from')?.trim() ?? '';
-    return nestedFrom ? buildReviewBlockersHref(nestedFrom) : '/content?view=blocked';
-  }
-
   const params = new URLSearchParams(query);
   params.set('view', 'blocked');
 

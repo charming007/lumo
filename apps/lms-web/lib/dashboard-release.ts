@@ -1,6 +1,5 @@
 import { getModuleReleaseState } from './module-release.ts';
 import { isDraftModuleLifecycleStatus } from './module-status.ts';
-import { findSubjectByContext } from './module-subject-match.ts';
 import type { Assessment, CurriculumModule, Lesson, Subject } from './types';
 
 export type DashboardReleaseBlocker = {
@@ -34,14 +33,7 @@ export function getDashboardReleaseBlockers(params: {
       const hasAssessmentGate = releaseState.hasAssessmentGate;
       const isDraftModule = isDraftModuleLifecycleStatus(module.status);
       const blockerCount = releaseState.publishBlockers.length;
-      const lessonSubjectContext = releaseState.moduleLessons.find((lesson) => lesson.subjectId?.trim() || lesson.subjectName?.trim()) ?? null;
-      const recoveredSubject = findSubjectByContext(params.subjects, {
-        subjectId: releaseState.recoveredSubjectId,
-        subjectName: module.subjectName,
-      }) ?? findSubjectByContext(params.subjects, {
-        subjectId: lessonSubjectContext?.subjectId,
-        subjectName: lessonSubjectContext?.subjectName,
-      });
+      const recoveredSubject = params.subjects.find((subject) => subject.id === releaseState.recoveredSubjectId) ?? null;
 
       if (!blockerCount) {
         return null;
@@ -51,7 +43,7 @@ export function getDashboardReleaseBlockers(params: {
         id: module.id,
         title: module.title,
         subjectId: releaseState.recoveredSubjectId,
-        subjectName: recoveredSubject?.name ?? module.subjectName ?? lessonSubjectContext?.subjectName ?? '—',
+        subjectName: recoveredSubject?.name ?? module.subjectName ?? '—',
         missingLessons,
         hasAssessmentGate,
         isDraftModule,
