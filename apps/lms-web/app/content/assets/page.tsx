@@ -570,6 +570,40 @@ export default async function AssetLibraryPage({ searchParams }: { searchParams?
             <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5' }}>Back to content board</Link>
           </div>
         </div>
+      ) : storageUploadsBlocked ? (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'grid', gap: 12, padding: 18, borderRadius: 20, background: '#FFF7ED', border: '1px solid #FDBA74' }}>
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Storage-backed uploads disabled</div>
+              <div style={{ color: '#0F172A', fontSize: 22, fontWeight: 900 }}>Managed file upload is blocked, so this page will not pretend the upload form is safe.</div>
+              <div style={{ color: '#7C2D12', lineHeight: 1.7 }}>
+                {assetUploadBlocker ?? 'Upload storage is unavailable.'} {assetUploadRoot ? `Current root: ${assetUploadRoot}. ` : ''}Use <strong>Register external asset</strong> for reference-only fallback until storage integrity recovers.
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FED7AA', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Upload status</div>
+                <div style={{ color: '#111827', fontWeight: 800 }}>Managed storage writes blocked</div>
+                <div style={{ color: '#7C2D12', lineHeight: 1.6 }}>Storage root: <code>{assetUploadRoot ?? 'unknown'}</code></div>
+              </div>
+              <div style={{ padding: 14, borderRadius: 16, background: '#fff', border: '1px solid #FED7AA', display: 'grid', gap: 8 }}>
+                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.1, color: '#9A3412', fontWeight: 800 }}>Safe fallback</div>
+                <div style={{ color: '#111827', fontWeight: 800 }}>Register existing runtime URLs or object-store keys only</div>
+                <div style={{ color: '#7C2D12', lineHeight: 1.6 }}>Keep asset scope metadata accurate, but do not push new managed uploads until the storage audit is green again.</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/settings" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#ffffff', color: '#9A3412', border: '1px solid #FDBA74' }}>Open settings + config audit</Link>
+              <Link href="/content" style={{ borderRadius: 12, padding: '10px 12px', textDecoration: 'none', fontWeight: 800, background: '#FEF3C7', color: '#92400E', border: '1px solid #F59E0B' }}>Back to content board</Link>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+            <AssetRegisterForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
+          </div>
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
           <AssetUploadForm returnPath={assetLibraryHref} subjects={subjects} modules={modules} lessons={lessons} />
