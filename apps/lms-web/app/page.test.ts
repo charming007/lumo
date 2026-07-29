@@ -9,7 +9,7 @@ const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../com
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
-test('dashboard degrades gracefully when only the subject feed is unavailable', () => {
+test('dashboard degrades gracefully when only the subject feed is unavailable and blocker context stays recoverable', () => {
   assert.doesNotMatch(
     dashboardPageSource,
     /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
@@ -22,8 +22,36 @@ test('dashboard degrades gracefully when only the subject feed is unavailable', 
   );
   assert.match(
     dashboardPageSource,
+    /const hasUnrecoverableReleaseContext = releaseFeedsAvailable[\s\S]*&& !subjectFeedAvailable[\s\S]*releaseBlockers\.some\(\(module\) => !module\.hasAuthoringContext\);/,
+    'dashboard should only tolerate degraded subject metadata when every visible blocker still has recoverable authoring context',
+  );
+  assert.match(
+    dashboardPageSource,
     /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
     'dashboard should explain the degraded-but-usable subject-metadata recovery path instead of hard-blocking it out of existence',
+  );
+});
+
+test('dashboard hard-blocks when degraded subject metadata leaves release blockers without recoverable authoring context', () => {
+  assert.match(
+    dashboardPageSource,
+    /hasCriticalAssetOpsGap \|\| hasDeviceDeploymentGap \|\| hasReleaseGraphMismatch \|\| hasUnrecoverableReleaseContext/,
+    'dashboard trust badge should collapse to blocked when release blockers lose recoverable subject context',
+  );
+  assert.match(
+    dashboardPageSource,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+hasUnrecoverableReleaseContext,\s+\}\)\) \{/,
+    'dashboard hard-block gate should include unrecoverable release context alongside the other deployment blockers',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: release blockers lost recoverable subject context\./,
+    'dashboard should call out lost blocker subject scope as an explicit deployment blocker',
+  );
+  assert.match(
+    dashboardPageSource,
+    /subject metadata is degraded and at least one blocked module no longer carries enough subject context to recover a safe authoring handoff/,
+    'dashboard should explain why degraded subjects become a blocker once authoring context is unrecoverable',
   );
 });
 
@@ -303,7 +331,7 @@ test('dashboard hard-blocks when release feeds resolve but the curriculum graph 
   );
   assert.match(
     dashboardPageSource,
-    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+hasUnrecoverableReleaseContext,\s+\}\)\) \{/,
     'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
   );
   assert.match(
