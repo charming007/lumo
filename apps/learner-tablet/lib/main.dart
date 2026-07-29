@@ -2074,14 +2074,7 @@ class HomePage extends StatelessWidget {
         state.registrationBlockerReason != null ||
         state.hasPendingLocalFallbackRegistration ||
         hasAssignmentSyncWarnings;
-    final forceTrustBannerOnUltraShort =
-        state.deploymentBlockerReason != null ||
-            state.backendError != null ||
-            state.hasPendingRecoveredSession ||
-            state.pendingSyncEvents.isNotEmpty ||
-            state.lastSyncedAt != null;
-    final showTrustBanner =
-        hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
+    final showTrustBanner = hasSyncWarnings;
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
     final trustBannerCompact =
         ultraShortHeight || viewportWidth < 900 || viewportHeight <= 1040;
@@ -2198,6 +2191,8 @@ class HomePage extends StatelessWidget {
 
                     Widget buildActionPanel() {
                       final actions = buildQuickActions();
+                      final registrationBlocked =
+                          state.registrationBlockerReason != null;
 
                       if (ultraShortHeight) {
                         return Align(
@@ -2208,13 +2203,37 @@ class HomePage extends StatelessWidget {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  for (var index = 0;
-                                      index < actions.length;
-                                      index++) ...[
-                                    actions[index],
-                                    if (index < actions.length - 1)
-                                      const SizedBox(width: 10),
-                                  ],
+                                  FilledButton.tonalIcon(
+                                    onPressed: openRegister,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    icon: Icon(
+                                      registrationBlocked
+                                          ? Icons.sync_problem_rounded
+                                          : Icons.person_add_alt_1_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Register'),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  FilledButton.tonalIcon(
+                                    onPressed: openLearners,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.groups_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Student list'),
+                                  ),
                                 ],
                               ),
                             ),
@@ -2744,6 +2763,8 @@ class _HomeTrustBanner extends StatelessWidget {
         criticalSyncBlocker != null ||
         hasPendingRegistrationTrustBlocker ||
         assignmentGapCount > 0;
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final ultraCompact = compact && viewportHeight <= 560;
 
     Future<void> refreshTabletSync() async {
       await state.bootstrap();
@@ -2854,7 +2875,7 @@ class _HomeTrustBanner extends StatelessWidget {
           if (compact) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(ultraCompact ? 10 : 12),
               decoration: BoxDecoration(
                 color: compactStatusTone.background,
                 borderRadius: BorderRadius.circular(16),
@@ -2884,7 +2905,9 @@ class _HomeTrustBanner extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              state.rosterFreshnessDetail,
+                              ultraCompact
+                                  ? state.trustedSyncHeadline
+                                  : state.rosterFreshnessDetail,
                               style: const TextStyle(
                                 color: Color(0xFF475569),
                                 height: 1.35,
@@ -2895,86 +2918,88 @@ class _HomeTrustBanner extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: compactStatusTone.border),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          criticalSyncBlocker != null
-                              ? Icons.sync_problem_rounded
-                              : Icons.schedule_rounded,
-                          size: 18,
-                          color: compactStatusTone.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            state.trustedSyncHeadline,
-                            style: TextStyle(
-                              color: compactStatusTone.accent,
-                              fontWeight: FontWeight.w800,
-                              height: 1.35,
+                  if (!ultraCompact) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: compactStatusTone.border),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            criticalSyncBlocker != null
+                                ? Icons.sync_problem_rounded
+                                : Icons.schedule_rounded,
+                            size: 18,
+                            color: compactStatusTone.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              state.trustedSyncHeadline,
+                              style: TextStyle(
+                                color: compactStatusTone.accent,
+                                fontWeight: FontWeight.w800,
+                                height: 1.35,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        StatusPill(
+                          text: state.operatorSourceLabel,
+                          color: _operatorStatusColor(state.operatorSourceLabel),
+                        ),
+                        if (state.curriculumSourceLabel !=
+                            state.operatorSourceLabel)
+                          StatusPill(
+                            text: state.curriculumSourceLabel,
+                            color: _operatorStatusColor(
+                              state.curriculumSourceLabel,
+                            ),
+                          ),
+                        if (state.operatorHealthLabel !=
+                                state.operatorSourceLabel &&
+                            state.operatorHealthLabel !=
+                                state.curriculumSourceLabel)
+                          StatusPill(
+                            text: state.operatorHealthLabel,
+                            color: _operatorStatusColor(
+                              state.operatorHealthLabel,
+                            ),
+                          ),
+                        StatusPill(
+                          text: state.rosterFreshnessLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
+                        ),
+                        StatusPill(
+                          text: state.syncQueueLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
+                        ),
+                        StatusPill(
+                          text: state.lastSyncSummaryLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      StatusPill(
-                        text: state.operatorSourceLabel,
-                        color: _operatorStatusColor(state.operatorSourceLabel),
-                      ),
-                      if (state.curriculumSourceLabel !=
-                          state.operatorSourceLabel)
-                        StatusPill(
-                          text: state.curriculumSourceLabel,
-                          color: _operatorStatusColor(
-                            state.curriculumSourceLabel,
-                          ),
-                        ),
-                      if (state.operatorHealthLabel !=
-                              state.operatorSourceLabel &&
-                          state.operatorHealthLabel !=
-                              state.curriculumSourceLabel)
-                        StatusPill(
-                          text: state.operatorHealthLabel,
-                          color: _operatorStatusColor(
-                            state.operatorHealthLabel,
-                          ),
-                        ),
-                      StatusPill(
-                        text: state.rosterFreshnessLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                      StatusPill(
-                        text: state.syncQueueLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                      StatusPill(
-                        text: state.lastSyncSummaryLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -2982,7 +3007,7 @@ class _HomeTrustBanner extends StatelessWidget {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(ultraCompact ? 10 : 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7ED),
                   borderRadius: BorderRadius.circular(16),

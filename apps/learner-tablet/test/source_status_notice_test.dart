@@ -255,6 +255,33 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'ultra-short learner tablet still shows trust banner for deployment blockers',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final state = LumoAppState(includeSeedDemoContent: false)
+      ..usingFallbackData = true;
+    addTearDown(state.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          state: state,
+          onChanged: _noop,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tablet trust check'), findsOneWidget);
+    expect(find.text('Backend offline'), findsOneWidget);
+    expect(find.text('Sync freshness'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   test(
       'placeholder assignments never advertise a learner as ready before lesson sync lands',
       () {
