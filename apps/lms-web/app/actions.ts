@@ -178,6 +178,27 @@ function describeActionError(error: unknown, fallback: string) {
   return fallback;
 }
 
+function normalizeDangerConfirmation(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function redirectDangerConfirmationFailure(message: string) {
+  redirect(`/settings?message=${encodeMessage(message)}`);
+}
+
+function assertDangerActionConfirmed(formData: FormData, expectedText: string, failureMessage: string) {
+  const typedConfirmation = String(formData.get('dangerConfirmation') || '').trim();
+  const acknowledged = String(formData.get('dangerAcknowledgement') || '').trim().toLowerCase() === 'yes';
+
+  if (!acknowledged) {
+    redirectDangerConfirmationFailure(`${failureMessage}: acknowledgement is required`);
+  }
+
+  if (normalizeDangerConfirmation(typedConfirmation) !== normalizeDangerConfirmation(expectedText)) {
+    redirectDangerConfirmationFailure(`${failureMessage}: typed confirmation did not match`);
+  }
+}
+
 async function runAssetLibraryAction<T>({
   execute,
   returnPath,
@@ -1958,6 +1979,8 @@ export async function deleteStorageBackupAction(formData: FormData) {
     redirect('/settings?message=Backup%20deletion%20failed%3A%20missing%20backup%20path');
   }
 
+  assertDangerActionConfirmed(formData, backupPath, 'Backup deletion blocked');
+
   try {
     await apiWrite('/api/v1/admin/storage/backups', 'DELETE', { backupPath }, 'admin');
   } catch (error) {
@@ -1977,6 +2000,8 @@ export async function restoreStorageBackupAction(formData: FormData) {
     redirect('/settings?message=Backup%20restore%20failed%3A%20missing%20backup%20path');
   }
 
+  assertDangerActionConfirmed(formData, backupPath, 'Backup restore blocked');
+
   try {
     await apiWrite('/api/v1/admin/storage/restore', 'POST', { backupPath }, 'admin');
   } catch (error) {
@@ -1989,7 +2014,8 @@ export async function restoreStorageBackupAction(formData: FormData) {
   redirect('/settings?message=Storage%20backup%20restored');
 }
 
-export async function repairStorageIntegrityAction() {
+export async function repairStorageIntegrityAction(formData: FormData) {
+  assertDangerActionConfirmed(formData, 'REPAIR', 'Storage integrity repair blocked');
   await apiWrite('/api/v1/admin/storage/repair-integrity', 'POST', { apply: true }, 'admin');
   revalidatePath('/settings');
   redirect('/settings?message=Storage%20integrity%20repair%20applied');

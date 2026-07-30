@@ -115,7 +115,14 @@ export function StorageDangerActionLauncher({
         </label>
 
         <label style={checkboxRowStyle}>
-          <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} style={{ marginTop: 4 }} />
+          <input
+            type="checkbox"
+            name="dangerAcknowledgement"
+            value="yes"
+            checked={acknowledged}
+            onChange={(event) => setAcknowledged(event.target.checked)}
+            style={{ marginTop: 4 }}
+          />
           <span>{acknowledgementLabel}</span>
         </label>
 

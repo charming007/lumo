@@ -15,5 +15,6 @@ test('storage danger launcher requires typed confirmation and acknowledgement be
 test('storage danger launcher uses the shared modal pattern for production-danger actions', () => {
   assert.match(source, /<ModalLauncher/);
   assert.match(source, /dangerConfirmation/);
+  assert.match(source, /dangerAcknowledgement/);
   assert.match(source, /Impact summary/);
 });
