@@ -2074,7 +2074,16 @@ class HomePage extends StatelessWidget {
         state.registrationBlockerReason != null ||
         state.hasPendingLocalFallbackRegistration ||
         hasAssignmentSyncWarnings;
-    final showTrustBanner = hasSyncWarnings;
+    final forceTrustBannerOnUltraShort =
+        state.usingFallbackData ||
+            state.deploymentBlockerReason != null ||
+            state.backendError != null ||
+            state.hasPendingRecoveredSession ||
+            state.pendingSyncEvents.isNotEmpty ||
+            state.lastSyncedAt != null ||
+            hasAssignmentSyncWarnings;
+    final showTrustBanner =
+        hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
     final trustBannerCompact =
         ultraShortHeight || viewportWidth < 900 || viewportHeight <= 1040;
