@@ -75,3 +75,9 @@ test('devices page keeps blank identifier records repairable instead of renderin
   assert.match(devicesPageSource, /title=\{`Remove \$\{deviceLabel\}`\}/, 'remove modal titles should stay identifiable when the device identifier is blank');
   assert.match(devicesPageSource, /<DeleteDeviceRegistrationForm registrationId=\{registration\.id\} deviceIdentifier=\{deviceLabel\} \/>/, 'delete confirmation should use the explicit repair label so blank-id records are still removable');
 });
+
+test('devices edit flow lets ops repair rollout-critical platform and device identity drift', () => {
+  assert.match(devicesPageSource, /<input name="deviceIdentifier" defaultValue=\{registration\.deviceIdentifier \|\| ''\} placeholder="tablet_01"[\s\S]*required \/>/, 'device edit form should let ops repair a blank or drifted device identifier directly from the dashboard');
+  assert.match(devicesPageSource, /<select name="platform" defaultValue=\{registration\.platform \|\| 'android'\}/, 'device edit form should let ops correct an unsupported or drifted platform directly from the dashboard');
+  assert.match(devicesPageSource, /Rollout repair note:[\s\S]*Update the device identifier and platform here whenever the live tablet record drifted/, 'device edit form should explain why platform and identity repair is deployment-critical');
+});
