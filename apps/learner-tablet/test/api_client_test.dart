@@ -225,6 +225,18 @@ void main() {
       );
     });
 
+    test('rejects release configs that enable seed demo content', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+          includeSeedDemoContent: true,
+        ),
+        contains(contains('LUMO_ENABLE_SEED_DEMO_CONTENT')),
+      );
+    });
+
     test('requires an explicit backend target even for the canonical host', () {
       expect(
         learnerReleaseBuildConfigIssues(
