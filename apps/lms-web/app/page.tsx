@@ -1237,7 +1237,7 @@ export default async function HomePage() {
                           border: '1px solid #991B1B',
                         }}
                       >
-                        <CreateDeviceRegistrationForm pods={pods} />
+                        <CreateDeviceRegistrationForm pods={pods} returnPath="/" />
                       </ModalLauncher>
                     ) : (
                       <Link href="/devices" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
