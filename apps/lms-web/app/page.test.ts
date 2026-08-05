@@ -505,8 +505,28 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
+    /fetchPods\(\)/,
+    'dashboard should load pods so the zero-tablet blocker can recover directly from the dashboard surface',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const canInlineDeviceRegistration = podsResult\.status === 'fulfilled' && pods\.length > 0;/,
+    'dashboard should only inline first-tablet registration when pod context is actually available',
+  );
+  assert.match(
+    dashboardPageSource,
+    /\{canInlineDeviceRegistration \? \(/,
+    'dashboard should branch the zero-tablet CTA so recovery stays on the blocker surface when possible',
+  );
+  assert.match(
+    dashboardPageSource,
+    /<ModalLauncher[\s\S]*buttonLabel="Register first tablet"[\s\S]*<CreateDeviceRegistrationForm pods=\{pods\} returnPath="\/" \/>[\s\S]*<\/ModalLauncher>/,
+    'dashboard should let ops register the first tablet inline and keep the submission on the blocker surface',
+  );
+  assert.match(
+    dashboardPageSource,
     /<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>\s*Register first tablet\s*<\/Link>/,
-    'dashboard should give zero-tablet rollout blockers a direct CTA into device registration',
+    'dashboard should still fall back to the devices page when inline registration context is unavailable',
   );
   assert.match(
     dashboardPageSource,
