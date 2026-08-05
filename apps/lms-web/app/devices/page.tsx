@@ -44,18 +44,31 @@ function DeviceEditForm({ registration, pods }: { registration: Awaited<ReturnTy
     <form action={updateDeviceRegistrationAction} style={{ display: 'grid', gap: 16 }}>
       <input type="hidden" name="registrationId" value={registration.id} />
       <input type="hidden" name="returnPath" value="/devices" />
-      <label style={{ display: 'grid', gap: 8, color: '#334155', fontWeight: 750 }}>
-        Pod
-        <select name="podId" defaultValue={registration.podId || ''} style={{ border: '1px solid #d8deea', borderRadius: 14, padding: '13px 15px', background: '#ffffff', fontSize: 15 }} required>
-          <option value="">Select pod</option>
-          {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
-        </select>
-      </label>
-      <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.6 }}>
-        <strong style={{ color: '#0f172a' }}>Device identifier:</strong> {displayDeviceIdentifier(registration.deviceIdentifier)}
-        <div style={{ marginTop: 4 }}>Tablet identity is stable here. Re-point the pod if ops moved the device; mallam and geography should follow from that pod.</div>
-      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <label style={{ display: 'grid', gap: 8, color: '#334155', fontWeight: 750 }}>
+          Pod
+          <select name="podId" defaultValue={registration.podId || ''} style={{ border: '1px solid #d8deea', borderRadius: 14, padding: '13px 15px', background: '#ffffff', fontSize: 15 }} required>
+            <option value="">Select pod</option>
+            {pods.map((pod) => <option key={pod.id} value={pod.id}>{pod.label}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'grid', gap: 8, color: '#334155', fontWeight: 750 }}>
+          Device identifier
+          <input name="deviceIdentifier" defaultValue={registration.deviceIdentifier || ''} placeholder="tablet_01" style={{ border: '1px solid #d8deea', borderRadius: 14, padding: '13px 15px', background: '#ffffff', fontSize: 15 }} required />
+        </label>
+      </div>
+      <div style={{ padding: 16, borderRadius: 18, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', lineHeight: 1.6 }}>
+        <strong style={{ color: '#0f172a' }}>Rollout repair note:</strong> Update the device identifier and platform here whenever the live tablet record drifted, because learner release handoff stays blocked until both point at a real, supported target.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
+        <label style={{ display: 'grid', gap: 8, color: '#334155', fontWeight: 750 }}>
+          Platform
+          <select name="platform" defaultValue={registration.platform || 'android'} style={{ border: '1px solid #d8deea', borderRadius: 14, padding: '13px 15px', background: '#ffffff', fontSize: 15 }}>
+            <option value="android">Android</option>
+            <option value="ios">iPadOS</option>
+            <option value="web">Web kiosk</option>
+          </select>
+        </label>
         <label style={{ display: 'grid', gap: 8, color: '#334155', fontWeight: 750 }}>
           Status
           <select name="status" defaultValue={registration.status || 'active'} style={{ border: '1px solid #d8deea', borderRadius: 14, padding: '13px 15px', background: '#ffffff', fontSize: 15 }}>

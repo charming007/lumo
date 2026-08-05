@@ -1852,6 +1852,8 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
   const registrationId = String(formData.get('registrationId') || '').trim();
   const returnPath = sanitizeReturnPath(String(formData.get('returnPath') || ''), '/pods');
   const podIdValue = String(formData.get('podId') || '').trim();
+  const deviceIdentifier = String(formData.get('deviceIdentifier') || '').trim();
+  const platform = String(formData.get('platform') || 'android').trim();
   const status = String(formData.get('status') || '').trim();
   const appVersion = String(formData.get('appVersion') || '').trim();
 
@@ -1867,9 +1869,17 @@ export async function updateDeviceRegistrationAction(formData: FormData) {
     }));
   }
 
+  if (!deviceIdentifier) {
+    redirect(appendSearchParams(returnPath, {
+      message: 'Device update failed: learner rollout handoff needs a real device identifier',
+    }));
+  }
+
   try {
     await apiWrite(`/api/v1/device-registrations/${registrationId}`, 'PATCH', {
       podId: podIdValue,
+      deviceIdentifier,
+      platform: platform || 'android',
       status: status || undefined,
       appVersion: appVersion || null,
     }, 'admin');
