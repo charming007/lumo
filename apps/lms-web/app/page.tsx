@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { CreateAssessmentForm } from '../components/admin-forms';
+import { CreateDeviceRegistrationForm } from '../components/admin-forms';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { DeviceDeploymentHandoff } from '../components/device-deployment-handoff';
 import { ModalLauncher } from '../components/modal-launcher';
 
 export const dynamic = 'force-dynamic';
 
-import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchDeviceRegistrations, fetchLessons, fetchMallams, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
+import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumModules, fetchDashboardInsights, fetchDashboardSummary, fetchDeviceRegistrations, fetchLessons, fetchMallams, fetchPods, fetchSubjects, fetchWorkboard, isProtectedEndpointAuthFailure } from '../lib/api';
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
@@ -304,7 +305,7 @@ export default async function HomePage() {
     );
   }
 
-  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult, assetRuntimeResult, subjectsResult, deviceRegistrationsResult] = await Promise.allSettled([
+  const [summaryResult, insightsResult, workboardResult, mallamsResult, assignmentsResult, modulesResult, lessonsResult, assessmentsResult, assetRuntimeResult, subjectsResult, deviceRegistrationsResult, podsResult] = await Promise.allSettled([
     fetchDashboardSummary(),
     fetchDashboardInsights(),
     fetchWorkboard(),
@@ -316,6 +317,7 @@ export default async function HomePage() {
     fetchAssetRuntime(8),
     fetchSubjects(),
     fetchDeviceRegistrations(),
+    fetchPods(),
   ]);
 
   const summary: DashboardSummary = summaryResult.status === 'fulfilled' ? summaryResult.value : emptySummary;
@@ -332,6 +334,8 @@ export default async function HomePage() {
   const assessments: Assessment[] = assessmentsResult.status === 'fulfilled' ? assessmentsResult.value : [];
   const subjects: Subject[] = subjectsResult.status === 'fulfilled' ? subjectsResult.value : [];
   const deviceRegistrations = deviceRegistrationsResult.status === 'fulfilled' ? deviceRegistrationsResult.value : [];
+  const pods = podsResult.status === 'fulfilled' ? podsResult.value : [];
+  const canInlineDeviceRegistration = podsResult.status === 'fulfilled' && pods.length > 0;
   const deviceDeploymentReadiness = deviceRegistrationsResult.status === 'fulfilled'
     ? getDeviceDeploymentReadiness(deviceRegistrations)
     : null;
@@ -1192,9 +1196,21 @@ export default async function HomePage() {
                     <Pill label="0 tablet registrations" tone="#FEF3C7" text="#92400E" />
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <Link href="/devices" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
-                      Register first tablet
-                    </Link>
+                    {canInlineDeviceRegistration ? (
+                      <ModalLauncher
+                        buttonLabel="Register first tablet"
+                        title="Register tablet"
+                        description="Register the first learner tablet so rollout handoff stops being hypothetical."
+                        eyebrow="Device admin"
+                        triggerStyle={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px', border: '1px solid #991B1B' }}
+                      >
+                        <CreateDeviceRegistrationForm pods={pods} returnPath="/" />
+                      </ModalLauncher>
+                    ) : (
+                      <Link href="/devices" style={{ ...quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' }}>
+                        Register first tablet
+                      </Link>
+                    )}
                     <Link href="/settings" style={{ ...quickActionStyle, background: '#fff', color: '#991B1B', border: '1px solid #FCA5A5', padding: '10px 12px' }}>
                       Check deployment settings
                     </Link>
