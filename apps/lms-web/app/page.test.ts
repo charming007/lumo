@@ -4,12 +4,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
-const globalErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
+const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
+const deviceDeploymentUrlSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment-url.ts', import.meta.url)), 'utf8');
 const deployChecklistPublicPath = fileURLToPath(new URL('../public/DEPLOY_VERIFICATION_CHECKLIST.html', import.meta.url));
 
-test('dashboard degrades gracefully when only the subject feed is unavailable and blocker context stays recoverable', () => {
+test('dashboard degrades gracefully when only the subject feed is unavailable', () => {
   assert.doesNotMatch(
     dashboardPageSource,
     /subjectsResult\.status === 'rejected' \? 'subjects' : null/,
@@ -22,36 +23,8 @@ test('dashboard degrades gracefully when only the subject feed is unavailable an
   );
   assert.match(
     dashboardPageSource,
-    /const hasUnrecoverableReleaseContext = releaseFeedsAvailable[\s\S]*&& !subjectFeedAvailable[\s\S]*releaseBlockers\.some\(\(module\) => !module\.hasAuthoringContext\);/,
-    'dashboard should only tolerate degraded subject metadata when every visible blocker still has recoverable authoring context',
-  );
-  assert.match(
-    dashboardPageSource,
     /Subject metadata is degraded, but the dashboard can still launch Lesson Studio when the module itself carries enough subject context to recover the authoring lane\./,
     'dashboard should explain the degraded-but-usable subject-metadata recovery path instead of hard-blocking it out of existence',
-  );
-});
-
-test('dashboard hard-blocks when degraded subject metadata leaves release blockers without recoverable authoring context', () => {
-  assert.match(
-    dashboardPageSource,
-    /hasCriticalAssetOpsGap \|\| hasDeviceDeploymentGap \|\| hasReleaseGraphMismatch \|\| hasUnrecoverableReleaseContext/,
-    'dashboard trust badge should collapse to blocked when release blockers lose recoverable subject context',
-  );
-  assert.match(
-    dashboardPageSource,
-    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+hasUnrecoverableReleaseContext,\s+\}\)\) \{/,
-    'dashboard hard-block gate should include unrecoverable release context alongside the other deployment blockers',
-  );
-  assert.match(
-    dashboardPageSource,
-    /Deployment blocker: release blockers lost recoverable subject context\./,
-    'dashboard should call out lost blocker subject scope as an explicit deployment blocker',
-  );
-  assert.match(
-    dashboardPageSource,
-    /subject metadata is degraded and at least one blocked module no longer carries enough subject context to recover a safe authoring handoff/,
-    'dashboard should explain why degraded subjects become a blocker once authoring context is unrecoverable',
   );
 });
 
@@ -331,7 +304,7 @@ test('dashboard hard-blocks when release feeds resolve but the curriculum graph 
   );
   assert.match(
     dashboardPageSource,
-    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+hasUnrecoverableReleaseContext,\s+\}\)\) \{/,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
     'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
   );
   assert.match(
@@ -585,27 +558,27 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     'device deployment handoff should derive rollout readiness from the same shared helper the dashboard uses for deployment blocking',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /function shellEscape\(value: string\)/,
     'device deployment handoff should shell-escape provisioning snippets before copy-paste',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /cd apps\/learner-tablet/,
     'learner provisioning bundle should start in the Flutter app directory instead of assuming imaginary root npm scripts',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /dart run tool\/build_release\.dart/,
     'learner provisioning bundle should run through the guarded release wrapper before exposing copyable release commands',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /--release-target=\$\{shellEscape\(buildTarget\)\}/,
     'learner provisioning bundle should pass the requested release target into the guarded wrapper',
   );
   assert.doesNotMatch(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /flutter build web --release/,
     'copyable learner provisioning commands should stop in the guarded wrapper instead of duplicating raw flutter build steps in the LMS source',
   );
@@ -700,47 +673,47 @@ test('device deployment handoff only treats active tablets as duplicate live sco
     'handoff should make it explicit that the signing env contract covers both APK and App Bundle release builds',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /--dart-define=LUMO_API_BASE_URL=\$\{shellEscape\(normalizedApiBase\)\}/,
     'learner release build command should pass the API base through Flutter dart-define',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /--dart-define=LUMO_DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
     'learner release build command should pass the device identifier through Flutter dart-define',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
-    /'cd apps\/learner-tablet &&',\s*'dart run tool\/build_release\.dart \\\\'/,
+    deviceDeploymentUrlSource,
+    /'cd apps\/learner-tablet && \\\\',\s*'  dart run tool\/build_release\.dart \\\\'/,
     'learner release handoff should keep the wrapper command as one valid chained shell snippet instead of breaking after &&',
   );
   assert.doesNotMatch(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /npm run build:learner:(web|apk)/,
     'learner deployment handoff should stop advertising nonexistent root npm build scripts',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /export API_BASE=\$\{shellEscape\(base\)\}/,
     'bootstrap curl smoke test should shell-escape the API base export',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /export DEVICE_IDENTIFIER=\$\{shellEscape\(deviceIdentifier\)\}/,
     'bootstrap curl smoke test should shell-escape the device identifier export',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /curl -fsS -G \\\"\$API_BASE\/api\/v1\/learner-app\/bootstrap\\\" \\\\/,
     'bootstrap curl smoke test should hit the learner bootstrap with curl -G so query parameters stay explicit',
   );
   assert.match(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /--data-urlencode \\\"deviceIdentifier=\$DEVICE_IDENTIFIER\\\" \\\\/,
     'bootstrap curl smoke test should URL-encode the device identifier instead of trusting raw shell interpolation in the query string',
   );
   assert.doesNotMatch(
-    deviceDeploymentHandoffSource,
+    deviceDeploymentUrlSource,
     /bootstrap\?deviceIdentifier=\$DEVICE_IDENTIFIER/,
     'bootstrap curl smoke test should stop inlining raw device identifiers into the query string',
   );

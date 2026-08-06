@@ -1,20 +1,14 @@
 'use client';
 
 import { getDeviceDeploymentReadiness } from '../lib/device-deployment';
+import {
+  buildDeviceBootstrapCurl,
+  buildDeviceBootstrapProbe,
+  buildDeviceReleaseCommand,
+  normalizeDeploymentApiBase,
+} from '../lib/device-deployment-url';
 import type { DeviceRegistration } from '../lib/types';
 import { CopyableTextCard } from './copyable-text-card';
-
-function normalizeBaseUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return trimmed;
-
-  const withoutHash = trimmed.split('#', 1)[0] ?? trimmed;
-  const withoutQuery = withoutHash.split('?', 1)[0] ?? withoutHash;
-  const withScheme = withoutQuery.includes('://') ? withoutQuery : `https://${withoutQuery}`;
-  const withoutKnownSuffix = withScheme.replace(/\/api\/v1(?:\/learner-app(?:\/bootstrap)?)?\/+$/i, '');
-
-  return withoutKnownSuffix.replace(/\/+$/, '');
-}
 
 function toneForStatus(status?: string | null) {
   const normalized = String(status || '').trim().toLowerCase();
@@ -22,17 +16,6 @@ function toneForStatus(status?: string | null) {
   if (normalized === 'repair') return { background: '#FFF7ED', border: '#FED7AA', accent: '#9A3412' };
   if (normalized === 'inactive') return { background: '#FEF3C7', border: '#FDE68A', accent: '#92400E' };
   return { background: '#F8FAFC', border: '#E2E8F0', accent: '#334155' };
-}
-
-function shellEscape(value: string) {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
-function buildBootstrapProbe(apiBase: string, deviceIdentifier: string) {
-  const base = normalizeBaseUrl(apiBase);
-  const probe = new URL(`${base}/api/v1/learner-app/bootstrap`);
-  probe.searchParams.set('deviceIdentifier', deviceIdentifier);
-  return probe.toString();
 }
 
 function normalizePlatform(value: string | null | undefined) {
@@ -81,28 +64,6 @@ function platformLabel(platform: string | null | undefined) {
   return String(platform || 'Unknown platform').trim() || 'Unknown platform';
 }
 
-function buildReleaseCommand(apiBase: string, deviceIdentifier: string, buildTarget: 'web' | 'apk' | 'appbundle' | 'ipa') {
-  const normalizedApiBase = normalizeBaseUrl(apiBase);
-
-  return [
-    'cd apps/learner-tablet &&',
-    'dart run tool/build_release.dart \\',
-    `  --release-target=${shellEscape(buildTarget)} \\`,
-    `  --dart-define=LUMO_API_BASE_URL=${shellEscape(normalizedApiBase)} \\`,
-    `  --dart-define=LUMO_DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-  ].join('\n');
-}
-
-function buildBootstrapCurl(apiBase: string, deviceIdentifier: string) {
-  const base = normalizeBaseUrl(apiBase);
-  return [
-    `export API_BASE=${shellEscape(base)}`,
-    `export DEVICE_IDENTIFIER=${shellEscape(deviceIdentifier)}`,
-    "curl -fsS -G \"$API_BASE/api/v1/learner-app/bootstrap\" \\",
-    "  --data-urlencode \"deviceIdentifier=$DEVICE_IDENTIFIER\" \\",
-    "  -H 'Accept: application/json'",
-  ].join('\n');
-}
 
 function buildAndroidSigningEnvTemplate() {
   return [
@@ -312,12 +273,12 @@ export function DeviceDeploymentHandoff({
           const deviceLabel = registration.deviceIdentifier || registration.tabletName || 'Device identifier missing';
           const normalizedPlatform = normalizePlatform(registration.platform);
           const resolvedPlatformLabel = platformLabel(registration.platform);
-          const bootstrapProbe = buildBootstrapProbe(apiBase, registration.deviceIdentifier);
-          const releaseWebCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
-          const releaseApkCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
-          const releaseAppBundleCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'appbundle');
-          const releaseIpaCommand = buildReleaseCommand(apiBase, registration.deviceIdentifier, 'ipa');
-          const bootstrapCurl = buildBootstrapCurl(apiBase, registration.deviceIdentifier);
+          const bootstrapProbe = buildDeviceBootstrapProbe(apiBase, registration.deviceIdentifier);
+          const releaseWebCommand = buildDeviceReleaseCommand(apiBase, registration.deviceIdentifier, 'web');
+          const releaseApkCommand = buildDeviceReleaseCommand(apiBase, registration.deviceIdentifier, 'apk');
+          const releaseAppBundleCommand = buildDeviceReleaseCommand(apiBase, registration.deviceIdentifier, 'appbundle');
+          const releaseIpaCommand = buildDeviceReleaseCommand(apiBase, registration.deviceIdentifier, 'ipa');
+          const bootstrapCurl = buildDeviceBootstrapCurl(apiBase, registration.deviceIdentifier);
           const normalizedPodId = normalizePodIdentifier(registration.podId);
           const podCollisionPeers = normalizedPodId
             ? (activePodCollisions[normalizedPodId] || []).filter((candidate) => candidate !== describeTabletTarget(registration))
@@ -417,7 +378,7 @@ export function DeviceDeploymentHandoff({
                   ) : null}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 14 }}>
                     <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy device identifier" text={registration.deviceIdentifier || 'Unassigned device identifier'} tone="white" border={tone.border} />
-                    <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy LMS API target" text={normalizeBaseUrl(apiBase)} tone="white" border={tone.border} />
+                    <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy LMS API target" text={normalizeDeploymentApiBase(apiBase)} tone="white" border={tone.border} />
                     {podCollisionPeers.length ? <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy pod collision peers" text={podCollisionPeers.join('\n')} tone="white" border={tone.border} /> : null}
                     {deviceIdentifierCollisionPeers.length ? <CopyableTextCard eyebrow="Provisioning diagnostics" title="Copy device ID collision peers" text={deviceIdentifierCollisionPeers.join('\n')} tone="white" border={tone.border} /> : null}
                     {normalizeDeviceIdentifier(registration.deviceIdentifier) ? (
