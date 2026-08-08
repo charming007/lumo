@@ -3153,13 +3153,11 @@ class LumoAppState {
     );
     final lessonUsesPublishedLaunchGuard =
         lesson.status.trim().toLowerCase() == 'published';
-    if (
-      resumeFrom == null &&
-      (_lessonRequiresSyncBeforeStarting(lesson) ||
-          (lessonIsTrackedForLaunchGuard &&
-              lessonUsesPublishedLaunchGuard &&
-              lessonLockedForLearner(learner, lesson)))
-    ) {
+    if (resumeFrom == null &&
+        (_lessonRequiresSyncBeforeStarting(lesson) ||
+            (lessonIsTrackedForLaunchGuard &&
+                lessonUsesPublishedLaunchGuard &&
+                lessonLockedForLearner(learner, lesson)))) {
       throw StateError(
         'Cannot open lesson ${lesson.id} for ${learner.name} because it is not currently learner-safe to launch on this tablet.',
       );
@@ -5159,6 +5157,21 @@ class LumoAppState {
     return null;
   }
 
+  LearningModule? _moduleForBackendSession(BackendLessonSession session) {
+    final preferredKeys = {
+      session.moduleId?.trim().toLowerCase(),
+      session.moduleTitle?.trim().toLowerCase(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    if (preferredKeys.isEmpty) return null;
+
+    final matches = modules.where((module) {
+      final variants = _moduleKeyVariants(module);
+      return variants.any(preferredKeys.contains);
+    }).toList(growable: false);
+    if (matches.length == 1) return matches.first;
+    return null;
+  }
+
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
     if (session == null) return null;
 
@@ -5167,20 +5180,38 @@ class LumoAppState {
       if (lesson.id == session.lessonId) return lesson;
     }
 
-    final normalizedSessionTitle =
-        (session.lessonTitle ?? '').trim().toLowerCase();
+    final matchedModule = _moduleForBackendSession(session);
+    final preferredModuleIds = {
+      session.moduleId?.trim(),
+      matchedModule?.id.trim(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    final normalizedSessionTitle = _normalizeAssignmentLookupValue(
+      session.lessonTitle ?? '',
+    );
     if (normalizedSessionTitle.isNotEmpty) {
-      final titleMatches = assigned
-          .where(
-            (lesson) =>
-                lesson.title.trim().toLowerCase() == normalizedSessionTitle,
-          )
-          .toList(growable: false);
+      final titleMatches = assigned.where((lesson) {
+        final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
+        if (lessonTitle != normalizedSessionTitle) return false;
+        if (preferredModuleIds.isEmpty && matchedModule == null) return true;
+        return preferredModuleIds.contains(lesson.moduleId.trim()) ||
+            (matchedModule != null &&
+                _lessonMatchesModule(lesson: lesson, module: matchedModule));
+      }).toList(growable: false);
       if (titleMatches.length == 1) return titleMatches.first;
     }
 
+    if (matchedModule != null) {
+      final moduleMatches = assigned
+          .where((lesson) =>
+              _lessonMatchesModule(lesson: lesson, module: matchedModule))
+          .toList(growable: false);
+      if (moduleMatches.length == 1) {
+        return moduleMatches.first;
+      }
+    }
+
     final moduleMatches = assigned
-        .where((lesson) => lesson.moduleId == session.moduleId)
+        .where((lesson) => preferredModuleIds.contains(lesson.moduleId.trim()))
         .toList(growable: false);
     if (moduleMatches.length == 1) {
       return moduleMatches.first;
@@ -5462,7 +5493,9 @@ class LumoAppState {
       return 'No learner events are waiting locally on this tablet.';
     }
 
-    final parts = <String>['$pendingCount learner event(s) still live only on this tablet'];
+    final parts = <String>[
+      '$pendingCount learner event(s) still live only on this tablet'
+    ];
     if (fallbackRegistrationCount > 0) {
       parts.add(
         '$fallbackRegistrationCount local registration${fallbackRegistrationCount == 1 ? '' : 's'} still need backend reconciliation',

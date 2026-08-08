@@ -965,7 +965,8 @@ void main() {
       },
     );
 
-    test('keeps backend lessons with no activity steps visible but blocked', () async {
+    test('keeps backend lessons with no activity steps visible but blocked',
+        () async {
       final state = LumoAppState(
         includeSeedDemoContent: false,
         apiClient: LumoApiClient(
@@ -1108,13 +1109,15 @@ void main() {
       expect(
         state.learnerCanOpenLesson(
           state.learners.first,
-          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-empty'),
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-empty'),
         ),
         isFalse,
       );
       expect(
         () => state.startLesson(
-          state.assignedLessons.firstWhere((lesson) => lesson.id == 'english-live'),
+          state.assignedLessons
+              .firstWhere((lesson) => lesson.id == 'english-live'),
         ),
         returnsNormally,
       );
@@ -3507,10 +3510,56 @@ void main() {
         expect(state.resumableRuntimeSessionForLearner(beginner), isNotNull);
         expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
         expect(
-          state.resumableSessionForLearnerAndLesson(beginner, lesson)?.sessionId,
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
           'session-alias-progress',
         );
         expect(state.nextAssignedLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          contains('Resume ready'),
+        );
+      },
+    );
+
+    test(
+      'surfaces resume ready for in-progress sessions matched by alias title and module-equivalent metadata',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-english-alias-progress',
+            sessionId: 'session-english-alias-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: 'english-runtime-alias',
+            lessonTitle: lesson.title.replaceAll('!', ''),
+            moduleId: 'english-runtime-package',
+            moduleTitle: lesson.subject,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Resume the learner on the same live step.',
+            currentStepIndex: 1,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
+          'session-english-alias-progress',
+        );
+        expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
         expect(
           state.runtimeSessionSummaryForLearner(beginner),
           contains('Resume ready'),
