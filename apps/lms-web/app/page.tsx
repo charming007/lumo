@@ -1226,7 +1226,7 @@ export default async function HomePage() {
                       <ModalLauncher
                         buttonLabel="Register first tablet"
                         title="Register tablet"
-                        description="Register the first learner tablet without leaving the deployment blocker surface."
+                        description="Register the first learner tablet without leaving the deployment blocker surface so rollout handoff stops being hypothetical."
                         eyebrow="Device admin"
                         triggerStyle={{
                           ...quickActionStyle,
