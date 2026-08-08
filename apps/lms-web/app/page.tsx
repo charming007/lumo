@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { CreateAssessmentForm } from '../components/admin-forms';
-import { CreateDeviceRegistrationForm } from '../components/admin-forms';
+import { CreateAssessmentForm, CreateDeviceRegistrationForm } from '../components/admin-forms';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { DeviceDeploymentHandoff } from '../components/device-deployment-handoff';
 import { ModalLauncher } from '../components/modal-launcher';
