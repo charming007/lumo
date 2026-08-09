@@ -4602,6 +4602,71 @@ void main() {
   );
 
   testWidgets(
+    'resume launch path carries alias-matched backend sessions into the lesson start',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true);
+      final lesson = state.assignedLessons.firstWhere(
+        (item) => item.moduleId == 'english',
+      );
+      final module = state.modules.firstWhere(
+        (item) => item.id == lesson.moduleId,
+        orElse: () => state.modules.first,
+      );
+      final learner = state.learners.first;
+      final runtimeSession = BackendLessonSession(
+        id: 'runtime-english-alias-progress',
+        sessionId: 'session-english-alias-progress',
+        studentId: learner.id,
+        learnerCode: learner.learnerCode,
+        lessonId: 'english-runtime-alias',
+        lessonTitle: lesson.title.replaceAll('!', ''),
+        moduleId: 'english-runtime-package',
+        moduleTitle: module.title,
+        status: 'in_progress',
+        completionState: 'inProgress',
+        automationStatus: 'Resume the learner session.',
+        currentStepIndex: 2,
+        stepsTotal: lesson.steps.length,
+        responsesCaptured: 2,
+        supportActionsUsed: 0,
+        audioCaptures: 0,
+        facilitatorObservations: 0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LessonLaunchSetupPage(
+            state: state,
+            onChanged: () {},
+            lesson: lesson,
+            module: module,
+            resumeFrom: runtimeSession,
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Resume with ${learner.name}'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Resume with ${learner.name}'));
+      await tester.tap(find.text('Resume with ${learner.name}'));
+      await pumpForUi(tester);
+      await tester.pump(const Duration(seconds: 4));
+      await pumpForUi(tester);
+
+      expect(state.activeSession, isNotNull);
+      expect(state.activeSession?.sessionId, 'session-english-alias-progress');
+      expect(find.byType(LessonSessionPage), findsOneWidget);
+
+      state.dispose();
+    },
+  );
+
+  testWidgets(
     'lesson launch ignores a mismatched resume session instead of locking the wrong learner',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1280);

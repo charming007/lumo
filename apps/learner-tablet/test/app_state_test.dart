@@ -3519,6 +3519,50 @@ void main() {
     );
 
     test(
+      'surfaces resume ready for in-progress sessions matched by alias title and module-equivalent metadata',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-english-alias-progress',
+            sessionId: 'session-english-alias-progress',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: 'english-runtime-alias',
+            lessonTitle: lesson.title.replaceAll('!', ''),
+            moduleId: 'english-runtime-package',
+            moduleTitle: lesson.subject,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Resume the learner on the same live step.',
+            currentStepIndex: 1,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
+          'session-english-alias-progress',
+        );
+        expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state.runtimeSessionSummaryForLearner(beginner),
+          contains('Resume ready'),
+        );
+      },
+    );
+
+    test(
       'does not advertise resumable runtime when the synced lesson payload is empty',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);
