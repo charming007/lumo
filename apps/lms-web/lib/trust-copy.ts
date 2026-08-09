@@ -38,9 +38,19 @@ export function describeRuntimeStatus(mode: string, seedCount: number) {
   };
 }
 
-export function describeDashboardStatus(seedCount: number) {
+export function describeDashboardStatus(mode: string, seedCount: number) {
+  const normalizedMode = mode.trim().toLowerCase();
+
+  if (normalizedMode === 'offline') {
+    return 'Offline mode — live LMS feed unavailable';
+  }
+
+  if (normalizedMode === 'degraded') {
+    return 'Degraded mode — verify live LMS feeds before trusting this page';
+  }
+
   if (seedCount > 0) {
-    return 'Live LMS feed connected';
+    return 'Live LMS feed connected · seeded catalog still present';
   }
 
   return 'Live LMS feed connected';
