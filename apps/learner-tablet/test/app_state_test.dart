@@ -3563,6 +3563,59 @@ void main() {
     );
 
     test(
+      'resolves resumable runtime to the correct learner lesson when alias metadata only matches by module equivalence',
+      () {
+        final state = LumoAppState(includeSeedDemoContent: true);
+        final lesson = state.assignedLessons.firstWhere(
+          (item) => item.moduleId == 'english',
+        );
+        final decoyLesson = LessonCardModel(
+          id: 'math-decoy-same-title',
+          moduleId: 'math-runtime-package',
+          title: lesson.title,
+          subject: 'Math',
+          durationMinutes: lesson.durationMinutes,
+          status: lesson.status,
+          mascotName: lesson.mascotName,
+          readinessFocus: 'Decoy live routing',
+          scenario: 'A different subject happens to reuse the same title.',
+          steps: lesson.steps,
+        );
+        state.assignedLessons.add(decoyLesson);
+
+        state.recentRuntimeSessionsByLearnerId[beginner.id] = [
+          BackendLessonSession(
+            id: 'runtime-english-alias-module-only',
+            sessionId: 'session-english-alias-module-only',
+            studentId: beginner.id,
+            learnerCode: beginner.learnerCode,
+            lessonId: 'english-runtime-alias',
+            lessonTitle: lesson.title,
+            moduleId: 'english-runtime-package',
+            moduleTitle: lesson.subject,
+            status: 'in_progress',
+            completionState: 'inProgress',
+            automationStatus: 'Resume the learner on the same live step.',
+            currentStepIndex: 1,
+            stepsTotal: lesson.steps.length,
+            responsesCaptured: 1,
+            supportActionsUsed: 0,
+            audioCaptures: 0,
+            facilitatorObservations: 0,
+          ),
+        ];
+
+        expect(state.resumableLessonForLearner(beginner)?.id, lesson.id);
+        expect(
+          state
+              .resumableSessionForLearnerAndLesson(beginner, lesson)
+              ?.sessionId,
+          'session-english-alias-module-only',
+        );
+      },
+    );
+
+    test(
       'does not advertise resumable runtime when the synced lesson payload is empty',
       () {
         final state = LumoAppState(includeSeedDemoContent: true);

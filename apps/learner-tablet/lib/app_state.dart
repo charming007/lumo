@@ -5182,20 +5182,38 @@ class LumoAppState {
       if (lesson.id == session.lessonId) return lesson;
     }
 
-    final normalizedSessionTitle =
-        (session.lessonTitle ?? '').trim().toLowerCase();
+    final matchedModule = _moduleForBackendSession(session);
+    final preferredModuleIds = {
+      session.moduleId?.trim(),
+      matchedModule?.id.trim(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    final normalizedSessionTitle = _normalizeAssignmentLookupValue(
+      session.lessonTitle ?? '',
+    );
     if (normalizedSessionTitle.isNotEmpty) {
-      final titleMatches = assigned
-          .where(
-            (lesson) =>
-                lesson.title.trim().toLowerCase() == normalizedSessionTitle,
-          )
-          .toList(growable: false);
+      final titleMatches = assigned.where((lesson) {
+        final lessonTitle = _normalizeAssignmentLookupValue(lesson.title);
+        if (lessonTitle != normalizedSessionTitle) return false;
+        if (preferredModuleIds.isEmpty && matchedModule == null) return true;
+        return preferredModuleIds.contains(lesson.moduleId.trim()) ||
+            (matchedModule != null &&
+                _lessonMatchesModule(lesson: lesson, module: matchedModule));
+      }).toList(growable: false);
       if (titleMatches.length == 1) return titleMatches.first;
     }
 
+    if (matchedModule != null) {
+      final moduleMatches = assigned
+          .where((lesson) =>
+              _lessonMatchesModule(lesson: lesson, module: matchedModule))
+          .toList(growable: false);
+      if (moduleMatches.length == 1) {
+        return moduleMatches.first;
+      }
+    }
+
     final moduleMatches = assigned
-        .where((lesson) => lesson.moduleId == session.moduleId)
+        .where((lesson) => preferredModuleIds.contains(lesson.moduleId.trim()))
         .toList(growable: false);
     if (moduleMatches.length == 1) {
       return moduleMatches.first;
