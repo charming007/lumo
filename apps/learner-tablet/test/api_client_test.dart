@@ -248,6 +248,18 @@ void main() {
       );
     });
 
+    test('rejects release builds that still enable seed demo content', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+          includeSeedDemoContent: true,
+        ),
+        contains(contains('cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT')),
+      );
+    });
+
     test(
         'accepts a shippable release config when backend and tablet identity are explicit',
         () {
