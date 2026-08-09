@@ -62,6 +62,7 @@ test('rollout readiness blocks tablets whose platform cannot produce a real lear
 
   assert.equal(readiness.hasRolloutReadyRegistration, false);
   assert.deepEqual(readiness.annotated[0]?.blockingReasons, ['unsupported-platform']);
+  assert.equal(readiness.unsupportedPlatformCount, 1);
   assert.deepEqual(readiness.blockingSummary, [
     {
       reason: 'unsupported-platform',
