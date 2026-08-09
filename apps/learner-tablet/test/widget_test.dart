@@ -153,17 +153,18 @@ void _noop() {}
 void main() {
   test('release rebuild command matches the deployment target platform', () {
     expect(
-        learnerReleaseBuildCommandForPlatform(
-          isWeb: true,
-          platform: TargetPlatform.android,
-        ),
-        'flutter build web --release --no-wasm-dry-run');
+      learnerReleaseBuildCommandForPlatform(
+        isWeb: true,
+        platform: TargetPlatform.android,
+      ),
+      'flutter build web --release --no-wasm-dry-run',
+    );
     expect(
       learnerReleaseBuildCommandForPlatform(
         isWeb: false,
         platform: TargetPlatform.android,
       ),
-      'flutter build appbundle --release',
+      'flutter build apk --release',
     );
     expect(
       learnerReleaseBuildCommandForPlatform(
@@ -205,7 +206,7 @@ void main() {
         isWeb: false,
         platform: TargetPlatform.android,
       ),
-      'appbundle',
+      'apk',
     );
     expect(
       learnerReleaseTargetForPlatform(
@@ -261,6 +262,11 @@ void main() {
       command,
       contains("--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007'"),
     );
+    expect(
+      command,
+      contains(
+          'cd apps/learner-tablet && \\\ndart run tool/build_release.dart \\\n'),
+    );
     expect(command, isNot(contains('--no-wasm-dry-run')));
 
     final webCommand = buildReleaseRebuildCommand(
@@ -272,6 +278,23 @@ void main() {
 
     expect(webCommand, contains("--release-target='web'"));
     expect(webCommand, contains('--no-wasm-dry-run'));
+    expect(
+      webCommand,
+      contains(
+        "--dart-define=LUMO_DEVICE_IDENTIFIER='tablet-pod-a-007' \\\n  --no-wasm-dry-run",
+      ),
+    );
+
+    final appBundleCommand = buildReleaseRebuildCommand(
+      backendBaseUrl: 'https://lumo.example.com/api/v1/learner-app/bootstrap',
+      deviceIdentifier: 'tablet-pod-a-007',
+      isWebOverride: false,
+      platformOverride: TargetPlatform.android,
+      releaseTargetOverride: 'appbundle',
+    );
+
+    expect(appBundleCommand, contains("--release-target='appbundle'"));
+    expect(appBundleCommand, isNot(contains('--no-wasm-dry-run')));
   });
 
   Future<void> pumpAppAtSize(WidgetTester tester, Size size) async {
@@ -539,6 +562,55 @@ void main() {
       expect(find.text('Tablet trust check'), findsOneWidget);
       expect(find.text('No trusted live sync on this tablet'), findsOneWidget);
       expect(find.text('Refresh sync'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'home screen blocks lesson launch from trust-blocked tablets',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+
+      final lesson = state.assignedLessons.firstWhere(
+        (candidate) => candidate.steps.isNotEmpty,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () {
+                    launchLessonFlow(
+                      context: context,
+                      state: state,
+                      onChanged: _noop,
+                      lesson: lesson,
+                    );
+                  },
+                  child: const Text('Launch lesson'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Launch lesson'));
+      await tester.pump();
+
+      expect(find.textContaining('Tablet trust is blocked.'), findsOneWidget);
+      expect(find.byType(LessonLaunchSetupPage), findsNothing);
     },
   );
 
@@ -1118,6 +1190,8 @@ void main() {
       expect(find.text('Live backend target'), findsOneWidget);
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Android App Bundle handoff'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Provisioned tablet identifier'), findsOneWidget);
@@ -1188,8 +1262,21 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        find.textContaining(
+          'there is nothing useful to compare against the LMS yet',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Compare this exact identifier against the LMS device record before retrying',
+        ),
+        findsNothing,
+      );
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(
         find.textContaining('<copy-device-identifier-from-lms>'),
         findsWidgets,
@@ -1242,11 +1329,12 @@ void main() {
       expect(find.text('tablet-pod-a-007'), findsWidgets);
       expect(find.text('Release rebuild handoff'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(
         find.textContaining(
           '--dart-define=LUMO_DEVICE_IDENTIFIER=\'tablet-pod-a-007\'',
         ),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(
         find.textContaining(
@@ -1288,6 +1376,7 @@ void main() {
 
       expect(find.text('Copy backend target'), findsOneWidget);
       expect(find.text('Copy rebuild command'), findsOneWidget);
+      expect(find.text('Copy Android App Bundle command'), findsOneWidget);
       expect(find.text('Copy bootstrap probe'), findsOneWidget);
       expect(find.text('Copy bootstrap command'), findsOneWidget);
       expect(find.text('Copy tablet identifier'), findsOneWidget);
@@ -2722,6 +2811,44 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Back home'), findsOneWidget);
       expect(find.text('Start assigned lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'registration success page exposes the full backend trust blocker state before live handoff',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final state = LumoAppState(includeSeedDemoContent: true)
+        ..usingFallbackData = false
+        ..lastSyncedAt = DateTime.now().subtract(const Duration(minutes: 4))
+        ..lastSyncAttemptAt =
+            DateTime.now().subtract(const Duration(minutes: 1))
+        ..lastSyncError = 'Unknown learner for sync event';
+      addTearDown(state.dispose);
+      final learner = state.learners.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RegistrationSuccessPage(
+            state: state,
+            learner: learner,
+            onChanged: () {},
+          ),
+        ),
+      );
+      await pumpForUi(tester);
+
+      expect(find.text('Pilot trust blocker'), findsOneWidget);
+      expect(find.text('Backend connected • sync trust blocked'), findsOneWidget);
+      expect(find.text('Authoritative vs local handoff'), findsOneWidget);
+      expect(find.text('Runtime sync feedback'), findsOneWidget);
+      expect(
+        find.textContaining(state.criticalSyncTrustBlockerReason!),
+        findsOneWidget,
+      );
     },
   );
 

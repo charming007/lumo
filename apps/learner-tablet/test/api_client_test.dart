@@ -225,6 +225,18 @@ void main() {
       );
     });
 
+    test('rejects release configs that enable seed demo content', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: 'tablet-pod-a-007',
+          includeSeedDemoContent: true,
+        ),
+        contains(contains('LUMO_ENABLE_SEED_DEMO_CONTENT')),
+      );
+    });
+
     test('requires an explicit backend target even for the canonical host', () {
       expect(
         learnerReleaseBuildConfigIssues(
@@ -252,14 +264,14 @@ void main() {
 
   group('LumoApiClient.productionBaseUrlIssue', () {
     test(
-        'accepts the canonical production host when release config falls back to the built-in default',
+        'rejects the canonical production host when release config falls back to the built-in default',
         () {
       expect(
         LumoApiClient.productionBaseUrlIssue(
           'https://lumo-api-production-303a.up.railway.app',
           hasExplicitConfig: false,
         ),
-        isNull,
+        contains('LUMO_API_BASE_URL is missing'),
       );
     });
 
@@ -303,6 +315,13 @@ void main() {
           'https://lumo-api-production-303a.up.railway.app',
         ),
         isNull,
+      );
+    });
+
+    test('client getter rejects implicit default release config too', () {
+      expect(
+        LumoApiClient().invalidProductionBaseUrlReason,
+        contains('LUMO_API_BASE_URL is missing'),
       );
     });
 

@@ -63,7 +63,11 @@ class _LumoAppState extends State<LumoApp> {
   void initState() {
     super.initState();
     state.attachVoiceReplay(
-      voiceReplayService.replay,
+      (text, mode, {supportLanguage}) => voiceReplayService.replay(
+        text,
+        mode,
+        supportLanguage: supportLanguage,
+      ),
       onStop: voiceReplayService.stop,
     );
     Future.microtask(() async {
@@ -326,7 +330,7 @@ String learnerReleaseBuildCommandForPlatform({
 
   return switch (platform) {
     TargetPlatform.iOS => 'flutter build ipa --release',
-    TargetPlatform.android => 'flutter build appbundle --release',
+    TargetPlatform.android => 'flutter build apk --release',
     TargetPlatform.macOS => 'flutter build macos --release',
     TargetPlatform.windows => 'flutter build windows --release',
     TargetPlatform.linux => 'flutter build linux --release',
@@ -344,7 +348,7 @@ String learnerReleaseTargetForPlatform({
 
   return switch (platform) {
     TargetPlatform.iOS => 'ipa',
-    TargetPlatform.android => 'appbundle',
+    TargetPlatform.android => 'apk',
     TargetPlatform.macOS => 'macos',
     TargetPlatform.windows => 'windows',
     TargetPlatform.linux => 'linux',
@@ -357,14 +361,16 @@ String buildReleaseRebuildCommand({
   required String deviceIdentifier,
   bool? isWebOverride,
   TargetPlatform? platformOverride,
+  String? releaseTargetOverride,
 }) {
   final normalizedBackend = LumoApiClient.normalizeBaseUrl(backendBaseUrl);
   final isWeb = isWebOverride ?? kIsWeb;
   final platform = platformOverride ?? defaultTargetPlatform;
-  final releaseTarget = learnerReleaseTargetForPlatform(
-    isWeb: isWeb,
-    platform: platform,
-  );
+  final releaseTarget = releaseTargetOverride ??
+      learnerReleaseTargetForPlatform(
+        isWeb: isWeb,
+        platform: platform,
+      );
   return [
     'cd apps/learner-tablet &&',
     'dart run tool/build_release.dart',
@@ -422,10 +428,22 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         deviceIdentifier != null && deviceIdentifier.isNotEmpty
             ? deviceIdentifier
             : '<copy-device-identifier-from-lms>';
+    final currentReleaseTarget = learnerReleaseTargetForPlatform(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
     final releaseRebuildCommand = buildReleaseRebuildCommand(
       backendBaseUrl: configuredBackend,
       deviceIdentifier: rebuildDeviceIdentifier,
+      releaseTargetOverride: currentReleaseTarget,
     );
+    final releaseAppBundleCommand = currentReleaseTarget == 'apk'
+        ? buildReleaseRebuildCommand(
+            backendBaseUrl: configuredBackend,
+            deviceIdentifier: rebuildDeviceIdentifier,
+            releaseTargetOverride: 'appbundle',
+          )
+        : null;
     final normalizedBlockerReason = blockerReason.toLowerCase();
     final blockerNeedsDeviceIdentity =
         normalizedBlockerReason.contains('device identifier') ||
@@ -434,6 +452,11 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
         normalizedBlockerReason.contains('lumo_device_identifier');
     final blockerRegistrationMismatch =
         blockerNeedsDeviceIdentity && !blockerMissingProvisionedIdentifier;
+    final deviceIdentifierCardCopy = blockerMissingProvisionedIdentifier
+        ? 'This build never received a tablet identifier, so there is nothing useful to compare against the LMS yet. Copy the correct identifier from the dashboard, rebuild, and redeploy before retrying on-device.'
+        : blockerNeedsDeviceIdentity
+            ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
+            : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.';
     final blockerHeroTitle = blockerMissingProvisionedIdentifier
         ? 'Deployment blocker: this release build was shipped without its tablet identity.'
         : blockerRegistrationMismatch
@@ -654,9 +677,7 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                blockerNeedsDeviceIdentity
-                                    ? 'This blocker smells like a registration mismatch. Compare this exact identifier against the LMS device record before retrying, or the tablet will keep looking dead even when the backend is healthy.'
-                                    : 'If bootstrap keeps failing because the tablet is unknown, compare this identifier against the LMS device registry before blaming the learner roster.',
+                                deviceIdentifierCardCopy,
                                 style: const TextStyle(
                                   color: Color(0xFF475569),
                                   height: 1.45,
@@ -753,6 +774,73 @@ class LearnerDeploymentBlockerPage extends StatelessWidget {
                                 icon: const Icon(Icons.copy_all_rounded),
                                 label: const Text('Copy rebuild command'),
                               ),
+                              if (releaseAppBundleCommand != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF7ED),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0xFFFED7AA),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Android App Bundle handoff',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF9A3412),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SelectableText(
+                                        releaseAppBundleCommand,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7C2D12),
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'If ops is shipping the learner app through a signed Android release lane, copy the App Bundle command instead of pretending the APK path is the only production handoff.',
+                                        style: TextStyle(
+                                          color: Color(0xFF9A3412),
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () async {
+                                          await ClipboardBridge.copy(
+                                            releaseAppBundleCommand,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Copied Android App Bundle rebuild command.',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon:
+                                            const Icon(Icons.copy_all_rounded),
+                                        label: const Text(
+                                          'Copy Android App Bundle command',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -1638,6 +1726,18 @@ void launchLessonFlow({
   LearningModule? module,
   BackendLessonSession? resumeFrom,
 }) {
+  final learnerLaunchTrustBlocker = state.learnerLaunchTrustBlockerReason;
+  if (learnerLaunchTrustBlocker != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Tablet trust is blocked. $learnerLaunchTrustBlocker',
+        ),
+      ),
+    );
+    return;
+  }
+
   if (lesson.isAssignmentPlaceholder) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1967,15 +2067,21 @@ class HomePage extends StatelessWidget {
     final viewportHeight = viewportSize.height;
     final viewportWidth = viewportSize.width;
     final ultraShortHeight = viewportHeight <= 640;
+    final hasAssignmentSyncWarnings =
+        state.assignedLessons.any(lessonRequiresSyncBeforeStarting);
     final hasSyncWarnings = state.usingFallbackData ||
         state.hasCriticalSyncTrustBlocker ||
-        state.registrationBlockerReason != null;
+        state.registrationBlockerReason != null ||
+        state.hasPendingLocalFallbackRegistration ||
+        hasAssignmentSyncWarnings;
     final forceTrustBannerOnUltraShort =
-        state.deploymentBlockerReason != null ||
+        state.usingFallbackData ||
+            state.deploymentBlockerReason != null ||
             state.backendError != null ||
             state.hasPendingRecoveredSession ||
             state.pendingSyncEvents.isNotEmpty ||
-            state.lastSyncedAt != null;
+            state.lastSyncedAt != null ||
+            hasAssignmentSyncWarnings;
     final showTrustBanner =
         hasSyncWarnings && (!ultraShortHeight || forceTrustBannerOnUltraShort);
     final showFreshnessBanner = !showTrustBanner && !ultraShortHeight;
@@ -2094,6 +2200,8 @@ class HomePage extends StatelessWidget {
 
                     Widget buildActionPanel() {
                       final actions = buildQuickActions();
+                      final registrationBlocked =
+                          state.registrationBlockerReason != null;
 
                       if (ultraShortHeight) {
                         return Align(
@@ -2104,13 +2212,37 @@ class HomePage extends StatelessWidget {
                               scrollDirection: Axis.horizontal,
                               child: Row(
                                 children: [
-                                  for (var index = 0;
-                                      index < actions.length;
-                                      index++) ...[
-                                    actions[index],
-                                    if (index < actions.length - 1)
-                                      const SizedBox(width: 10),
-                                  ],
+                                  FilledButton.tonalIcon(
+                                    onPressed: openRegister,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    icon: Icon(
+                                      registrationBlocked
+                                          ? Icons.sync_problem_rounded
+                                          : Icons.person_add_alt_1_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Register'),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  FilledButton.tonalIcon(
+                                    onPressed: openLearners,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.groups_rounded,
+                                      size: 18,
+                                    ),
+                                    label: const Text('Student list'),
+                                  ),
                                 ],
                               ),
                             ),
@@ -2168,8 +2300,8 @@ class HomePage extends StatelessWidget {
                                 return Center(
                                   child: SingleChildScrollView(
                                     primary: false,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: compactEmptyState ? 4 : 12,
                                     ),
                                     child: ConstrainedBox(
                                       constraints: const BoxConstraints(
@@ -2649,12 +2781,18 @@ class _HomeTrustBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final registrationBlocked = state.registrationBlockerReason;
+    final pendingRegistrationCount =
+        state.pendingLocalFallbackRegistrationCount;
+    final hasPendingRegistrationTrustBlocker = pendingRegistrationCount > 0;
     final assignmentGapCount =
         state.assignedLessons.where(lessonRequiresSyncBeforeStarting).length;
     final criticalSyncBlocker = state.criticalSyncTrustBlockerReason;
     final hasPriorityWarning = registrationBlocked != null ||
         criticalSyncBlocker != null ||
+        hasPendingRegistrationTrustBlocker ||
         assignmentGapCount > 0;
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final ultraCompact = compact && viewportHeight <= 560;
 
     Future<void> refreshTabletSync() async {
       await state.bootstrap();
@@ -2672,9 +2810,13 @@ class _HomeTrustBanner extends StatelessWidget {
     final compactWarning = criticalSyncBlocker ??
         (registrationBlocked != null
             ? '$registrationBlocked Fix backend reachability first.'
-            : assignmentGapCount == 1
-                ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
-                : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
+            : hasPendingRegistrationTrustBlocker
+                ? pendingRegistrationCount == 1
+                    ? '1 learner registration is still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                    : '$pendingRegistrationCount learner registrations are still queued locally. Refresh sync before treating this roster as deployment-ready.'
+                : assignmentGapCount == 1
+                    ? '1 assigned lesson is still sync-incomplete. Refresh sync before launch.'
+                    : '$assignmentGapCount assigned lessons are still sync-incomplete. Refresh sync before launch.');
     final compactStatusTone = criticalSyncBlocker != null
         ? (
             background: const Color(0xFFFFF7ED),
@@ -2742,9 +2884,11 @@ class _HomeTrustBanner extends StatelessWidget {
                     Text(
                       criticalSyncBlocker != null
                           ? 'Deployment trust is blocked until the backend sync mismatch is reconciled. Do not hand this tablet off as if progress is safely landing upstream.'
-                          : hasPriorityWarning
-                              ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
-                              : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
+                          : hasPendingRegistrationTrustBlocker
+                              ? 'This tablet has learner registrations saved locally that the backend has not accepted yet. Do not sign this deployment off as roster-safe until that sync lands.'
+                              : hasPriorityWarning
+                                  ? 'Confirm backend status, roster freshness, and lesson payload health before the next live handoff.'
+                                  : 'Backend, roster, and assignment payload all look sane enough for the next live lesson handoff.',
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         height: 1.45,
@@ -2759,7 +2903,7 @@ class _HomeTrustBanner extends StatelessWidget {
           if (compact) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(ultraCompact ? 10 : 12),
               decoration: BoxDecoration(
                 color: compactStatusTone.background,
                 borderRadius: BorderRadius.circular(16),
@@ -2789,7 +2933,9 @@ class _HomeTrustBanner extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              state.rosterFreshnessDetail,
+                              ultraCompact
+                                  ? state.trustedSyncHeadline
+                                  : state.rosterFreshnessDetail,
                               style: const TextStyle(
                                 color: Color(0xFF475569),
                                 height: 1.35,
@@ -2800,86 +2946,88 @@ class _HomeTrustBanner extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: compactStatusTone.border),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          criticalSyncBlocker != null
-                              ? Icons.sync_problem_rounded
-                              : Icons.schedule_rounded,
-                          size: 18,
-                          color: compactStatusTone.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            state.trustedSyncHeadline,
-                            style: TextStyle(
-                              color: compactStatusTone.accent,
-                              fontWeight: FontWeight.w800,
-                              height: 1.35,
+                  if (!ultraCompact) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: compactStatusTone.border),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            criticalSyncBlocker != null
+                                ? Icons.sync_problem_rounded
+                                : Icons.schedule_rounded,
+                            size: 18,
+                            color: compactStatusTone.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              state.trustedSyncHeadline,
+                              style: TextStyle(
+                                color: compactStatusTone.accent,
+                                fontWeight: FontWeight.w800,
+                                height: 1.35,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        StatusPill(
+                          text: state.operatorSourceLabel,
+                          color: _operatorStatusColor(state.operatorSourceLabel),
+                        ),
+                        if (state.curriculumSourceLabel !=
+                            state.operatorSourceLabel)
+                          StatusPill(
+                            text: state.curriculumSourceLabel,
+                            color: _operatorStatusColor(
+                              state.curriculumSourceLabel,
+                            ),
+                          ),
+                        if (state.operatorHealthLabel !=
+                                state.operatorSourceLabel &&
+                            state.operatorHealthLabel !=
+                                state.curriculumSourceLabel)
+                          StatusPill(
+                            text: state.operatorHealthLabel,
+                            color: _operatorStatusColor(
+                              state.operatorHealthLabel,
+                            ),
+                          ),
+                        StatusPill(
+                          text: state.rosterFreshnessLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
+                        ),
+                        StatusPill(
+                          text: state.syncQueueLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
+                        ),
+                        StatusPill(
+                          text: state.lastSyncSummaryLabel,
+                          color: state.usingFallbackData
+                              ? LumoTheme.accentOrange
+                              : LumoTheme.accentGreen,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      StatusPill(
-                        text: state.operatorSourceLabel,
-                        color: _operatorStatusColor(state.operatorSourceLabel),
-                      ),
-                      if (state.curriculumSourceLabel !=
-                          state.operatorSourceLabel)
-                        StatusPill(
-                          text: state.curriculumSourceLabel,
-                          color: _operatorStatusColor(
-                            state.curriculumSourceLabel,
-                          ),
-                        ),
-                      if (state.operatorHealthLabel !=
-                              state.operatorSourceLabel &&
-                          state.operatorHealthLabel !=
-                              state.curriculumSourceLabel)
-                        StatusPill(
-                          text: state.operatorHealthLabel,
-                          color: _operatorStatusColor(
-                            state.operatorHealthLabel,
-                          ),
-                        ),
-                      StatusPill(
-                        text: state.rosterFreshnessLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                      StatusPill(
-                        text: state.syncQueueLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                      StatusPill(
-                        text: state.lastSyncSummaryLabel,
-                        color: state.usingFallbackData
-                            ? LumoTheme.accentOrange
-                            : LumoTheme.accentGreen,
-                      ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -2887,7 +3035,7 @@ class _HomeTrustBanner extends StatelessWidget {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(ultraCompact ? 10 : 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7ED),
                   borderRadius: BorderRadius.circular(16),
@@ -2958,9 +3106,13 @@ class _HomeTrustBanner extends StatelessWidget {
                       criticalSyncBlocker ??
                           (registrationBlocked != null
                               ? '$registrationBlocked Fix backend reachability first. Local-only registration is intentionally blocked because it can create sync records the backend does not honor.'
-                              : assignmentGapCount == 1
-                                  ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
-                                  : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
+                              : hasPendingRegistrationTrustBlocker
+                                  ? pendingRegistrationCount == 1
+                                      ? '1 learner registration is still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                      : '$pendingRegistrationCount learner registrations are still queued locally on this tablet. Refresh sync before handoff, or the roster can look complete while backend signoff is still false.'
+                                  : assignmentGapCount == 1
+                                      ? '1 assigned lesson is still sync-incomplete on this tablet. Refresh sync before a learner taps into it, or you are sending them into a pretty dead end.'
+                                      : '$assignmentGapCount assigned lessons are still sync-incomplete on this tablet. Refresh sync before lesson launch so the live lesson payload actually exists offline.'),
                       style: const TextStyle(
                         color: Color(0xFF7C2D12),
                         height: 1.4,
@@ -4389,28 +4541,27 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                           lessonRequiresSyncBeforeStarting(
                                                             resumeLesson,
                                                           );
-                                                  final blockedLabel = resumeLesson ==
-                                                          null
-                                                      ? (session.lessonTitle
-                                                                  ?.trim()
-                                                                  .isNotEmpty ==
-                                                              true
-                                                          ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
-                                                          : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
-                                                      : resumeLesson
-                                                              .isAssignmentPlaceholder
-                                                          ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
-                                                          : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
+                                                  final blockedLabel =
+                                                      resumeLesson == null
+                                                          ? (session.lessonTitle
+                                                                          ?.trim()
+                                                                          .isNotEmpty ==
+                                                                      true
+                                                              ? 'Resume is blocked because ${session.lessonTitle} is not loaded on this tablet yet. Sync assignments or open the matching lesson manually.'
+                                                              : 'Resume is blocked because the matching lesson is not loaded on this tablet yet. Sync assignments or open the correct lesson manually.')
+                                                          : resumeLesson
+                                                                  .isAssignmentPlaceholder
+                                                              ? 'Resume is blocked because ${resumeLesson.title} is still waiting for the live lesson payload. Refresh sync before the learner resumes.'
+                                                              : '${resumeLesson.title} is missing its activity steps. Refresh sync or republish the lesson payload before the learner resumes.';
                                                   return Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
+                                                        CrossAxisAlignment.start,
                                                     children: [
                                                       Align(
                                                         alignment: Alignment
                                                             .centerLeft,
-                                                        child: FilledButton
-                                                            .tonalIcon(
+                                                        child:
+                                                            FilledButton.tonalIcon(
                                                           onPressed:
                                                               resumeBlocked
                                                                   ? null
@@ -4445,19 +4596,18 @@ class _LearnerProfilePageState extends State<LearnerProfilePage>
                                                       if (resumeBlocked)
                                                         Padding(
                                                           padding:
-                                                              const EdgeInsets
-                                                                  .only(
-                                                            top: 10,
-                                                          ),
+                                                              const EdgeInsets.only(
+                                                                top: 10,
+                                                              ),
                                                           child: Text(
                                                             blockedLabel,
                                                             style:
                                                                 const TextStyle(
-                                                              color: Color(
-                                                                0xFF92400E,
-                                                              ),
-                                                              height: 1.35,
-                                                            ),
+                                                                  color: Color(
+                                                                    0xFF92400E,
+                                                                  ),
+                                                                  height: 1.35,
+                                                                ),
                                                           ),
                                                         ),
                                                     ],
@@ -6868,7 +7018,9 @@ class RegistrationSuccessPage extends StatelessWidget {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 20),
-                            _BackendStatusBanner(state: state),
+                            state.hasCriticalSyncTrustBlocker
+                                ? _BackendStatusBanner(state: state)
+                                : _CompactBackendStatusBanner(state: state),
                             const SizedBox(height: 20),
                             LabelValueWrap(
                               items: [
@@ -13990,6 +14142,60 @@ class _RosterFreshnessBanner extends StatelessWidget {
               StatusPill(text: state.syncQueueLabel, color: color),
               StatusPill(text: state.lastSyncSummaryLabel, color: color),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactBackendStatusBanner extends StatelessWidget {
+  final LumoAppState state;
+
+  const _CompactBackendStatusBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLive = !state.usingFallbackData && state.lastSyncedAt != null;
+    final hasCriticalSyncBlocker = state.hasCriticalSyncTrustBlocker;
+    final color = hasCriticalSyncBlocker
+        ? const Color(0xFFB91C1C)
+        : isLive
+            ? LumoTheme.accentGreen
+            : (state.isBootstrapping
+                ? LumoTheme.primary
+                : LumoTheme.accentOrange);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLive ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                color: color,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  state.backendStatusLabel,
+                  style: TextStyle(fontWeight: FontWeight.w800, color: color),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            state.backendStatusDetail,
+            style: const TextStyle(color: Color(0xFF475569), height: 1.35),
           ),
         ],
       ),

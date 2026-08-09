@@ -10,6 +10,7 @@ const healthy = {
   hasEmptyReleaseBoard: false,
   hasDeviceDeploymentGap: false,
   hasReleaseGraphMismatch: false,
+  hasUnrecoverableReleaseContext: false,
 };
 
 test('blocks the dashboard when a critical dashboard feed fails', () => {
@@ -38,6 +39,10 @@ test('blocks the dashboard when learner deployment handoff is blind, colliding, 
 
 test('blocks the dashboard when release feeds resolve but the curriculum graph is internally contradictory', () => {
   assert.equal(shouldBlockDashboardPage({ ...healthy, hasReleaseGraphMismatch: true }), true);
+});
+
+test('blocks the dashboard when release blockers lose recoverable subject context under degraded subject metadata', () => {
+  assert.equal(shouldBlockDashboardPage({ ...healthy, hasUnrecoverableReleaseContext: true }), true);
 });
 
 test('does not block the dashboard when all critical feeds are healthy', () => {

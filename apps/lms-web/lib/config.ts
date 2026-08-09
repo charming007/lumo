@@ -32,6 +32,8 @@ function invalidProductionApiReason(value: string | null) {
     const protocol = parsed.protocol.toLowerCase();
     const looksPlaceholder = hostname === 'example.com' || hostname.endsWith('.example.com');
     const looksLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname.endsWith('.local');
+    const hasExtraPath = parsed.pathname && parsed.pathname !== '/';
+    const hasQueryOrHash = Boolean(parsed.search || parsed.hash);
 
     if (protocol !== 'https:') {
       return `NEXT_PUBLIC_API_BASE_URL must use https in production. Current value: ${value}`;
@@ -43,6 +45,10 @@ function invalidProductionApiReason(value: string | null) {
 
     if (looksLocal) {
       return `NEXT_PUBLIC_API_BASE_URL points at ${hostname}, which is only reachable from the local machine. Production LMS users would hit a dead backend.`;
+    }
+
+    if (hasExtraPath || hasQueryOrHash) {
+      return `NEXT_PUBLIC_API_BASE_URL must be the API origin only (for example https://${hostname}), not a deeper path like ${value}. The LMS already appends /api/v1 routes itself.`;
     }
 
     return null;

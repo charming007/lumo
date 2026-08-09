@@ -37,10 +37,18 @@ test('curriculum canvas blocker and module handoffs carry exact module ids into 
 });
 
 test('curriculum canvas triage quick action keeps payload-empty published lessons in the not-ready queue', () => {
-  assert.match(source, /import \{ isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
+  assert.match(source, /import \{ getLessonStatusTransitionBlockers, isLessonReleaseReady \} from '\.\.\/lib\/lesson-release-readiness';/);
   assert.match(
     source,
     /const selectedModuleNotReadyLessons = selected \? selected\.module\.lessons\.filter\(\(lesson\) => !isLessonReleaseReady\(lesson\)\) : \[];/,
+  );
+  assert.match(
+    source,
+    /const selectedModuleApprovalBlockedLessons = selected \? selected\.module\.lessons\.filter\(\(lesson\) => getLessonStatusTransitionBlockers\('approved', lesson\)\.length > 0\) : \[];/,
+  );
+  assert.match(
+    source,
+    /<option value="approved" disabled=\{selectedModuleApprovalBlockedLessons\.length > 0\}>Move all to approved<\/option>/,
   );
   assert.doesNotMatch(
     source,

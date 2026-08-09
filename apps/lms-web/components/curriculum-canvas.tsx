@@ -4,7 +4,7 @@ import type React from 'react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { findSubjectByContext, subjectMatchesContext } from '../lib/module-subject-match';
-import { isLessonReleaseReady } from '../lib/lesson-release-readiness';
+import { getLessonStatusTransitionBlockers, isLessonReleaseReady } from '../lib/lesson-release-readiness';
 import { normalizeModuleLifecycleStatus } from '../lib/module-status';
 import { Pill } from '../lib/ui';
 import { ModalLauncher } from './modal-launcher';
@@ -592,6 +592,7 @@ export function CurriculumCanvas({
     : [];
   const selectedModuleUnlinkedLessons = selected ? selected.module.lessons.filter((lesson) => !lesson.assessmentId) : [];
   const selectedModuleNotReadyLessons = selected ? selected.module.lessons.filter((lesson) => !isLessonReleaseReady(lesson)) : [];
+  const selectedModuleApprovalBlockedLessons = selected ? selected.module.lessons.filter((lesson) => getLessonStatusTransitionBlockers('approved', lesson).length > 0) : [];
   const selectedModuleGateCount = selected?.module.assessments.length ?? 0;
   const firstLessonMissingGate = selectedModuleUnlinkedLessons[0] ?? null;
   const firstLessonNeedingReadiness = selectedModuleNotReadyLessons[0] ?? null;
@@ -1284,10 +1285,15 @@ export function CurriculumCanvas({
                           <input type="hidden" name="moduleTitle" value={selected.module.title} />
                           <input type="hidden" name="returnPath" value={selectedModuleUrl} />
                           {selected.module.lessons.map((lesson) => <input key={lesson.id} type="hidden" name="lessonIds" value={lesson.id} />)}
-                          <select name="status" defaultValue={selected.module.lessons.some((lesson) => lesson.status !== 'approved') ? 'approved' : 'review'} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
+                          <div style={{ color: selectedModuleApprovalBlockedLessons.length ? '#fdba74' : '#94a3b8', lineHeight: 1.6, fontSize: 14 }}>
+                            {selectedModuleApprovalBlockedLessons.length
+                              ? `${selectedModuleApprovalBlockedLessons.length} mapped lesson${selectedModuleApprovalBlockedLessons.length === 1 ? '' : 's'} still have no launchable activity payload, so canvas will not let you bulk-move this lane to approved yet.`
+                              : 'Canvas only lets mapped lessons move into approved when every selected lesson already has a launchable activity payload.'}
+                          </div>
+                          <select name="status" defaultValue={selectedModuleApprovalBlockedLessons.length ? 'review' : selected.module.lessons.some((lesson) => lesson.status !== 'approved') ? 'approved' : 'review'} style={{ borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(15,23,42,0.88)', color: '#f8fafc' }}>
                             <option value="draft">Move all to draft</option>
                             <option value="review">Move all to review</option>
-                            <option value="approved">Move all to approved</option>
+                            <option value="approved" disabled={selectedModuleApprovalBlockedLessons.length > 0}>Move all to approved</option>
                           </select>
                           <button type="submit" style={{ ...actionLinkStyle, background: 'rgba(79,70,229,0.28)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.34)' }}>
                             Apply to {selected.module.lessons.length} mapped lesson{selected.module.lessons.length === 1 ? '' : 's'}

@@ -51,3 +51,16 @@ test('validate-build-env allows hosted or production build command when admin AP
   assert.equal(result.status, 0);
   assert.equal(result.stderr, '');
 });
+
+
+test('validate-build-env blocks hosted production build when API base includes /api/v1 path', () => {
+  const result = runValidateBuildEnv({
+    NODE_ENV: 'production',
+    LUMO_ADMIN_API_KEY: 'real-admin-key',
+    NEXT_PUBLIC_API_BASE_URL: 'https://lumo-api-production-303a.up.railway.app/api/v1',
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must be the API origin only/i);
+  assert.match(result.stderr, /already appends \/api\/v1 routes itself/i);
+});

@@ -322,7 +322,10 @@ class LumoAppState {
 
   String? productionDeviceIdentifierIssue(
       {bool isReleaseBuild = kReleaseBuild}) {
-    if (!isReleaseBuild || _includeSeedDemoContent) return null;
+    if (!isReleaseBuild) return null;
+    if (_includeSeedDemoContent) {
+      return 'Release build cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT. Demo seed content would bypass live learner registration and deployment trust checks, so this artifact is not shippable.';
+    }
     final configured = _configuredDeviceIdentifier?.trim();
     if (configured != null && configured.isNotEmpty) return null;
     return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
@@ -411,6 +414,21 @@ class LumoAppState {
 
   bool get hasPendingLocalFallbackRegistration =>
       pendingLocalFallbackRegistrationCount > 0;
+
+  String? get learnerLaunchTrustBlockerReason {
+    final criticalBlocker = criticalSyncTrustBlockerReason;
+    if (criticalBlocker != null) {
+      return criticalBlocker;
+    }
+    if (hasPendingLocalFallbackRegistration) {
+      final count = pendingLocalFallbackRegistrationCount;
+      final label = count == 1
+          ? '1 learner registration is still saved locally'
+          : '$count learner registrations are still saved locally';
+      return '$label and has not reconciled with the backend yet. Refresh sync before treating this roster as deployment-ready.';
+    }
+    return null;
+  }
 
   String get pendingSyncSummary {
     final latest = latestSyncEvent;
@@ -5495,7 +5513,9 @@ class LumoAppState {
       return 'No learner events are waiting locally on this tablet.';
     }
 
-    final parts = <String>['$pendingCount learner event(s) still live only on this tablet'];
+    final parts = <String>[
+      '$pendingCount learner event(s) still live only on this tablet',
+    ];
     if (fallbackRegistrationCount > 0) {
       parts.add(
         '$fallbackRegistrationCount local registration${fallbackRegistrationCount == 1 ? '' : 's'} still need backend reconciliation',
@@ -5525,7 +5545,7 @@ class LumoAppState {
       return 'Backend truth gap: offline fallback';
     }
     if (pendingSyncEvents.isNotEmpty) {
-      return 'Backend truth gap: $pendingSyncEvents.length local update(s) pending';
+      return 'Backend truth gap: ${pendingSyncEvents.length} local update(s) pending';
     }
     if (lastSyncWarnings.isNotEmpty) {
       return 'Backend truth gap: receipts need review';

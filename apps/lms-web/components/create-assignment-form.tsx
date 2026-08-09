@@ -93,7 +93,7 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
           ? 'Assignment publishing is paused because there is no release-ready lesson with a real launchable activity payload yet.'
           : activeAssessments.length
             ? `Only release-ready lessons with launchable activity payloads are available here. ${blockedLessons.length} non-launchable or draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`
-            : `Assessment gate data is unavailable right now, but assignment publishing still only exposes release-ready lessons with launchable activity payloads. ${blockedLessons.length} non-launchable or draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
+            : `The assessment feed is healthy, but there is no live assessment gate available for the currently release-ready lessons yet. ${blockedLessons.length} non-launchable or draft lesson${blockedLessons.length === 1 ? ' is' : 's are'} intentionally blocked from assignment.`}
       </div>
 
       <select name="cohortId" defaultValue={cohorts[0]?.id} style={inputStyle}>
@@ -105,7 +105,7 @@ export function CreateAssignmentForm({ cohorts, lessons, mallams, assessments }:
           ? eligibleLessons.map((lesson) => (
               <option key={lesson.id} value={lesson.id}>{lesson.title} · {lesson.moduleTitle ?? 'Unmapped module'}</option>
             ))
-          : <option value="">No release-ready lessons with assessment gates</option>}
+          : <option value="">No release-ready lessons with launchable payloads</option>}
       </select>
 
       <select name="assignedBy" defaultValue={mallams[0]?.id} style={inputStyle}>

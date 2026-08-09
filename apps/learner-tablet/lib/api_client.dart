@@ -21,7 +21,12 @@ List<String> learnerReleaseBuildConfigIssues({
   bool includeSeedDemoContent = false,
 }) {
   final issues = <String>[];
-  if (!includeSeedDemoContent && rawDeviceIdentifier.trim().isEmpty) {
+  if (includeSeedDemoContent) {
+    issues.add(
+      'Learner-tablet release build cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT. Shipping demo seed content would bypass live learner registration and deployment trust checks.',
+    );
+  }
+  if (rawDeviceIdentifier.trim().isEmpty) {
     issues.add(
       'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
     );
@@ -116,10 +121,8 @@ class LumoApiClient {
     bool hasExplicitConfig = true,
   }) {
     final normalized = normalizeBaseUrl(rawBaseUrl);
-    final canonicalProductionBaseUrl =
-        normalizeBaseUrl(kDefaultProductionApiBaseUrl);
-    if (!hasExplicitConfig && normalized != canonicalProductionBaseUrl) {
-      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets, even for non-canonical learner API targets.';
+    if (!hasExplicitConfig) {
+      return 'LUMO_API_BASE_URL is missing. Set it explicitly before shipping tablets instead of relying on the baked-in default backend target.';
     }
 
     final parsed = Uri.tryParse(normalized);

@@ -54,8 +54,36 @@ test('asset library blocks writes when the live registry feed is failing', () =>
   );
   assert.match(
     assetLibraryPageSource,
-    /\{assetFeedFailed \? \([\s\S]*Asset writes intentionally disabled[\s\S]*\) : \([\s\S]*<AssetUploadForm returnPath=\{assetLibraryHref\}/,
-    'asset library should keep upload/register forms on the healthy branch only, never inside the live-registry-failure branch',
+    /\{assetFeedFailed \? \([\s\S]*Asset writes intentionally disabled[\s\S]*\) : storageUploadsBlocked \? \([\s\S]*<AssetRegisterForm returnPath=\{assetLibraryHref\}/,
+    'asset library should keep full write forms off the live-registry-failure branch and only allow the narrow storage-fallback branch when the registry itself is healthy',
+  );
+});
+
+test('asset library hides managed upload when storage writes are blocked and keeps only the reference fallback', () => {
+  assert.match(
+    assetLibraryPageSource,
+    /const storageUploadsBlocked = assetUploadsReady === false;/,
+    'asset library should compute a dedicated storage-backed upload blocker state',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /Storage-backed uploads disabled/,
+    'asset library should call out that managed uploads are intentionally disabled when storage is blocked',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /Managed file upload is blocked, so this page will not pretend the upload form is safe\./,
+    'asset library should explain why the managed upload form disappears during storage outages',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /Use <strong>Register external asset<\/strong> for reference-only fallback until storage integrity recovers\./,
+    'asset library should direct operators to the reference-only fallback when managed storage is down',
+  );
+  assert.match(
+    assetLibraryPageSource,
+    /storageUploadsBlocked \? \([\s\S]*<AssetRegisterForm returnPath=\{assetLibraryHref\} subjects=\{subjects\} modules=\{modules\} lessons=\{lessons\} \/>[\s\S]*\) : \([\s\S]*<AssetUploadForm returnPath=\{assetLibraryHref\}/,
+    'asset library should keep the upload form off the storage-blocked branch while preserving external registration as the only safe fallback',
   );
 });
 

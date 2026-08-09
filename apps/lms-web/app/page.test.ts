@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
-const globalErrorSource = readFileSync(fileURLToPath(new URL('./global-error.tsx', import.meta.url)), 'utf8');
+const globalErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
 const deviceDeploymentUrlSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment-url.ts', import.meta.url)), 'utf8');
@@ -48,6 +48,29 @@ test('dashboard only treats widened production shell scope as blocked when pilot
     dashboardPageSource,
     /Deployment blocker: full LMS shell is widening the production deployment target\./,
     'dashboard should still call out the widened full-shell production state as an explicit deployment blocker when pilot mode is not explicitly disabled',
+  );
+});
+
+test('dashboard hard-blocks pilot deployment review when the full LMS shell widens unexpectedly in production', () => {
+  assert.match(
+    dashboardPageSource,
+    /if \(shellScopeDeploymentBlocked\) \{/,
+    'dashboard should stop deployment review before rendering the rest of the page when production shell scope widens',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Deployment blocker: full LMS shell is widening the production deployment target\./,
+    'dashboard should call out the widened full-shell production state as an explicit deployment blocker',
+  );
+  assert.match(
+    dashboardPageSource,
+    /A warning card buried inside the dashboard is too weak here\./,
+    'dashboard blocker copy should explain why a buried warning is not enough once production shell scope widens',
+  );
+  assert.match(
+    dashboardPageSource,
+    /Re-enable the pilot control plane for production so the dashboard and sidebar collapse back to the narrow pilot deployment shell/,
+    'dashboard should give operators a direct recovery action for the widened production shell state',
   );
 });
 
@@ -162,7 +185,7 @@ test('dashboard normalizes progression status before building the priority queue
 test('dashboard top blocker only inlines assessment-gate creation when subject context is trustworthy', () => {
   assert.match(
     dashboardPageSource,
-    /import \{ CreateAssessmentForm \} from '\.\.\/components\/admin-forms';/,
+    /import \{ CreateAssessmentForm, CreateDeviceRegistrationForm \} from '\.\.\/components\/admin-forms';/,
     'dashboard should import the assessment creation form so the top blocker can fix missing gates directly',
   );
   assert.match(
@@ -304,7 +327,7 @@ test('dashboard hard-blocks when release feeds resolve but the curriculum graph 
   );
   assert.match(
     dashboardPageSource,
-    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+\}\)\) \{/,
+    /hasCriticalAssetOpsGap,\s+hasEmptyReleaseBoard,\s+hasDeviceDeploymentGap,\s+hasReleaseGraphMismatch,\s+hasUnrecoverableReleaseContext,\s+\}\)\) \{/,
     'dashboard blocker gate should include contradictory release graphs in its hard-block decision',
   );
   assert.match(
@@ -385,6 +408,11 @@ test('dashboard API target trace and local fallback note use the real runtime ho
 test('dashboard live pull freshness uses the real feed count instead of a hard-coded denominator', () => {
   assert.match(
     dashboardPageSource,
+    /\{ label: 'pods', result: podsResult \},/,
+    'dashboard should include pods in the live feed accounting once direct first-tablet registration depends on that scope data',
+  );
+  assert.match(
+    dashboardPageSource,
     /const totalDashboardFeedCount = dashboardFeedEntries\.length;/,
     'dashboard should derive its feed denominator from the actual feed list so trust copy cannot drift when feeds change',
   );
@@ -443,6 +471,16 @@ test('dashboard surfaces learner app deployment handoff from live device registr
     dashboardPageSource,
     /fetchDeviceRegistrations\(\),/,
     'dashboard should pull live device registrations so learner build rollout readiness is visible from the front door',
+  );
+  assert.match(
+    dashboardPageSource,
+    /fetchPods\(\),/,
+    'dashboard should also pull pods so zero-tablet rollout blockers can open direct registration from the dashboard when scope data is ready',
+  );
+  assert.match(
+    dashboardPageSource,
+    /const canInlineDeviceRegistration = podsResult\.status === 'fulfilled' && pods\.length > 0;/,
+    'dashboard should only inline first-tablet registration when pod scope data is actually available',
   );
   assert.match(
     dashboardPageSource,

@@ -485,6 +485,22 @@ void main() {
     );
 
     test(
+      'release builds hard-block when seed demo content is enabled',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final state = LumoAppState(includeSeedDemoContent: true);
+
+        expect(
+          state.productionDeviceIdentifierIssue(isReleaseBuild: true),
+          contains('LUMO_ENABLE_SEED_DEMO_CONTENT'),
+        );
+        expect(state.productionDeviceIdentifierIssue(), isNull);
+
+        state.dispose();
+      },
+    );
+
+    test(
       'bootstrap automatically sends the persisted tablet device identifier',
       () async {
         SharedPreferences.setMockInitialValues({});
