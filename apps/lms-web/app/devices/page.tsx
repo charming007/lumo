@@ -221,6 +221,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
   ).size;
   const missingIdentifierCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('missing-device-identifier')).length;
   const missingPodCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('missing-pod')).length;
+  const unsupportedPlatformCount = deviceDeploymentReadiness.unsupportedPlatformCount;
   const inactiveBlockingCount = deviceDeploymentReadiness.annotated.filter((entry) => entry.blockingReasons.includes('non-active-status')).length;
   const hasZeroTabletRegistry = !registrations.length;
 
@@ -269,7 +270,7 @@ export default async function DevicesPage({ searchParams }: { searchParams?: Pro
       }
     >
       <FeedbackBanner message={query?.message} />
-      {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check the dashboard blocker stack at / before provisioning learner builds.`, 'error') : null}
+      {rolloutProvisioningBlocked ? routeAlert(`${rolloutBlockerHeadline} ${rolloutBlockerDetail} ${rolloutOperatorAction} ${missingIdentifierCount} blank device ID${missingIdentifierCount === 1 ? '' : 's'}, ${missingPodCount} missing pod link${missingPodCount === 1 ? '' : 's'}, ${unsupportedPlatformCount} unsupported platform${unsupportedPlatformCount === 1 ? '' : 's'}, and ${inactiveBlockingCount} non-active blocking record${inactiveBlockingCount === 1 ? '' : 's'} still need cleanup. Cross-check the dashboard blocker stack at / before provisioning learner builds.`, 'error') : null}
       {hasZeroTabletRegistry ? (
         <div style={{ marginBottom: 16, padding: '18px 20px', borderRadius: 18, background: '#FEF2F2', border: '1px solid #FCA5A5', display: 'grid', gap: 12 }}>
           <div style={{ display: 'grid', gap: 6 }}>

@@ -9,7 +9,21 @@ import { formatProgressionStatusLabel, normalizeProgressionStatus, progressionSt
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../../lib/ui';
 
 function emptyProgressRows(message: string): ReactNode[][] {
-  return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, '', '', '', '', '', '']];
+  return [[<span key={message} style={{ color: '#64748b' }}>{message}</span>, '', '', '', '', '', '', '']];
+}
+
+function formatOverrideAuditSummary(item: { override?: { status?: string | null; actorName?: string | null; actorRole?: string | null; reason?: string | null; updatedAt?: string | null } | null }) {
+  if (!item.override) return 'System progression state';
+
+  const overrideSummary = [
+    formatProgressionStatusLabel(item.override.status),
+    item.override.actorName ? `by ${item.override.actorName}` : item.override.actorRole ? `by ${item.override.actorRole}` : null,
+    item.override.updatedAt ? new Date(item.override.updatedAt).toLocaleString() : null,
+  ].filter(Boolean).join(' · ');
+
+  return item.override.reason
+    ? `${overrideSummary} — ${item.override.reason}`
+    : overrideSummary || 'Manual override recorded';
 }
 
 function normalizeFilterValue(value: string | string[] | undefined) {
@@ -180,6 +194,9 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       item.subjectName,
       item.moduleTitle,
       item.recommendedNextModuleTitle,
+      item.override?.actorName,
+      item.override?.actorRole,
+      item.override?.reason,
       student?.cohortName,
       student?.podLabel,
       student?.mallamName,
@@ -246,7 +263,7 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
       <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20, marginBottom: 20 }}>
         <Card title="Mastery board" eyebrow="Readiness operations">
           <SimpleTable
-            columns={['Student', 'Subject', 'Module', 'Mastery', 'Lessons completed', 'Progression', 'Next module']}
+            columns={['Student', 'Subject', 'Module', 'Mastery', 'Lessons completed', 'Progression', 'Override audit', 'Next module']}
             rows={filteredProgress.length ? filteredProgress.map((item) => [
               item.studentName,
               item.subjectName,
@@ -254,6 +271,9 @@ export default async function ProgressPage({ searchParams }: { searchParams?: Pr
               `${Math.round(item.mastery * 100)}%`,
               String(item.lessonsCompleted),
               <Pill key={item.id} label={formatProgressionStatusLabel(item.progressionStatus)} tone={progressionStatusTone(item.progressionStatus).tone} text={progressionStatusTone(item.progressionStatus).text} />,
+              <div key={`${item.id}-override`} style={{ color: item.override?.reason ? '#1f2937' : '#64748b', lineHeight: 1.5, minWidth: 220 }}>
+                {formatOverrideAuditSummary(item)}
+              </div>,
               item.recommendedNextModuleTitle ?? '—',
             ]) : emptyProgressRows(filtersActive ? 'No progress records match the current filters.' : 'Progress data is unavailable right now.')}
           />

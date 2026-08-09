@@ -1,6 +1,8 @@
 node_modules
 .vercel
 .git
+.worktrees
+.git-worktrees
 apps/learner-tablet/build
 apps/learner-tablet/.dart_tool
 apps/learner-tablet/.flutter-plugins
