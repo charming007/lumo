@@ -5,6 +5,7 @@ import { describeDashboardStatus } from '../lib/trust-copy';
 type TopbarProps = {
   sidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: () => void;
+  mode?: string;
   seedCount?: number;
   buildSignature: BuildSignature;
   pilotControlPlaneEnabled?: boolean;
@@ -12,12 +13,13 @@ type TopbarProps = {
 };
 
 export function Topbar({
+  mode = 'live',
   seedCount = 0,
   buildSignature,
   pilotControlPlaneEnabled = false,
   pilotRoute,
 }: TopbarProps) {
-  const dashboardStatus = describeDashboardStatus(seedCount);
+  const dashboardStatus = describeDashboardStatus(mode, seedCount);
   const routeCalloutTone = pilotRoute?.status === 'visible'
     ? { background: '#ECFDF5', border: '1px solid #BBF7D0', eyebrow: '#166534', title: '#14532D', detail: '#166534' }
     : pilotRoute?.status === 'blocked'
