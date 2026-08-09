@@ -7022,10 +7022,7 @@ class RegistrationSuccessPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 20),
                             state.hasCriticalSyncTrustBlocker
-                                ? _BackendStatusBanner(
-                                    state: state,
-                                    showHandoffDetails: false,
-                                  )
+                                ? _BackendStatusBanner(state: state)
                                 : _CompactBackendStatusBanner(state: state),
                             const SizedBox(height: 20),
                             LabelValueWrap(
