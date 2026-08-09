@@ -36,3 +36,11 @@ test('progress page normalizes progression status before filtering and badge ton
   assert.match(source, /text=\{progressionStatusTone\(item\.progressionStatus\)\.text\}/);
   assert.doesNotMatch(source, /item\.progressionStatus === statusFilter/);
 });
+
+test('progress page surfaces override audit context in the mastery board', () => {
+  assert.match(source, /function formatOverrideAuditSummary\(item:/, 'progress page should format override provenance for board rows');
+  assert.match(source, /columns=\{\['Student', 'Subject', 'Module', 'Mastery', 'Lessons completed', 'Progression', 'Override audit', 'Next module'\]\}/, 'mastery board should include an override audit column');
+  assert.match(source, /item\.override\?\.actorName/, 'override audit should surface the acting admin when available');
+  assert.match(source, /item\.override\?\.reason/, 'override audit should surface the override reason when available');
+  assert.match(source, /formatOverrideAuditSummary\(item\)/, 'mastery board rows should render the override audit summary inline');
+});

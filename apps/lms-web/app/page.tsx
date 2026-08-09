@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { CreateAssessmentForm } from '../components/admin-forms';
-import { CreateDeviceRegistrationForm } from '../components/admin-forms';
+import { CreateAssessmentForm, CreateDeviceRegistrationForm } from '../components/admin-forms';
 import { DeploymentBlockerCard } from '../components/deployment-blocker-card';
 import { DeviceDeploymentHandoff } from '../components/device-deployment-handoff';
 import { ModalLauncher } from '../components/modal-launcher';
@@ -1226,7 +1225,7 @@ export default async function HomePage() {
                       <ModalLauncher
                         buttonLabel="Register first tablet"
                         title="Register tablet"
-                        description="Register the first learner tablet without leaving the deployment blocker surface."
+                        description="Register the first learner tablet without leaving the deployment blocker surface so rollout handoff stops being hypothetical."
                         eyebrow="Device admin"
                         triggerStyle={{
                           ...quickActionStyle,
