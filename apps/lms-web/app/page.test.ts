@@ -877,7 +877,7 @@ test('global error route keeps the dashboard recovery actions without forcing Ne
   assert.doesNotMatch(
     globalErrorSource,
     /export const dynamic = 'force-dynamic';/,
-    'global error route should not force dynamic rendering because Next 16 trips a prerender invariant on /_global-error during production builds',
+    'global error route should not force dynamic rendering because Next 16 trips a prerender invariant when the recovery route lives at /_global-error during production builds',
   );
   assert.match(
     globalErrorSource,
