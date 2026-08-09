@@ -5159,6 +5159,21 @@ class LumoAppState {
     return null;
   }
 
+  LearningModule? _moduleForBackendSession(BackendLessonSession session) {
+    final preferredKeys = {
+      session.moduleId?.trim().toLowerCase(),
+      session.moduleTitle?.trim().toLowerCase(),
+    }.whereType<String>().where((value) => value.isNotEmpty).toSet();
+    if (preferredKeys.isEmpty) return null;
+
+    final matches = modules.where((module) {
+      final variants = _moduleKeyVariants(module);
+      return variants.any(preferredKeys.contains);
+    }).toList(growable: false);
+    if (matches.length == 1) return matches.first;
+    return null;
+  }
+
   LessonCardModel? lessonForBackendSession(BackendLessonSession? session) {
     if (session == null) return null;
 
