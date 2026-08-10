@@ -13,6 +13,7 @@ void main(List<String> args) {
     return;
   }
 
+  final normalizedReleaseTarget = releaseTarget.trim().toLowerCase();
   final issues = learnerReleaseBuildConfigIssues(
     rawApiBaseUrl: parsed.dartDefines['LUMO_API_BASE_URL'] ?? '',
     hasExplicitApiBaseUrl: parsed.dartDefines.containsKey('LUMO_API_BASE_URL'),
@@ -22,6 +23,9 @@ void main(List<String> args) {
                 .trim()
                 .toLowerCase() ==
             'true',
+    requireDeviceIdentifier: const {'apk', 'appbundle'}.contains(
+      normalizedReleaseTarget,
+    ),
   );
 
   if (issues.isNotEmpty) {
@@ -35,9 +39,19 @@ void main(List<String> args) {
     return;
   }
 
-  stdout.writeln(
-    'Learner-tablet $releaseTarget release config looks shippable for ${LumoApiClient.normalizeBaseUrl(parsed.dartDefines['LUMO_API_BASE_URL']!)} with device ${parsed.dartDefines['LUMO_DEVICE_IDENTIFIER']!.trim()}.',
+  final normalizedBaseUrl = LumoApiClient.normalizeBaseUrl(
+    parsed.dartDefines['LUMO_API_BASE_URL']!,
   );
+  final trimmedDeviceIdentifier =
+      parsed.dartDefines['LUMO_DEVICE_IDENTIFIER']?.trim();
+  final releaseSummary = const {'apk', 'appbundle'}.contains(
+        normalizedReleaseTarget,
+      ) &&
+      trimmedDeviceIdentifier != null &&
+      trimmedDeviceIdentifier.isNotEmpty
+      ? 'Learner-tablet $releaseTarget release config looks shippable for $normalizedBaseUrl with device $trimmedDeviceIdentifier.'
+      : 'Learner-tablet $releaseTarget release config looks shippable for $normalizedBaseUrl.';
+  stdout.writeln(releaseSummary);
 }
 
 class _ParsedArgs {

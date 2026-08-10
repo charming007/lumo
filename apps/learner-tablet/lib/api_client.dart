@@ -19,6 +19,7 @@ List<String> learnerReleaseBuildConfigIssues({
   required bool hasExplicitApiBaseUrl,
   required String rawDeviceIdentifier,
   bool includeSeedDemoContent = false,
+  bool requireDeviceIdentifier = true,
 }) {
   final issues = <String>[];
   if (includeSeedDemoContent) {
@@ -26,7 +27,7 @@ List<String> learnerReleaseBuildConfigIssues({
       'Learner-tablet release build cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT. Shipping demo seed content would bypass live learner registration and deployment trust checks.',
     );
   }
-  if (rawDeviceIdentifier.trim().isEmpty) {
+  if (requireDeviceIdentifier && rawDeviceIdentifier.trim().isEmpty) {
     issues.add(
       'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
     );
