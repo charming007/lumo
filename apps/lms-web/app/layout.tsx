@@ -40,7 +40,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body style={{ margin: 0, overflowX: 'hidden', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', background: '#eef2f7', color: '#202436' }}>
         <AppShell
-          mode={meta.mode}
           seedCount={seedCount}
           buildSignature={buildSignature}
           pilotControlPlaneEnabled={pilotControlPlaneEnabled}

@@ -88,7 +88,6 @@ export function AppShell({
         <Topbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
-          mode={mode}
           seedCount={seedCount}
           buildSignature={buildSignature}
           pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}

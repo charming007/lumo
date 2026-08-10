@@ -371,12 +371,14 @@ String buildReleaseRebuildCommand({
         isWeb: isWeb,
         platform: platform,
       );
+  final includeDeviceIdentifier = releaseTarget != 'web';
   return [
     'cd apps/learner-tablet &&',
     'dart run tool/build_release.dart',
     '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
-    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+    if (includeDeviceIdentifier)
+      '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
     if (releaseTarget == 'web') '  --no-wasm-dry-run',
   ].join(' \\\n');
 }
@@ -3067,7 +3069,10 @@ class _HomeTrustBanner extends StatelessWidget {
               ),
             ],
           ] else ...[
-            _BackendStatusBanner(state: state),
+            _BackendStatusBanner(
+              state: state,
+              showHandoffDetails: false,
+            ),
             const SizedBox(height: 12),
             _RosterFreshnessBanner(state: state),
             if (hasPriorityWarning) ...[
@@ -14205,8 +14210,12 @@ class _CompactBackendStatusBanner extends StatelessWidget {
 
 class _BackendStatusBanner extends StatelessWidget {
   final LumoAppState state;
+  final bool showHandoffDetails;
 
-  const _BackendStatusBanner({required this.state});
+  const _BackendStatusBanner({
+    required this.state,
+    this.showHandoffDetails = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14279,44 +14288,46 @@ class _BackendStatusBanner extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+          if (showHandoffDetails) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Authoritative vs local handoff',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    state.authoritativeBackendSummary,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    state.pendingLocalStateSummary,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Authoritative vs local handoff',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.authoritativeBackendSummary,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  state.pendingLocalStateSummary,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
           if (blockerReason != null) ...[
             const SizedBox(height: 12),
             Container(
