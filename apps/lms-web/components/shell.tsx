@@ -25,6 +25,7 @@ const SIDEBAR_PREFERENCE_KEY = 'lumo:lms-sidebar-collapsed';
 export function AppShell({
   children,
   banners,
+  mode = 'live',
   seedCount = 0,
   buildSignature,
   pilotControlPlaneEnabled = false,
@@ -32,6 +33,7 @@ export function AppShell({
 }: {
   children: React.ReactNode;
   banners?: React.ReactNode;
+  mode?: string;
   seedCount?: number;
   buildSignature: BuildSignature;
   pilotControlPlaneEnabled?: boolean;
@@ -86,6 +88,7 @@ export function AppShell({
         <Topbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
+          mode={mode}
           seedCount={seedCount}
           buildSignature={buildSignature}
           pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}
