@@ -23,8 +23,23 @@ test('app shell clamps shared chrome back to the pilot shell when production she
   );
   assert.match(
     source,
+    /const rootScopeDeploymentBlocked = Boolean\(shellScopeDeploymentBlocked && pathname === '\/'\);/,
+    'app shell should treat the dashboard root differently from blocked deep routes so the dashboard can render its own blocker state',
+  );
+  assert.match(
+    source,
     /const routeScopeDeploymentBlocked = Boolean\([\s\S]*shellScopeDeploymentBlocked[\s\S]*pathname !== '\/'[\s\S]*pilotRoute\.status !== 'visible'[\s\S]*\);/,
     'app shell should derive a direct-route blocker for non-pilot pages while production shell scope is narrowed',
+  );
+  assert.match(
+    source,
+    /if \(rootScopeDeploymentBlocked\) \{[\s\S]*<main style=\{\{ minHeight: '100vh', padding: 'clamp\(18px, 2\.5vw, 28px\)' \}\}>[\s\S]*\{children\}[\s\S]*<\/main>/,
+    'app shell should let the dashboard root render without shared chrome when the shell scope blocker is active',
+  );
+  assert.match(
+    source,
+    /\{banners\}/,
+    'app shell should still render shared banners inside the chrome path instead of dropping config/demo warnings on non-root routes',
   );
   assert.match(
     source,

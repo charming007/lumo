@@ -24,14 +24,14 @@ const SIDEBAR_PREFERENCE_KEY = 'lumo:lms-sidebar-collapsed';
 
 export function AppShell({
   children,
-  mode = 'live',
+  banners,
   seedCount = 0,
   buildSignature,
   pilotControlPlaneEnabled = false,
   shellScopeDeploymentBlocked = false,
 }: {
   children: React.ReactNode;
-  mode?: string;
+  banners?: React.ReactNode;
   seedCount?: number;
   buildSignature: BuildSignature;
   pilotControlPlaneEnabled?: boolean;
@@ -40,6 +40,7 @@ export function AppShell({
   const pathname = usePathname() || '/';
   const effectivePilotControlPlaneEnabled = pilotControlPlaneEnabled || shellScopeDeploymentBlocked;
   const pilotRoute = effectivePilotControlPlaneEnabled ? describePilotShellRoute(pathname) : undefined;
+  const rootScopeDeploymentBlocked = Boolean(shellScopeDeploymentBlocked && pathname === '/');
   const routeScopeDeploymentBlocked = Boolean(
     shellScopeDeploymentBlocked
     && pathname !== '/'
@@ -60,6 +61,14 @@ export function AppShell({
     window.localStorage.setItem(SIDEBAR_PREFERENCE_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
+  if (rootScopeDeploymentBlocked) {
+    return (
+      <main style={{ minHeight: '100vh', padding: 'clamp(18px, 2.5vw, 28px)' }}>
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className={`app-shell ${sidebarCollapsed ? 'app-shell--sidebar-collapsed' : ''}`}>
       <Sidebar
@@ -77,12 +86,12 @@ export function AppShell({
         <Topbar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebarCollapse={() => setSidebarCollapsed((current) => !current)}
-          mode={mode}
           seedCount={seedCount}
           buildSignature={buildSignature}
           pilotControlPlaneEnabled={effectivePilotControlPlaneEnabled}
           pilotRoute={pilotRoute}
         />
+        {banners}
         {routeScopeDeploymentBlocked && pilotRoute ? (
           <DeploymentBlockerCard
             title={pilotRoute.routeLabel}
