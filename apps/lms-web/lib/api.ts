@@ -210,11 +210,6 @@ async function getJson<T>(path: string): Promise<T> {
 
     return JSON.parse(rawBody) as T;
   } catch (error) {
-    const mockValue = getMockJson(path);
-    if (mockValue !== undefined) {
-      return mockValue as T;
-    }
-
     if (error instanceof ApiRequestError) {
       throw error;
     }

@@ -16,3 +16,16 @@ test('optional geography feeds still keep their 404 fallback', () => {
   assert.match(apiSource, /export async function fetchStates\([\s\S]*?error instanceof ApiRequestError && error.status === 404[\s\S]*?return \[] as State\[];/);
   assert.match(apiSource, /export async function fetchLocalGovernments\([\s\S]*?error instanceof ApiRequestError && error.status === 404[\s\S]*?return \[] as LocalGovernment\[];/);
 });
+
+test('configured API requests do not fall back to mock payloads after live fetch failures', () => {
+  assert.doesNotMatch(
+    apiSource,
+    /catch \(error\) \{[\s\S]*?const mockValue = getMockJson\(path\);[\s\S]*?return mockValue as T;[\s\S]*?\}/,
+    'live fetch failures should surface honestly instead of quietly swapping in mock data',
+  );
+  assert.match(
+    apiSource,
+    /if \(API_BASE_SOURCE === 'local-fallback'\) \{[\s\S]*?return mockValue as T;[\s\S]*?\}/,
+    'mock payloads should stay limited to explicit local fallback mode',
+  );
+});
