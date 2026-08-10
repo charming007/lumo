@@ -19,3 +19,7 @@ export function isPilotControlPlaneEnabled() {
 
   return process.env.NODE_ENV === 'production';
 }
+
+export function isShellScopeDeploymentBlocked() {
+  return process.env.NODE_ENV === 'production' && isPilotControlPlaneEnabled();
+}
