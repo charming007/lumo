@@ -21,7 +21,5 @@ export function isPilotControlPlaneEnabled() {
 }
 
 export function isShellScopeDeploymentBlocked() {
-  return process.env.NODE_ENV === 'production'
-    && getPilotControlPlaneFlagMode() !== 'disabled'
-    && !isPilotControlPlaneEnabled();
+  return process.env.NODE_ENV === 'production' && isPilotControlPlaneEnabled();
 }
