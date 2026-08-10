@@ -260,6 +260,18 @@ void main() {
       );
     });
 
+    test('web releases can skip tablet identity verification', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: '',
+          requireDeviceIdentifier: false,
+        ),
+        isEmpty,
+      );
+    });
+
     test(
         'accepts a shippable release config when backend and tablet identity are explicit',
         () {

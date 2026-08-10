@@ -371,12 +371,14 @@ String buildReleaseRebuildCommand({
         isWeb: isWeb,
         platform: platform,
       );
+  final includeDeviceIdentifier = releaseTarget != 'web';
   return [
     'cd apps/learner-tablet &&',
     'dart run tool/build_release.dart',
     '  --release-target=${_shellEscapeSingleQuoted(releaseTarget)}',
     '  --dart-define=LUMO_API_BASE_URL=${_shellEscapeSingleQuoted(normalizedBackend)}',
-    '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
+    if (includeDeviceIdentifier)
+      '  --dart-define=LUMO_DEVICE_IDENTIFIER=${_shellEscapeSingleQuoted(deviceIdentifier)}',
     if (releaseTarget == 'web') '  --no-wasm-dry-run',
   ].join(' \\\n');
 }
