@@ -176,6 +176,16 @@ test('content board does not hard-block on subject metadata degradation alone', 
     /Subject metadata is degraded, but the blocker board stays usable when module payloads still carry enough subject context to recover the right lane\./,
     'content board should warn about degraded subject metadata instead of blocking the whole release workflow',
   );
+  assert.match(
+    contentPageSource,
+    /const canCreateAssessmentGate = Boolean\([\s\S]*hasAuthoringContext[\s\S]*moduleSubjectId[\s\S]*subjectsIncludeId\(subjects, moduleSubjectId\),[\s\S]*\);/,
+    'content blocker rows should only expose inline gate creation when subject context is still trustworthy',
+  );
+  assert.match(
+    contentPageSource,
+    /canCreateAssessmentGate \? \([\s\S]*<ModalLauncher buttonLabel="Create gate"[\s\S]*<CreateAssessmentForm modules=\{\[module\]\} subjects=\{subjects\} returnPath=\{returnPath\} \/>[\s\S]*\) : \([\s\S]*Recover subject context first/,
+    'content blocker rows should fall back to a recovery message instead of opening an unscoped assessment modal',
+  );
 });
 
 test('content blocker actions keep multi-lesson gaps on the bulk blocker flow instead of single-lesson studio', () => {

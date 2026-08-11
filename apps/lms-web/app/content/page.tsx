@@ -550,6 +550,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                         returnPath,
                       })
                     : null;
+                  const canCreateAssessmentGate = Boolean(
+                    hasAuthoringContext
+                    && moduleSubjectId
+                    && subjectsIncludeId(subjects, moduleSubjectId),
+                  );
 
                   return [
                     <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
@@ -596,9 +601,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                         </div>
                       )}
                       {!hasAssessment ? (
-                        <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                          <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
-                        </ModalLauncher>
+                        canCreateAssessmentGate ? (
+                          <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate from the blockers board instead of hunting through the full content lane." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
+                            <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
+                          </ModalLauncher>
+                        ) : (
+                          <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
+                            Recover subject context first
+                          </div>
+                        )
                       ) : (
                         <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                           Review gate
@@ -714,6 +725,11 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       returnPath,
                     })
                   : null;
+                const canCreateAssessmentGate = Boolean(
+                  hasAuthoringContext
+                  && moduleSubjectId
+                  && subjectsIncludeId(subjects, moduleSubjectId),
+                );
 
                 return [
                   <div key={`${module.id}-title`} style={{ display: 'grid', gap: 6 }}>
@@ -760,9 +776,15 @@ export default async function ContentPage({ searchParams }: { searchParams?: Pro
                       </div>
                     )}
                     {!hasAssessment ? (
-                      <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate directly from the blockers-only view." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
-                        <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
-                      </ModalLauncher>
+                      canCreateAssessmentGate ? (
+                        <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Ship the missing progression gate directly from the blockers-only view." eyebrow="Create assessment" triggerStyle={{ ...iconButtonStyle('#ede9fe', '#5b21b6'), textAlign: 'center', justifyContent: 'center' }}>
+                          <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
+                        </ModalLauncher>
+                      ) : (
+                        <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
+                          Recover subject context first
+                        </div>
+                      )
                     ) : (
                       <Link href={buildAssessmentReviewHref({ returnPath, moduleTitle: module.title, moduleId: module.id, subjectId: moduleSubjectId })} style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#F8FAFC', color: '#334155', textDecoration: 'none', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                         Review gate

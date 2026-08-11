@@ -38,3 +38,8 @@ test('content subject lanes normalize legacy published module states before show
   assert.match(source, /const isActive = normalizedModuleStatus === option\.value;/);
   assert.match(source, /\{normalizedModuleStatus === 'published'/);
 });
+
+test('content subject lanes gate inline assessment creation on recoverable subject context', () => {
+  assert.match(source, /const canCreateAssessmentGate = Boolean\(moduleSubjectId && subjectsIncludeId\(subjects, moduleSubjectId\)\);/);
+  assert.match(source, /canCreateAssessmentGate \? \([\s\S]*<ModalLauncher buttonLabel="Create gate"[\s\S]*<CreateAssessmentForm modules=\{\[module\]\} subjects=\{subjects\} returnPath=\{returnPath\} \/>[\s\S]*\) : \([\s\S]*Recover subject context first/);
+});

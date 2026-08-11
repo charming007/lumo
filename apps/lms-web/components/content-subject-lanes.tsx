@@ -637,6 +637,7 @@ export function ContentSubjectLanes({
                             });
                             const moduleSubjectId = resolveModuleSubjectId(module, subjects);
                             const canLaunchLessonStudio = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
+                            const canCreateAssessmentGate = Boolean(moduleSubjectId && subjectsIncludeId(subjects, moduleSubjectId));
 
                             return (
                               <div
@@ -762,9 +763,15 @@ export function ContentSubjectLanes({
                                       }) : (
                                         <div style={{ display: 'grid', gap: 10 }}>
                                           <div style={{ color: '#64748b' }}>No assessment linked yet.</div>
-                                          <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Attach the missing progression gate without leaving this strand." eyebrow="Create assessment" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
-                                            <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
-                                          </ModalLauncher>
+                                          {canCreateAssessmentGate ? (
+                                            <ModalLauncher buttonLabel="Create gate" title={`Create assessment gate · ${module.title}`} description="Attach the missing progression gate without leaving this strand." eyebrow="Create assessment" triggerStyle={iconButtonStyle('#ede9fe', '#5b21b6')}>
+                                              <CreateAssessmentForm modules={[module]} subjects={subjects} returnPath={returnPath} />
+                                            </ModalLauncher>
+                                          ) : (
+                                            <div style={{ borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 700, background: '#FFF7ED', color: '#9A3412', border: '1px solid #FED7AA', textAlign: 'center', lineHeight: 1.5 }}>
+                                              Recover subject context first
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
