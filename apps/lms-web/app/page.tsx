@@ -10,7 +10,7 @@ import { fetchAssetRuntime, fetchAssignments, fetchAssessments, fetchCurriculumM
 import { API_BASE, API_BASE_DIAGNOSTIC, API_BASE_SOURCE } from '../lib/config';
 import { getBuildSignature } from '../lib/build-signature';
 import { fullNavigationItems, pilotNavigationItems } from '../lib/navigation';
-import { getPilotControlPlaneFlagMode, isPilotControlPlaneEnabled } from '../lib/pilot-control-plane';
+import { isPilotControlPlaneEnabled, isShellScopeDeploymentBlocked } from '../lib/pilot-control-plane';
 import { PILOT_BLOCKED_ROUTE_LABELS, PILOT_OFF_SHELL_ROUTE_LABELS } from '../lib/pilot-nav';
 import { findSubjectByContext } from '../lib/module-subject-match';
 import { Card, PageShell, Pill, SimpleTable, responsiveGrid } from '../lib/ui';
@@ -250,11 +250,8 @@ function describeApiTarget() {
 export default async function HomePage() {
   const buildSignature = getBuildSignature();
   const apiTarget = describeApiTarget();
-  const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode();
   const pilotControlPlaneEnabled = isPilotControlPlaneEnabled();
-  const shellScopeDeploymentBlocked = process.env.NODE_ENV === 'production'
-    && pilotControlPlaneFlagMode !== 'disabled'
-    && !pilotControlPlaneEnabled;
+  const shellScopeDeploymentBlocked = isShellScopeDeploymentBlocked();
   if (API_BASE_DIAGNOSTIC.deploymentBlocked) {
     return (
       <DeploymentBlockerCard
@@ -1225,7 +1222,7 @@ export default async function HomePage() {
                       <ModalLauncher
                         buttonLabel="Register first tablet"
                         title="Register tablet"
-                        description="Register the first learner tablet without leaving the deployment blocker surface so rollout handoff stops being hypothetical."
+                        description="Register the first learner tablet without leaving the deployment blocker surface."
                         eyebrow="Device admin"
                         triggerStyle={{
                           ...quickActionStyle,

@@ -282,6 +282,7 @@ void main() {
         isEmpty,
       );
     });
+
     test(
         'accepts a shippable release config when backend and tablet identity are explicit',
         () {
