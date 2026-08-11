@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const dashboardPageSource = readFileSync(fileURLToPath(new URL('./page.tsx', import.meta.url)), 'utf8');
+const actionsSource = readFileSync(fileURLToPath(new URL('./actions.ts', import.meta.url)), 'utf8');
 const globalErrorSource = readFileSync(fileURLToPath(new URL('./error.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHandoffSource = readFileSync(fileURLToPath(new URL('../components/device-deployment-handoff.tsx', import.meta.url)), 'utf8');
 const deviceDeploymentHelperSource = readFileSync(fileURLToPath(new URL('../lib/device-deployment.ts', import.meta.url)), 'utf8');
@@ -31,13 +32,13 @@ test('dashboard degrades gracefully when only the subject feed is unavailable', 
 test('dashboard only treats widened production shell scope as blocked when pilot mode is still using the default production clamp', () => {
   assert.match(
     dashboardPageSource,
-    /const pilotControlPlaneFlagMode = getPilotControlPlaneFlagMode\(\);/,
-    'dashboard should read the raw pilot-control-plane flag mode before deciding whether a widened production shell is accidental',
+    /import \{ isPilotControlPlaneEnabled, isShellScopeDeploymentBlocked \} from '\.\.\/lib\/pilot-control-plane';/,
+    'dashboard should consume the shared pilot-shell blocker helper instead of hand-rolling a second production gating rule',
   );
   assert.match(
     dashboardPageSource,
-    /const shellScopeDeploymentBlocked = process\.env\.NODE_ENV === 'production'[\s\S]*pilotControlPlaneFlagMode !== 'disabled'[\s\S]*!pilotControlPlaneEnabled;/,
-    'dashboard should only derive the shell-scope blocker when production is still supposed to stay in pilot mode',
+    /const shellScopeDeploymentBlocked = isShellScopeDeploymentBlocked\(\);/,
+    'dashboard should derive the shell-scope blocker from the shared pilot-control-plane helper',
   );
   assert.match(
     dashboardPageSource,
@@ -544,28 +545,13 @@ test('dashboard surfaces learner app deployment handoff from live device registr
   );
   assert.match(
     dashboardPageSource,
-    /fetchPods\(\)/,
-    'dashboard should load pods so the zero-tablet blocker can recover directly from the dashboard surface',
+    /\{canInlineDeviceRegistration \? \([\s\S]*<ModalLauncher[\s\S]*buttonLabel="Register first tablet"[\s\S]*<CreateDeviceRegistrationForm pods=\{pods\} returnPath="\/" \/>[\s\S]*\) : \([\s\S]*<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>[\s\S]*Register first tablet[\s\S]*<\/Link>[\s\S]*\)\}/,
+    'dashboard should keep zero-tablet rollout recovery on the blocker surface when pod data is available, with a dashboard return path and a devices-route fallback when it is not',
   );
   assert.match(
-    dashboardPageSource,
-    /const canInlineDeviceRegistration = podsResult\.status === 'fulfilled' && pods\.length > 0;/,
-    'dashboard should only inline first-tablet registration when pod context is actually available',
-  );
-  assert.match(
-    dashboardPageSource,
-    /\{canInlineDeviceRegistration \? \(/,
-    'dashboard should branch the zero-tablet CTA so recovery stays on the blocker surface when possible',
-  );
-  assert.match(
-    dashboardPageSource,
-    /<ModalLauncher[\s\S]*buttonLabel="Register first tablet"[\s\S]*<CreateDeviceRegistrationForm pods=\{pods\} returnPath="\/" \/>[\s\S]*<\/ModalLauncher>/,
-    'dashboard should let ops register the first tablet inline and keep the submission on the blocker surface',
-  );
-  assert.match(
-    dashboardPageSource,
-    /<Link href="\/devices" style=\{\{ \.\.\.quickActionStyle, background: '#991B1B', color: 'white', padding: '10px 12px' \}\}>\s*Register first tablet\s*<\/Link>/,
-    'dashboard should still fall back to the devices page when inline registration context is unavailable',
+    actionsSource,
+    /revalidatePath\('\/'\);[\s\S]*revalidatePath\('\/devices'\);[\s\S]*revalidatePath\('\/pods'\);[\s\S]*redirect\(appendSearchParams\(returnPath, \{ message: 'Tablet registered' \}\)\);/,
+    'inline tablet registration should revalidate the dashboard before redirecting so the zero-tablet blocker can clear immediately',
   );
   assert.match(
     dashboardPageSource,
