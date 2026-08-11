@@ -27,10 +27,13 @@ List<String> learnerReleaseBuildConfigIssues({
       'Learner-tablet release build cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT. Shipping demo seed content would bypass live learner registration and deployment trust checks.',
     );
   }
-  if (requireDeviceIdentifier && rawDeviceIdentifier.trim().isEmpty) {
-    issues.add(
-      'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.',
+  if (requireDeviceIdentifier) {
+    final deviceIssue = LumoApiClient.productionDeviceIdentifierIssue(
+      rawDeviceIdentifier,
     );
+    if (deviceIssue != null) {
+      issues.add(deviceIssue);
+    }
   }
 
   final trimmedApiBaseUrl = rawApiBaseUrl.trim();
@@ -157,6 +160,29 @@ class LumoApiClient {
 
   String? get invalidProductionBaseUrlReason =>
       productionBaseUrlIssue(baseUrl, hasExplicitConfig: _hasExplicitBaseUrl);
+
+  static String? productionDeviceIdentifierIssue(String rawDeviceIdentifier) {
+    final trimmed = rawDeviceIdentifier.trim();
+    if (trimmed.isEmpty) {
+      return 'Learner-tablet release build is missing LUMO_DEVICE_IDENTIFIER. Provision the exact LMS device identifier with --dart-define=LUMO_DEVICE_IDENTIFIER=... before shipping tablets.';
+    }
+
+    final normalized = trimmed.toLowerCase();
+    final looksPlaceholder = normalized.contains('copy-device-identifier') ||
+        normalized.contains('replace-me') ||
+        normalized.contains('todo') ||
+        normalized.contains('placeholder') ||
+        normalized.contains('your-device-id') ||
+        normalized.contains('device-id-here') ||
+        normalized.contains('device-identifier-here') ||
+        trimmed.startsWith('<') ||
+        trimmed.endsWith('>');
+    if (looksPlaceholder) {
+      return 'LUMO_DEVICE_IDENTIFIER still looks like placeholder text ($trimmed). Replace it with the exact LMS device identifier before shipping tablets.';
+    }
+
+    return null;
+  }
 
   static String? publicMediaUrlIssue(
     String rawUrl, {

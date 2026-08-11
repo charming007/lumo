@@ -230,6 +230,9 @@ class LumoAppState {
   static String? _normalizeDeviceIdentifier(String? raw) {
     final trimmed = raw?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
+    if (LumoApiClient.productionDeviceIdentifierIssue(trimmed) != null) {
+      return null;
+    }
     return trimmed;
   }
 
@@ -327,7 +330,13 @@ class LumoAppState {
       return 'Release build cannot enable LUMO_ENABLE_SEED_DEMO_CONTENT. Demo seed content would bypass live learner registration and deployment trust checks, so this artifact is not shippable.';
     }
     final configured = _configuredDeviceIdentifier?.trim();
-    if (configured != null && configured.isNotEmpty) return null;
+    final issue = LumoApiClient.productionDeviceIdentifierIssue(
+      configured ?? '',
+    );
+    if (issue == null) return null;
+    if (configured != null && configured.isNotEmpty) {
+      return issue;
+    }
     return 'Release build is missing LUMO_DEVICE_IDENTIFIER. This tablet cannot prove its backend identity to the learner bootstrap, so deployment is blocked until the build is provisioned with the exact LMS device identifier.';
   }
 
@@ -3171,13 +3180,11 @@ class LumoAppState {
     );
     final lessonUsesPublishedLaunchGuard =
         lesson.status.trim().toLowerCase() == 'published';
-    if (
-      resumeFrom == null &&
-      (_lessonRequiresSyncBeforeStarting(lesson) ||
-          (lessonIsTrackedForLaunchGuard &&
-              lessonUsesPublishedLaunchGuard &&
-              lessonLockedForLearner(learner, lesson)))
-    ) {
+    if (resumeFrom == null &&
+        (_lessonRequiresSyncBeforeStarting(lesson) ||
+            (lessonIsTrackedForLaunchGuard &&
+                lessonUsesPublishedLaunchGuard &&
+                lessonLockedForLearner(learner, lesson)))) {
       throw StateError(
         'Cannot open lesson ${lesson.id} for ${learner.name} because it is not currently learner-safe to launch on this tablet.',
       );

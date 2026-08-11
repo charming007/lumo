@@ -225,6 +225,17 @@ void main() {
       );
     });
 
+    test('rejects placeholder tablet identifiers in release configs', () {
+      expect(
+        learnerReleaseBuildConfigIssues(
+          rawApiBaseUrl: 'https://lumo-api-production-303a.up.railway.app',
+          hasExplicitApiBaseUrl: true,
+          rawDeviceIdentifier: '<copy-device-identifier-from-lms>',
+        ),
+        contains(contains('placeholder text')),
+      );
+    });
+
     test('rejects release configs that enable seed demo content', () {
       expect(
         learnerReleaseBuildConfigIssues(
