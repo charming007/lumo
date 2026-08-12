@@ -82,15 +82,15 @@ test('flag mode falls back to default when the env is absent or unrecognized', (
   });
 });
 
-test('shell scope deployment blocker stays aligned with the shared pilot-control-plane mode', () => {
+test('shell scope deployment blocker mirrors the production pilot-shell clamp', () => {
   withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: undefined }, () => {
     assert.equal(isPilotControlPlaneEnabled(), true);
-    assert.equal(isShellScopeDeploymentBlocked(), false);
+    assert.equal(isShellScopeDeploymentBlocked(), true);
   });
 
   withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: 'true' }, () => {
     assert.equal(isPilotControlPlaneEnabled(), true);
-    assert.equal(isShellScopeDeploymentBlocked(), false);
+    assert.equal(isShellScopeDeploymentBlocked(), true);
   });
 
   withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: 'false' }, () => {
@@ -101,7 +101,7 @@ test('shell scope deployment blocker stays aligned with the shared pilot-control
   withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: 'pilot-ish' }, () => {
     assert.equal(getPilotControlPlaneFlagMode(), 'default');
     assert.equal(isPilotControlPlaneEnabled(), true);
-    assert.equal(isShellScopeDeploymentBlocked(), false);
+    assert.equal(isShellScopeDeploymentBlocked(), true);
   });
 
   withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_ENABLE_PILOT_CONTROL_PLANE: 'true' }, () => {
