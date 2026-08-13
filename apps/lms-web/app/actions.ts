@@ -1879,6 +1879,7 @@ export async function createDeviceRegistrationAction(formData: FormData) {
     redirect(appendSearchParams(returnPath, { message: `Device registration failed: ${describeActionError(error, 'device could not be registered')}` }));
   }
 
+  revalidatePath('/');
   revalidatePath('/devices');
   revalidatePath('/pods');
   redirect(appendSearchParams(returnPath, { message: 'Tablet registered' }));
